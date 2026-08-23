@@ -21,6 +21,8 @@
     "firebase:provision": "node scripts/provision-firebase.mjs",
     "firebase:prep": "node scripts/firebase-prep-check.mjs",
     "secret:scan": "node scripts/secret-scan.mjs",
+    "spec009:backup": "node scripts/spec009-firestore-backup.mjs",
+    "spec009:dryrun": "node scripts/spec009-envelope-dryrun.mjs --skip-backup",
     "validate:juan-tavily": "node scripts/validate-juan-tavily-flow.mjs",
     "probe:feeds": "node scripts/probe-source-feeds.mjs",
     "checklist:functions": "node scripts/deploy-functions-checklist.mjs",

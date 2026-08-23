@@ -43,6 +43,17 @@ Deliverable for migration window: checklist de paths a backfillear + Firestore i
 - Anotar timestamp + GCS/local path del export
 - Confirmar que **no** se empaqueta la SA dentro del archive de backup del código
 
+**Ops tooling (post–CODE_COMPLETE; does not change frozen SHA `9c351ef`):**
+
+| Script | npm command | Purpose |
+|--------|-------------|---------|
+| `scripts/spec009-firestore-backup.mjs` | `npm run spec009:backup` | Managed export + poll until SUCCESS + GCS metadata validation |
+| `scripts/spec009-envelope-dryrun.mjs` | `npm run spec009:dryrun` | Read-only inventory + dry-run (`--skip-backup`; use backup script separately) |
+
+Reports written outside repo: `%USERPROFILE%\.firebase-credentials\spec009-reports\`
+
+**T-009-16A / 16A.1 status (2026-08-23):** Production inventory + dry-run **PASS** (2 root clients, 286 subdocs, 4 safe backfill). Managed export **BLOCKED** — Firestore export API returns `billing must be enabled` on `aurora-postura-app`; no prior `spec009-backups/` objects in GCS. Re-run `npm run spec009:backup` after Blaze/billing propagates.
+
 ---
 
 ## 3. Dry run
@@ -177,8 +188,8 @@ Si falla post-deploy:
 | Ops docs (refresh / gates) | **COMPLETE** Phase 4 (T-009-12) |
 | Secret scan (local) | **COMPLETE** Phase 4 (T-009-13) — see scan report; rotation decision documented |
 | Final envelope rules | **DONE** T-009-14e (repo only; not deployed; ADMIN CREATE integrity get documented) |
-| Backup | NOT EXECUTED |
-| Dry run | NOT EXECUTED |
+| Backup | **BLOCKED** (T-009-16A.1 — billing not enabled on export API; re-run `spec009:backup`) |
+| Dry run | **PASS** (T-009-16A — 282 valid, 4 would backfill, 0 conflicts) |
 | Backfill | NOT EXECUTED |
 | Verification (pre-deploy rules) | NOT EXECUTED (T-009-16) |
 | CODE_COMPLETE checkpoint (T-009-15) | **DONE** — frozen SHA `9c351ef7ac6fafdbce8ff8b8eb5a5678e2ceae99` |
