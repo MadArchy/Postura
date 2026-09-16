@@ -124,23 +124,20 @@ class AuthService {
         );
         if (!admin || account.role !== 'CLIENT' || account.clientId !== this.impersonation.clientId) {
           this.persistImpersonation(null);
-          this.setSession(this.toUser(account));
+          this.currentUser = this.toUser(account);
           return;
         }
-        this.setSession(
-          this.toUser(account, {
-            displayName: parsed.displayName || this.impersonation.displayName,
-          })
-        );
+        this.currentUser = this.toUser(account, {
+          displayName: parsed.displayName || this.impersonation.displayName,
+        });
         return;
       }
 
-      const user = this.toUser(account, {
+      this.currentUser = this.toUser(account, {
         displayName: parsed.displayName,
       });
-      this.setSession(user);
       void import('./notifications').then(({ bindAuthNotificationIdentities }) => {
-        bindAuthNotificationIdentities(user);
+        if (this.currentUser) bindAuthNotificationIdentities(this.currentUser);
       });
     } catch {
       this.currentUser = null;
