@@ -79,15 +79,17 @@ class AuthService {
     if (FIREBASE_ENABLED) {
       const { bindFirebaseAuthState } = await import('../firebase/authBridge');
       await bindFirebaseAuthState(async (user) => {
-        if (user) {
-          await this.syncFirestoreSession(user);
-        } else {
+        if (!user) {
           const sync = await import('./firestore/sync');
           sync.stopFirestoreRealtimeSync();
           sync.setFirestoreAuthoritative(false);
+          this.currentUser = null;
+          this.notify();
+          return;
         }
         this.currentUser = user;
         this.notify();
+        await this.syncFirestoreSession(user);
       });
       return;
     }
