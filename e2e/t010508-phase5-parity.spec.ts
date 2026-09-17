@@ -145,7 +145,7 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
     await page.reload();
 
     // Main-world only: never use waitForFunction + dynamic import for auth state.
-    type MainWorldAuth = { uid: string | null; reactLogin: boolean; reactLogout: boolean };
+    type MainWorldAuth = { uid: string; reactLogin: boolean; reactLogout: boolean };
     let mainWorld: MainWorldAuth | null = null;
     await expect
       .poll(async () => {
@@ -155,9 +155,9 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
           const user = authService.getCurrentUser();
           const reactLogin = !!document.querySelector('[data-testid="react-login"]');
           const reactLogout = !!document.querySelector('[data-testid="react-shell-logout"]');
-          if (!reactLogin && !reactLogout) return null;
+          if (!user || !reactLogout || reactLogin) return null;
           return {
-            uid: user?.uid ?? null,
+            uid: user.uid,
             reactLogin,
             reactLogout,
           };
@@ -166,13 +166,12 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
       }, { timeout: 30_000 })
       .not.toBeNull();
 
-    if (mainWorld.uid !== null) {
-      expect(mainWorld.reactLogout).toBe(true);
-      await expect(page.locator('[data-testid="react-shell-logout"]')).toBeVisible();
-    } else {
-      expect(mainWorld.reactLogin).toBe(true);
-      await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
-    }
+    expect(mainWorld).not.toBeNull();
+    expect(mainWorld!.uid).toBeTruthy();
+    expect(mainWorld!.reactLogout).toBe(true);
+    expect(mainWorld!.reactLogin).toBe(false);
+    await expect(page.locator('[data-testid="react-shell-logout"]')).toBeVisible();
+    await expect(page.locator('[data-testid="react-login"]')).toHaveCount(0);
 
     expect(await rollbackStableSnapshot(page)).toEqual(before);
   });
