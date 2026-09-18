@@ -6,16 +6,17 @@
 import { expect, test } from '@playwright/test';
 import {
   businessSnapshot,
+  CLIENT_ELENA_ID,
   CLIENT_JUAN_ID,
-  enterClientWorkspaceFromShell,
   loginAsClientElena,
   loginAsClientJuan,
-  loginAsManager,
   openManagerWorkspace,
+  readAuthenticatedClientProjection,
   rollbackStableSnapshot,
   sidebarTab,
   UI_MODE_KEY,
   visibleRoots,
+  waitForAuthenticatedClientProjection,
 } from './helpers/spec010Auth';
 
 test.use({ channel: 'chrome' });
@@ -190,14 +191,26 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
 test.describe('T-010-508 — cross-tenant isolation', () => {
   test('two client sessions see distinct portal scopes', async ({ page }) => {
     await loginAsClientJuan(page);
-    await expect(page.locator('[data-testid="react-client-portal"]')).toBeVisible();
+    await waitForAuthenticatedClientProjection(page, CLIENT_JUAN_ID);
+    const juan = await readAuthenticatedClientProjection(page);
     const juanText = await page.locator('[data-testid="react-client-portal"]').innerText();
+    expect(juan.clientId).toBe(CLIENT_JUAN_ID);
+    expect(juan.hydratedOwnClientRecord).toBe(true);
+    expect(juan.clientIds).not.toContain(CLIENT_ELENA_ID);
+
     await page.locator('[data-testid="react-shell-logout"]').click();
     await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
 
     await loginAsClientElena(page);
-    await expect(page.locator('[data-testid="react-client-portal"]')).toBeVisible();
+    await waitForAuthenticatedClientProjection(page, CLIENT_ELENA_ID);
+    const elena = await readAuthenticatedClientProjection(page);
     const elenaText = await page.locator('[data-testid="react-client-portal"]').innerText();
+    expect(elena.clientId).toBe(CLIENT_ELENA_ID);
+    expect(elena.hydratedOwnClientRecord).toBe(true);
+    expect(elena.clientIds).not.toContain(CLIENT_JUAN_ID);
+    for (const title of juan.taskTitles) {
+      expect(elenaText).not.toContain(title);
+    }
     expect(juanText).not.toEqual(elenaText);
   });
 });

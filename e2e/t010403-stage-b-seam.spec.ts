@@ -6,6 +6,7 @@
  */
 
 import { expect, test } from '@playwright/test';
+import { waitForCockpitAbrirWorkspace } from './helpers/spec010Auth';
 
 test.use({ channel: 'chrome' });
 
@@ -97,10 +98,7 @@ async function seedSendableDraft(page: import('@playwright/test').Page, clientId
 
 async function enterClientWorkspaceFromShell(page: import('@playwright/test').Page) {
   await sidebarTab(page, 'clients').click();
-  const openWorkspace = page.locator('[data-testid="react-cockpit-queue"] button', {
-    hasText: 'Abrir workspace',
-  }).first();
-  await expect(openWorkspace).toBeVisible({ timeout: 15_000 });
+  const openWorkspace = await waitForCockpitAbrirWorkspace(page);
   await openWorkspace.click();
   await expect(page.locator('[data-testid="react-ws-radar"]')).toBeVisible({ timeout: 15_000 });
 }

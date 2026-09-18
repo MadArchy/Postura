@@ -4,7 +4,7 @@
  * Uses the same demo credentials documented in docs/ops/pilot.md.
  * Test-only: no production auth bypass is introduced.
  */
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 export const UI_MODE_KEY = 'postura_ui_mode';
 
@@ -14,6 +14,7 @@ export const CLIENT_JUAN_EMAIL = 'juan.vasquez@lexfirm.com';
 export const CLIENT_ELENA_EMAIL = 'elena.martinez@lexfirm.com';
 export const CLIENT_PASSWORD = 'Postura2026!';
 export const CLIENT_JUAN_ID = 'client_juan_001';
+export const CLIENT_ELENA_ID = 'client_elena_002';
 
 export function businessSnapshot(page: Page) {
   return page.evaluate(() => {
@@ -111,12 +112,171 @@ export async function loginAsClientElena(page: Page) {
   await login(page, CLIENT_ELENA_EMAIL, CLIENT_PASSWORD);
 }
 
-export async function enterClientWorkspaceFromShell(page: Page) {
-  await sidebarTab(page, 'clients').click();
+/**
+ * Product data-readiness SLA after AppShell. None — identity and data are independent.
+ * Historical `15_000` Abrir wait was a helper mechanic, not an acceptance criterion.
+ */
+export const APPSHELL_DATA_READINESS_SLA_MS: null = null;
+
+/**
+ * Existing T508 test-run ceiling from mid-journey rollback
+ * (`e2e/t010508-phase5-parity.spec.ts` `test.setTimeout(90_000)`).
+ * Harness safety only — not a product SLA and not derived from observed Firestore latency.
+ */
+export const T508_EXISTING_ROLLBACK_TEST_TIMEOUT_MS = 90_000;
+
+export function harnessSafetyCeilingMs(currentTestTimeoutMs: number): number {
+  return Math.max(currentTestTimeoutMs, T508_EXISTING_ROLLBACK_TEST_TIMEOUT_MS);
+}
+
+export type CockpitWorkspaceReadiness = {
+  authenticated: boolean;
+  abrirWorkspaceVisible: boolean;
+  exposedClientIds: readonly string[];
+  expectedClientId?: string;
+};
+
+/** Semantic cockpit readiness: authenticated manager + valid Abrir workspace action. */
+export function isCockpitWorkspaceReady(state: CockpitWorkspaceReadiness): boolean {
+  if (!state.authenticated) return false;
+  if (!state.abrirWorkspaceVisible) return false;
+  if (state.expectedClientId && !state.exposedClientIds.includes(state.expectedClientId)) {
+    return false;
+  }
+  return true;
+}
+
+function applyHarnessSafetyCeiling(): number {
+  const ceiling = harnessSafetyCeilingMs(test.info().timeout);
+  if (test.info().timeout < ceiling) {
+    test.setTimeout(ceiling);
+  }
+  return test.info().timeout;
+}
+
+/**
+ * Wait until the cockpit exposes `Abrir workspace` (client-data readiness).
+ * Condition-driven: does not treat AppShell visibility as data readiness.
+ */
+export async function waitForCockpitAbrirWorkspace(page: Page): Promise<Locator> {
+  const timeout = applyHarnessSafetyCeiling();
   const openWorkspace = page.locator('[data-testid="react-cockpit-queue"] button', {
     hasText: 'Abrir workspace',
   }).first();
-  await expect(openWorkspace).toBeVisible({ timeout: 15_000 });
+
+  await expect
+    .poll(
+      async () => {
+        const loginVisible = await page.locator('[data-testid="react-login"]').isVisible();
+        const logoutVisible = await page.locator('[data-testid="react-shell-logout"]').isVisible();
+        if (loginVisible || !logoutVisible) return 'unauthenticated';
+        if (await openWorkspace.isVisible()) return 'ready';
+        return 'pending';
+      },
+      { timeout }
+    )
+    .toBe('ready');
+
+  return openWorkspace;
+}
+
+export type ClientProjectionReadiness = {
+  authenticated: boolean;
+  sessionClientId: string | null;
+  expectedClientId: string;
+  hydratedOwnClientRecord: boolean;
+};
+
+/**
+ * Client-data readiness: the authenticated session's own client record is present.
+ * Task/opportunity/briefing counts are ignored so a legitimately empty client can be ready.
+ */
+export function isClientProjectionReady(state: ClientProjectionReadiness): boolean {
+  if (!state.authenticated) return false;
+  if (!state.sessionClientId || state.sessionClientId !== state.expectedClientId) return false;
+  return state.hydratedOwnClientRecord;
+}
+
+export type ClientPortalCatchUp = {
+  hydratedOwnClientRecord: boolean;
+  storeTaskCount: number;
+  portalShowsEmptyTasks: boolean;
+};
+
+/** Portal sampling may proceed once the UI matches the hydrated projection (empty or populated). */
+export function isClientPortalCaughtUp(state: ClientPortalCatchUp): boolean {
+  if (!state.hydratedOwnClientRecord) return false;
+  if (state.storeTaskCount === 0) return true;
+  return !state.portalShowsEmptyTasks;
+}
+
+export async function readAuthenticatedClientProjection(page: Page) {
+  return page.evaluate(async () => {
+    const { authService } = await import('/src/services/auth.ts');
+    const { dbService } = await import('/src/services/db.ts');
+    await authService.ready;
+    const user = authService.getCurrentUser();
+    const clientId = user?.clientId ?? null;
+    const own = clientId ? dbService.getClientById(clientId) : null;
+    const clientIds = dbService.getClients().map((client) => client.id);
+    const taskTitles = clientId ? dbService.getTasksForClient(clientId).map((task) => task.title) : [];
+    return {
+      role: user?.role ?? null,
+      organizationId: user?.organizationId ?? null,
+      clientId,
+      hydratedOwnClientRecord: Boolean(own && own.id === clientId),
+      clientIds,
+      taskTitles,
+    };
+  });
+}
+
+/**
+ * Wait until the current CLIENT session's own projection has hydrated.
+ * Does not require non-empty business content. Does not wait for portal strings to differ.
+ */
+export async function waitForAuthenticatedClientProjection(page: Page, expectedClientId: string) {
+  const timeout = applyHarnessSafetyCeiling();
+  await expect
+    .poll(
+      async () => {
+        const loginVisible = await page.locator('[data-testid="react-login"]').isVisible();
+        const logoutVisible = await page.locator('[data-testid="react-shell-logout"]').isVisible();
+        if (loginVisible || !logoutVisible) return 'unauthenticated';
+        if (!(await page.locator('[data-testid="react-client-portal"]').isVisible())) return 'pending';
+
+        const projection = await readAuthenticatedClientProjection(page);
+        if (
+          !isClientProjectionReady({
+            authenticated: true,
+            sessionClientId: projection.clientId,
+            expectedClientId,
+            hydratedOwnClientRecord: projection.hydratedOwnClientRecord,
+          })
+        ) {
+          return projection.clientId && projection.clientId !== expectedClientId ? 'wrong-scope' : 'pending';
+        }
+
+        const portalShowsEmptyTasks = await page.locator('[data-testid="react-portal-tasks-empty"]').isVisible();
+        if (
+          !isClientPortalCaughtUp({
+            hydratedOwnClientRecord: true,
+            storeTaskCount: projection.taskTitles.length,
+            portalShowsEmptyTasks,
+          })
+        ) {
+          return 'pending';
+        }
+        return 'ready';
+      },
+      { timeout }
+    )
+    .toBe('ready');
+}
+
+export async function enterClientWorkspaceFromShell(page: Page) {
+  await sidebarTab(page, 'clients').click();
+  const openWorkspace = await waitForCockpitAbrirWorkspace(page);
   await openWorkspace.click();
   await expect(page.locator('[data-testid="react-ws-radar"]')).toBeVisible({ timeout: 15_000 });
 }
