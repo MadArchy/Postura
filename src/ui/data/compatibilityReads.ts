@@ -1289,3 +1289,14 @@ export function readWorkspaceTasks(scope: TrustedTenantScope): WorkspaceTasksPro
   }));
   return { tasks, activeTheses };
 }
+
+/**
+ * Read-side observation of the compatibility store.
+ *
+ * `dbService.onChange` fires after hydrate, realtime merge, and local persist.
+ * Callers must only invalidate NONAUTHORITATIVE_CACHE entries — this is not a
+ * mutator and does not return snapshot data.
+ */
+export function readCompatibilityStoreOnChange(listener: () => void): () => void {
+  return dbService.onChange(listener);
+}

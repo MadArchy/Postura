@@ -62,3 +62,13 @@ export function tenantInvalidationKey(
   const [organizationId, clientId] = tenantScopeKey(scope);
   return [QUERY_ROOT, source, organizationId, clientId] as const;
 }
+
+/**
+ * Prefix of every dbService-backed compatibility query.
+ *
+ * Matches `['postura','compatibility', …]` and does not match canonical keys
+ * (`['postura','canonical', …]`) or the session projection (`['postura','session']`).
+ */
+export function compatibilityQueryNamespace(): readonly [typeof QUERY_ROOT, 'compatibility'] {
+  return [QUERY_ROOT, 'compatibility'] as const;
+}

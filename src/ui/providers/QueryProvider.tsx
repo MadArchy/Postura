@@ -14,10 +14,17 @@
  *   like a transient network fault.
  * - no `structuralSharing` tricks and no global optimistic behaviour: wave 1
  *   introduces no optimistic mutation at all.
+ *
+ * Hydration/realtime: this provider subscribes once to the compatibility store's
+ * change port (via the A8 facade, never `dbService` directly) and invalidates
+ * only the compatibility query namespace. Canonical and session keys are left
+ * untouched. The subscription is released on teardown.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { readCompatibilityStoreOnChange } from '../data/compatibilityReads';
+import { compatibilityQueryNamespace } from '../query/queryKeys';
 
 export function createUiQueryClient(): QueryClient {
   return new QueryClient({
@@ -37,5 +44,12 @@ export function createUiQueryClient(): QueryClient {
 
 export function QueryProvider({ children }: { children: ReactNode }) {
   const [client] = useState(createUiQueryClient);
+
+  useEffect(() => {
+    return readCompatibilityStoreOnChange(() => {
+      void client.invalidateQueries({ queryKey: compatibilityQueryNamespace() });
+    });
+  }, [client]);
+
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
