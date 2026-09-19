@@ -18,13 +18,14 @@
  *   - #27 assign/cancel task    → `AssignClientTask` / `CancelClientTask` (P8 MANUAL)
  *   - #20 discard signal        → `DiscardSignal` (P9)
  *   - #21 radar send-to-curation → `AddSignalToCuration` + `MarkSignalSaved` (P9)
+ *   - #21 advisor click-only    → `AddAdviceActionToCuration` on positioning
  *   - #14 decide curation       → `DecideCuration` (P10)
  *   - #15 propose angle         → `ProposeAngle` (P11)
  *   - #16 remove/reopen curation → `RemoveCuration` / `ReopenCuration`
  *   - CR-2 brief create         → `createBriefFromCurationEntry` (P12)
  *   - #17 delivery assembly     → EnsureDraft/Add/Metadata/Remove/Discard (P13)
- * Outcome/brief/#18/#27/#20/#21-radar/#14/#15/#12/#17 change the caller only.
- * #21 advisor AddAdviceActionToCuration, #22 score/investigate, #33 composite
+ * Outcome/brief/#18/#27/#20/#21-radar/#21-advisor/#14/#15/#12/#17 change the caller only.
+ * #22 score/investigate, #33 composite
  * recommendation→task path, and recordings remain legacy.
  *   - #31 save existing content → `SaveContentDraft` (P16) on ws-production
  *   - #8/#24 register source → `RegisterSource` on ws-sources
@@ -47,6 +48,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSession } from '../../providers/SessionProvider';
 import { narrowToClient } from '../../query/tenantScope';
 import {
+  useAddAdviceActionToCuration,
   useApproveBrief,
   useAssignClientTaskManual,
   useCancelClientTask,
@@ -65,6 +67,7 @@ import {
   useSendSignalToCuration,
   useSignalOutcomes,
   useStrategicBriefs,
+  useWorkspaceAdvice,
   useWorkspaceContent,
   useWorkspaceDeliver,
   useWorkspaceRadar,
@@ -1908,6 +1911,137 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
 }
 
 /* ------------------------------------------------------------------ *
+ * Positioning — existing advice actions + click-only #21a
+ * ------------------------------------------------------------------ */
+
+const ADVICE_CATEGORY_LABELS: Record<string, string> = {
+  CONTENT: 'Contenido',
+  CREDENTIAL: 'Credenciales',
+  VISIBILITY: 'Visibilidad',
+  EVIDENCE: 'Evidencia',
+  NETWORK: 'Red de contactos',
+  RISK: 'Riesgo',
+};
+
+const ADVICE_HORIZON_LABELS: Record<string, string> = {
+  DAYS_30: '30 días',
+  DAYS_60: '60 días',
+  DAYS_90: '90 días',
+};
+
+function AdviceActionsPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
+  const { tenantScope } = useSession();
+  const scope = useMemo(() => {
+    if (!tenantScope) return null;
+    if (tenantScope.clientId) return tenantScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(tenantScope, requested);
+    } catch {
+      return null;
+    }
+  }, [tenantScope, workspaceClientId]);
+  const { data, isLoading, isError } = useWorkspaceAdvice(scope);
+  const addAdvice = useAddAdviceActionToCuration(scope);
+  const [busyActionId, setBusyActionId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  const onPrepare = async (adviceActionId: string) => {
+    if (addAdvice.isPending || busyActionId) return;
+    setBusyActionId(adviceActionId);
+    setStatusMessage(null);
+    try {
+      const result = await addAdvice.mutateAsync({ adviceActionId });
+      if (!result.ok) {
+        setStatusMessage({ kind: 'error', text: result.message });
+        return;
+      }
+      setStatusMessage({
+        kind: 'success',
+        text: result.message ?? 'Acción enviada a la mesa de curación',
+      });
+    } finally {
+      setBusyActionId(null);
+    }
+  };
+
+  const actions = data?.actions ?? [];
+
+  return (
+    <section className="card" data-testid="react-ws-advice">
+      <div className="card-header">
+        <h3>Acciones de consejo</h3>
+      </div>
+      {statusMessage ? (
+        <p
+          className={statusMessage.kind === 'error' ? 'form-error' : 'form-success'}
+          role={statusMessage.kind === 'error' ? 'alert' : 'status'}
+          data-testid={
+            statusMessage.kind === 'error' ? 'react-ws-advice-error' : 'react-ws-advice-success'
+          }
+        >
+          {statusMessage.text}
+        </p>
+      ) : null}
+      {isLoading ? (
+        <p className="muted small">Cargando acciones de consejo…</p>
+      ) : isError ? (
+        <p className="form-error" role="alert" data-testid="react-ws-advice-load-error">
+          No se pudieron cargar las acciones de consejo.
+        </p>
+      ) : actions.length ? (
+        <ul className="advice-list" data-testid="react-ws-advice-list">
+          {actions.map((action) => {
+            const busy = addAdvice.isPending && busyActionId === action.id;
+            return (
+              <li
+                className="advice-card"
+                key={action.id}
+                data-testid={`react-ws-advice-action-${action.id}`}
+              >
+                <header>
+                  <span className="badge badge-progress">
+                    {ADVICE_CATEGORY_LABELS[action.category] ?? action.category}
+                  </span>
+                  <span className="impact-tag">Impacto {action.impact}</span>
+                  <span className="muted small">
+                    {ADVICE_HORIZON_LABELS[action.horizon] ?? action.horizon}
+                  </span>
+                </header>
+                <h4 data-testid={`react-ws-advice-title-${action.id}`}>{action.title}</h4>
+                <p className="advice-why" data-testid={`react-ws-advice-why-${action.id}`}>
+                  <strong>Por qué:</strong> {action.why}
+                </p>
+                <p className="advice-how" data-testid={`react-ws-advice-how-${action.id}`}>
+                  <strong>Cómo:</strong> {action.how}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  data-testid={`react-ws-advice-prepare-${action.id}`}
+                  disabled={busy}
+                  onClick={() => void onPrepare(action.id)}
+                >
+                  {busy ? 'Enviando…' : 'Preparar entrega'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="empty-state" data-testid="react-ws-advice-empty">
+          No hay acciones de consejo para este cliente.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Page
  * ------------------------------------------------------------------ */
 
@@ -1950,6 +2084,7 @@ export function ReactClientWorkspacePage({
       {tab === 'positioning' ? (
         <>
           <ReactThesisEditorPage workspaceClientId={clientId} />
+          <AdviceActionsPanel workspaceClientId={clientId} />
           <ReactMasterDossierPanel />
         </>
       ) : null}

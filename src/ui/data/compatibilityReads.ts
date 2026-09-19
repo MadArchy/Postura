@@ -1235,6 +1235,41 @@ export function readWorkspaceDeliver(scope: TrustedTenantScope): WorkspaceDelive
   };
 }
 
+export interface WorkspaceAdviceActionRead {
+  readonly id: string;
+  readonly title: string;
+  readonly why: string;
+  readonly how: string;
+  readonly horizon: string;
+  readonly category: string;
+  readonly impact: number;
+}
+
+export interface WorkspaceAdviceRead {
+  readonly adviceId: string | null;
+  readonly actions: readonly WorkspaceAdviceActionRead[];
+}
+
+/** Latest persisted PositioningAdvice actions — factual read only. No generate. */
+export function readWorkspaceAdvice(scope: TrustedTenantScope): WorkspaceAdviceRead {
+  const clientId = requireClient(scope);
+  if (!clientId) return { adviceId: null, actions: [] };
+  const advice = dbService.getLatestAdvice(clientId);
+  if (!advice) return { adviceId: null, actions: [] };
+  return {
+    adviceId: advice.id,
+    actions: advice.actions.map((action) => ({
+      id: action.id,
+      title: action.title,
+      why: action.why,
+      how: action.how,
+      horizon: action.horizon,
+      category: action.category,
+      impact: action.impact,
+    })),
+  };
+}
+
 /** P7 presentation notify facts after canonical #18 success (title/body only). */
 export function readDeliverySentNotifyFacts(packageId: string): {
   readonly title: string;

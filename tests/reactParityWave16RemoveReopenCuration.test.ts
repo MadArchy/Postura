@@ -343,7 +343,8 @@ describe('P — #21 remains unchanged', () => {
   it('Deliver #16 path does not call advisor generation', () => {
     const panel = deliverPanel();
     expect(panel).not.toMatch(/AddAdviceActionToCuration|addAdviceActionToCuration/);
-    expect(code(hook)).not.toMatch(/addAdviceActionToCuration/);
+    expect(hookBlock('useRemoveCuration', 'useReopenCuration')).not.toMatch(/addAdviceActionToCuration/);
+    expect(hookBlock('useReopenCuration', 'useProposeAngle')).not.toMatch(/addAdviceActionToCuration/);
     const seamSrc = code(seam);
     const seamBlock = seamSrc.slice(
       seamSrc.indexOf('removeCuration(intent'),

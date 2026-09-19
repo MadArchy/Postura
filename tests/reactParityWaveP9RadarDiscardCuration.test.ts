@@ -161,7 +161,11 @@ describe('P9 §2–§3 — #21 ownership gate', () => {
     const seam = code('src/ui/commands/commandSeam.ts');
     expect(seam).toMatch(/radarCommands/);
     expect(seam).toMatch(/runRadarSendToCurationComposite/);
-    expect(seam).not.toMatch(/addAdviceActionToCuration/);
+    const radarSeam = seam.slice(
+      seam.indexOf('export const radarCommands'),
+      seam.indexOf('export type TaskAssignCommandResult')
+    );
+    expect(radarSeam).not.toMatch(/addAdviceActionToCuration/);
     expect(seam).not.toMatch(/\bdbService\b/);
 
     const composite = read('src/services/radarSendToCurationPresentation.ts');
@@ -174,7 +178,8 @@ describe('P9 §2–§3 — #21 ownership gate', () => {
     const panel = read('src/ui/modules/pages/ReactClientWorkspacePage.tsx');
     expect(panel).toMatch(/useDiscardRadarSignal/);
     expect(panel).toMatch(/useSendSignalToCuration/);
-    expect(panel).not.toMatch(/addAdviceActionToCuration/);
+    const radarPanel = panel.slice(panel.indexOf('function RadarPanel'), panel.indexOf('function DeliverPanel'));
+    expect(radarPanel).not.toMatch(/addAdviceActionToCuration/);
     expect(panel).not.toMatch(/addRecommendation/);
     expect(panel).not.toMatch(/dbService/);
   });

@@ -63,6 +63,7 @@ import {
   registerSource,
 } from '../../services/signalIntakeConsumer';
 import {
+  addAdviceActionToCuration as addAdviceActionToCurationConsumer,
   assignClientTask,
   cancelClientTask,
   removeCuration,
@@ -867,6 +868,31 @@ export const executionDeliveryCommands = {
     rationale: string;
   }): CurationDecideCommandResult {
     return runCurationDecidePresentation(intent);
+  },
+
+  /**
+   * Registry #21a advisor — AddAdviceActionToCuration.
+   * Presentation adapter only. Consumes an existing advice action; no AI.
+   */
+  addAdviceActionToCuration(intent: {
+    requestedClientId: string | null | undefined;
+    adviceActionId: string;
+  }): CommandResult {
+    try {
+      addAdviceActionToCurationConsumer(intent);
+      return { ok: true, message: 'Acción enviada a la mesa de curación' };
+    } catch (err) {
+      if (err instanceof ExecutionDeliveryError && err.code === 'ADVICE_ACTION_NOT_FOUND') {
+        return { ok: false, message: 'El consejo ya no existe.' };
+      }
+      return {
+        ok: false,
+        message:
+          err instanceof ExecutionDeliveryError || err instanceof Error
+            ? err.message
+            : 'No se pudo enviar a curación',
+      };
+    }
   },
 
   /**

@@ -29,6 +29,7 @@ import {
   readPortfolioOverview,
   readThesisDetail,
   readThesisOptions,
+  readWorkspaceAdvice,
   readWorkspaceContent,
   readWorkspaceDeliver,
   readWorkspaceRadar,
@@ -238,6 +239,35 @@ export function useWorkspaceDeliver(scope: TrustedTenantScope | null) {
     queryKey: scope ? tenantQueryKey(scope, 'compatibility', 'workspace-deliver') : DISABLED,
     queryFn: () => readWorkspaceDeliver(scope!),
     enabled: scope !== null && scope.clientId !== null,
+  });
+}
+
+/** READ SOURCE: compatibility — latest PositioningAdvice actions. No generate. */
+export function useWorkspaceAdvice(scope: TrustedTenantScope | null) {
+  return useQuery({
+    queryKey: scope ? tenantQueryKey(scope, 'compatibility', 'workspace-advice') : DISABLED,
+    queryFn: () => readWorkspaceAdvice(scope!),
+    enabled: scope !== null && scope.clientId !== null,
+  });
+}
+
+/** CR-1 #21a advisor — AddAdviceActionToCuration. Presentation only. */
+export function useAddAdviceActionToCuration(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { adviceActionId: string }>({
+    mutationFn: async ({ adviceActionId }) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return executionDeliveryCommands.addAdviceActionToCuration({
+        requestedClientId: scope.clientId,
+        adviceActionId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantQueryKey(scope, 'compatibility', 'workspace-deliver'),
+      });
+    },
   });
 }
 
