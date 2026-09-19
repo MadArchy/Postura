@@ -8,6 +8,9 @@ export type MasterProfileErrorCode =
   | 'INVALID_INPUT'
   | 'INVALID_STEP'
   | 'CLIENT_NOT_FOUND'
+  | 'PROFILE_NOT_FOUND'
+  | 'FACT_NOT_FOUND'
+  | 'INVALID_FACT_STATE'
   | 'PERSISTENCE_ERROR';
 
 export class MasterProfileError extends Error {
