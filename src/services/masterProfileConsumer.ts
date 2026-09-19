@@ -2,10 +2,12 @@
  * CR-1 Workstream 2 — Master Profile consumer facade.
  *
  * Security: `requireTenantScope` establishes trusted org/client/actor.
- * Application owns ApplyOnboardingStep (#10) and profile fact lifecycle (#2–#6).
+ * Application owns ApplyOnboardingStep (#10), profile fact lifecycle (#2–#6),
+ * and ProofWall readiness (#7).
  *
- * Fact-lifecycle audit event names are a documented GOVERNANCE_GAP.
- * This consumer does not invent new fact-lifecycle audit action identifiers.
+ * Fact-lifecycle and ProofWall readiness audit event names are a documented
+ * GOVERNANCE_GAP. This consumer does not invent new audit action identifiers
+ * for those writes.
  */
 
 import {
@@ -16,6 +18,7 @@ import {
   type ImportProfileFactsFromCvResult,
   type OnboardingFieldMap,
   type RejectProfileFactResult,
+  type SetProofWallItemReadinessResult,
   type UpdateProfileFactResult,
 } from '../application/masterProfile';
 import { composeMasterProfile } from '../composition/masterProfile/composeMasterProfile';
@@ -87,6 +90,11 @@ export interface UpdateProfileFactIntent extends ProfileFactIdIntent {
 
 export interface ImportProfileFactsFromCvIntent extends ProfileFactTenantIntent {
   cvText: string;
+}
+
+export interface SetProofWallItemReadinessIntent extends ProfileFactTenantIntent {
+  proofWallItemId: string;
+  targetStatus: 'pending' | 'complete';
 }
 
 /**
@@ -223,5 +231,23 @@ export function importProfileFactsFromCv(
     });
   } catch (err) {
     mapError(err, 'No se pudieron importar facts desde CV');
+  }
+}
+
+/** Registry #7 — SetProofWallItemReadiness. No invented audit event. */
+export function setProofWallItemReadiness(
+  intent: SetProofWallItemReadinessIntent
+): SetProofWallItemReadinessResult {
+  const gate = requireTrustedGate(intent.requestedClientId);
+  try {
+    return useCases.setProofWallItemReadiness({
+      trusted: trustedFromGate(gate),
+      proofWallItemId: intent.proofWallItemId,
+      targetStatus: intent.targetStatus,
+      claimedOrganizationId: intent.claimedOrganizationId,
+      claimedClientId: intent.claimedClientId,
+    });
+  } catch (err) {
+    mapError(err, 'No se pudo actualizar el estado del activo');
   }
 }

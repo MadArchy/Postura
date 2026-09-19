@@ -46,4 +46,11 @@ export {
   type ImportProfileFactsFromCvInput,
   type ImportProfileFactsFromCvResult,
 } from './ImportProfileFactsFromCv';
+export {
+  createSetProofWallItemReadiness,
+  type SetProofWallItemReadinessDeps,
+  type SetProofWallItemReadinessInput,
+  type SetProofWallItemReadinessResult,
+} from './SetProofWallItemReadiness';
 export type { MasterProfileRepository } from './ports/MasterProfileRepository';
+export type { ProofWallItemRepository } from './ports/ProofWallItemRepository';

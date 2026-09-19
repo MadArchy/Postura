@@ -1381,6 +1381,19 @@ class DataService {
     return true;
   }
 
+  public getProofWallItem(itemId: string): ProofWallItem | undefined {
+    return this.proofWallItems.find((item) => item.id === itemId);
+  }
+
+  public saveProofWallItem(item: ProofWallItem): void {
+    const index = this.proofWallItems.findIndex((row) => row.id === item.id);
+    if (index < 0) {
+      throw new Error('ProofWall item not found');
+    }
+    this.proofWallItems[index] = { ...item };
+    this.saveAll();
+  }
+
   public getEvidenceById(id: string): EvidenceVaultItem | undefined {
     return this.evidenceVault.find((item) => item.id === id);
   }

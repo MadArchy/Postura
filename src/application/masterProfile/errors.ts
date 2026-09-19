@@ -11,6 +11,8 @@ export type MasterProfileErrorCode =
   | 'PROFILE_NOT_FOUND'
   | 'FACT_NOT_FOUND'
   | 'INVALID_FACT_STATE'
+  | 'PROOF_WALL_ITEM_NOT_FOUND'
+  | 'INVALID_PROOF_WALL_STATE'
   | 'PERSISTENCE_ERROR';
 
 export class MasterProfileError extends Error {
