@@ -72,6 +72,7 @@ import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPane
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
 import { ReactContentEditorModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
+import { ReactTaskRecordingBlock } from './ReactTaskRecordingBlock';
 
 export type WorkspaceTab =
   | 'radar'
@@ -1085,7 +1086,7 @@ function SourcesPanel() {
 }
 
 /* ------------------------------------------------------------------ *
- * Tasks — #27 MANUAL assign + cancel native (P8); recordings remain legacy
+ * Tasks — #27 MANUAL assign + cancel native (P8); P3B recordings play/download/re-upload
  * ------------------------------------------------------------------ */
 
 function TasksPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
@@ -1370,6 +1371,14 @@ function TasksPanel({ workspaceClientId = null }: { workspaceClientId?: string |
                   </button>
                 ) : null}
               </div>
+              {task.type === 'RECORD_VIDEO' ? (
+                <ReactTaskRecordingBlock
+                  taskId={task.id}
+                  evidenceUrl={task.recordingRef}
+                  clientNotes={task.clientNotes}
+                  scope={scope}
+                />
+              ) : null}
             </li>
           ))}
         </ul>
@@ -1404,10 +1413,9 @@ function TasksPanel({ workspaceClientId = null }: { workspaceClientId?: string |
         </p>
       ) : null}
 
-      <LegacyHandoff
-        actions={['gestionar grabaciones']}
-        testId="react-ws-tasks-handoff"
-      />
+      <p className="muted small" data-testid="react-ws-tasks-handoff">
+        gestionar grabaciones
+      </p>
     </div>
   );
 }

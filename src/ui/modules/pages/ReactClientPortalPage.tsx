@@ -12,8 +12,8 @@
  *   canonical      (SPEC-007) opportunities, via `readClientOpportunityCards`
  *   compatibility  tasks, content, theses, KPI results, latest client briefing
  *
- * BLOCKED, left legacy (AUDIT010-09): video teleprompter (`start` / video `complete`),
- * attach_evidence (ClientWorkspace re-upload), add evidence vault (#30).
+ * P3B native: video teleprompter (`start` / video `complete`) and workspace
+ * `attach_evidence` re-upload. Still blocked: add evidence vault (#30).
  *
  * CANONICAL COMMANDS migrated: accept / decline / toggle-checklist / submit an Opportunity,
  * register a consultation result, acknowledge a briefing (`AcknowledgeDelivery`),
@@ -48,6 +48,7 @@ import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactClientProfilePanel } from '../ClientProfile/ReactClientProfilePanel';
 import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
+import { ReactTeleprompterModal } from './ReactTeleprompterModal';
 
 export type ClientPortalTab = 'home' | 'tasks' | 'content' | 'opportunities' | 'thesis' | 'results';
 
@@ -404,20 +405,43 @@ function ArticleTaskActions({
   );
 }
 
+function VideoTaskActions({
+  task,
+}: {
+  task: { id: string; title: string; scriptPayload?: string | null };
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div data-testid={`react-portal-task-handoff-video-${task.id}`}>
+      <button
+        type="button"
+        className="btn btn-primary btn-sm"
+        data-testid={`react-portal-task-open-video-${task.id}`}
+        onClick={() => setOpen(true)}
+      >
+        grabar vídeo con el teleprompter
+      </button>
+      {open ? (
+        <ReactTeleprompterModal
+          taskId={task.id}
+          title={task.title}
+          scriptPayload={task.scriptPayload ?? null}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function TaskSpecializedHandoff({
   task,
   onOpenArticleReview,
 }: {
-  task: { id: string; type: string; status: string; contentItemId: string | null };
+  task: { id: string; type: string; status: string; contentItemId: string | null; title: string; scriptPayload?: string | null };
   onOpenArticleReview: (contentId: string, taskId: string) => void;
 }) {
   if (task.type === 'RECORD_VIDEO') {
-    return (
-      <LegacyHandoff
-        actions={['grabar vídeo con el teleprompter']}
-        testId={`react-portal-task-handoff-video-${task.id}`}
-      />
-    );
+    return <VideoTaskActions task={task} />;
   }
   if (task.type === 'REVIEW_ARTICLE') {
     return <ArticleTaskActions task={task} onOpenReview={onOpenArticleReview} />;

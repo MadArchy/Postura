@@ -23,6 +23,7 @@ import {
   readAiCenter,
   readClientContent,
   readClientLatestBriefing,
+  readClientTaskScriptPayload,
   readClientTasks,
   readContentDetail,
   readPortfolioOverview,
@@ -96,6 +97,20 @@ export function useClientTasks(scope: TrustedTenantScope | null) {
     queryKey: scope ? tenantQueryKey(scope, 'compatibility', 'client-tasks') : DISABLED,
     queryFn: () => readClientTasks(scope!),
     enabled: scope !== null && scope.clientId !== null,
+  });
+}
+
+/** READ SOURCE: compatibility — P3B teleprompter script for one video task. */
+export function useClientTaskScriptPayload(
+  scope: TrustedTenantScope | null,
+  taskId: string | null
+) {
+  return useQuery({
+    queryKey: scope
+      ? tenantQueryKey(scope, 'compatibility', 'client-task-script', taskId ?? 'none')
+      : DISABLED,
+    queryFn: () => readClientTaskScriptPayload(scope!, taskId!),
+    enabled: scope !== null && scope.clientId !== null && taskId !== null,
   });
 }
 
@@ -409,13 +424,18 @@ export function useAcknowledgeDelivery(scope: TrustedTenantScope | null) {
   });
 }
 
-/** CR-1 #28 TransitionClientTask — P3A generic ClientPortal task actions (view / complete / request_changes). */
+/** CR-1 #28 TransitionClientTask — P3A generic + P3B video intents. */
 export function useTransitionClientTask(scope: TrustedTenantScope | null) {
   const queryClient = useQueryClient();
   return useMutation<
     CommandResult,
     Error,
-    { taskId: string; intent: 'view' | 'complete' | 'request_changes'; clientNotes?: string }
+    {
+      taskId: string;
+      intent: 'view' | 'complete' | 'request_changes' | 'start' | 'attach_evidence';
+      clientNotes?: string;
+      evidenceUrl?: string;
+    }
   >({
     mutationFn: async (params) => {
       if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
@@ -424,6 +444,7 @@ export function useTransitionClientTask(scope: TrustedTenantScope | null) {
         taskId: params.taskId,
         intent: params.intent,
         clientNotes: params.clientNotes,
+        evidenceUrl: params.evidenceUrl,
       });
     },
     onSuccess: (result) => {

@@ -204,7 +204,8 @@ describe('P8 surface / authority / residual boundaries', () => {
     expect(panel).toMatch(/react-ws-tasks-assign-form/);
     expect(panel).toMatch(/react-ws-tasks-assign-submit/);
     expect(panel).toMatch(/react-ws-task-cancel-/);
-    expect(panel).toMatch(/actions=\{\['gestionar grabaciones'\]\}/);
+    expect(panel).toMatch(/react-ws-tasks-handoff/);
+    expect(panel).toMatch(/gestionar grabaciones/);
     expect(panel).not.toMatch(/asignar tareas/);
     expect(panel).toMatch(/narrowToClient/);
     expect(panel).not.toMatch(/transitionClientTask/);

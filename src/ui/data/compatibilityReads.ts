@@ -816,9 +816,15 @@ export interface ClientTaskRead {
   readonly thesisId: string | null;
   /** Linked content for REVIEW_ARTICLE / RECORD_VIDEO — display/open only. */
   readonly contentItemId: string | null;
+  /** Factual teleprompter script for RECORD_VIDEO. Display only. */
+  readonly scriptPayload: string | null;
 }
 
-/** T-010-304 · client task queue. Opening a task is a legacy write, so this is read-only. */
+function taskRecordingRef(task: { evidenceUrl?: string }): string | null {
+  return task.evidenceUrl ?? null;
+}
+
+/** T-010-304 · client task queue. Writes via #28 seam (P3A / P3B). */
 export function readClientTasks(scope: TrustedTenantScope): readonly ClientTaskRead[] {
   const clientId = requireClient(scope);
   if (!clientId) return [];
@@ -832,7 +838,24 @@ export function readClientTasks(scope: TrustedTenantScope): readonly ClientTaskR
     estimatedMinutes: task.estimatedMinutes,
     thesisId: task.thesisId ?? null,
     contentItemId: task.contentItemId ?? null,
+    scriptPayload: factualScriptPayload(task),
   }));
+}
+
+/** Factual teleprompter script only — non-string values stay null (query-cache safe). */
+function factualScriptPayload(task: { type?: string; scriptPayload?: unknown }): string | null {
+  return typeof task.scriptPayload === 'string' ? task.scriptPayload : null;
+}
+
+export function readClientTaskScriptPayload(
+  scope: TrustedTenantScope,
+  taskId: string
+): string | null {
+  const clientId = requireClient(scope);
+  if (!clientId || !taskId) return null;
+  const task = dbService.getTasksForClient(clientId).find((row) => row.id === taskId);
+  if (!task || task.type !== 'RECORD_VIDEO') return null;
+  return factualScriptPayload(task);
 }
 
 export interface ClientBriefingItemRead {
@@ -1280,6 +1303,10 @@ export interface WorkspaceTaskRead {
   readonly archived: boolean;
   /** Factual — cancel control visibility only; CancelClientTask remains authority. */
   readonly cancellable: boolean;
+  /** Factual recording reference for P3B play/download. Display only. */
+  readonly recordingRef: string | null;
+  /** Factual client notes for recording display. */
+  readonly clientNotes: string | null;
 }
 
 export interface WorkspaceActiveThesisRead {
@@ -1308,6 +1335,8 @@ export function readWorkspaceTasks(scope: TrustedTenantScope): WorkspaceTasksPro
     cancellable:
       task.status !== 'COMPLETED' &&
       task.status !== 'CANCELLED',
+    recordingRef: taskRecordingRef(task),
+    clientNotes: task.clientNotes ?? null,
   }));
   const activeTheses = dbService.getActiveTheses(clientId).map((t) => ({
     id: t.id,
