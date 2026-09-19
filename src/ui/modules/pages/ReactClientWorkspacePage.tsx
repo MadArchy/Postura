@@ -25,6 +25,7 @@
  * Outcome/brief/#18/#27/#20/#21-radar/#14/#15/#12/#17 change the caller only.
  * #21 advisor AddAdviceActionToCuration, #22 score/investigate, #33 composite
  * recommendation→task path, and recordings remain legacy.
+ *   - #31 save existing content → `SaveContentDraft` (P16) on ws-production
  *
  * BLOCKED, left legacy — the large majority. #22 bulk/per-signal score UI and
  * investigate agents remain;
@@ -58,6 +59,7 @@ import {
   useSendSignalToCuration,
   useSignalOutcomes,
   useStrategicBriefs,
+  useWorkspaceContent,
   useWorkspaceDeliver,
   useWorkspaceRadar,
   useWorkspaceSources,
@@ -68,7 +70,7 @@ import type { CurationDestination, TaskType } from '../../../types';
 import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
-import { ReactDeliveryPreviewModal } from './modals/ReactModals';
+import { ReactContentEditorModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 
 export type WorkspaceTab =
@@ -78,7 +80,8 @@ export type WorkspaceTab =
   | 'sources'
   | 'tasks'
   | 'results'
-  | 'briefs';
+  | 'briefs'
+  | 'production';
 
 const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
   { value: 'RECORD_VIDEO', label: 'Grabar video' },
@@ -1410,6 +1413,131 @@ function TasksPanel({ workspaceClientId = null }: { workspaceClientId?: string |
 }
 
 /* ------------------------------------------------------------------ *
+ * Production — #31 SaveContentDraft list + editor (P16)
+ * ------------------------------------------------------------------ */
+
+function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
+  const { tenantScope } = useSession();
+  const scope = useMemo(() => {
+    if (!tenantScope) return null;
+    if (tenantScope.clientId) return tenantScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(tenantScope, requested);
+    } catch {
+      return null;
+    }
+  }, [tenantScope, workspaceClientId]);
+
+  const { data, isLoading, isError } = useWorkspaceContent(scope);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  if (!scope) {
+    return (
+      <PanelState
+        kind="empty"
+        message="Selecciona un cliente del workspace para editar contenido existente."
+        testId="react-ws-production-no-client"
+      />
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PanelState kind="loading" message="Cargando producción…" testId="react-ws-production-loading" />
+    );
+  }
+  if (isError) {
+    return (
+      <PanelState
+        kind="error"
+        message="No se pudo cargar el contenido."
+        testId="react-ws-production-error"
+      />
+    );
+  }
+
+  const items = data?.items ?? [];
+
+  if (editingId) {
+    return (
+      <ReactContentEditorModal
+        contentId={editingId}
+        workspaceClientId={workspaceClientId}
+        onClose={() => setEditingId(null)}
+        onSaved={() => setStatusMessage({ kind: 'success', text: 'Cambios guardados' })}
+      />
+    );
+  }
+
+  return (
+    <div data-testid="react-ws-production">
+      <div className="card-header">
+        <div>
+          <h3>Pipeline editorial</h3>
+          <p>Revisa y edita entregables existentes. Generar contenido sigue en la interfaz anterior.</p>
+        </div>
+      </div>
+
+      {statusMessage ? (
+        <p
+          className={statusMessage.kind === 'error' ? 'login-error' : 'muted small'}
+          data-testid={
+            statusMessage.kind === 'success'
+              ? 'react-ws-production-success'
+              : 'react-ws-production-status-error'
+          }
+          role={statusMessage.kind === 'error' ? 'alert' : undefined}
+        >
+          {statusMessage.text}
+        </p>
+      ) : null}
+
+      {items.length ? (
+        <ul className="content-list" data-testid="react-ws-production-list">
+          {items.map((item) => (
+            <li
+              className="content-row"
+              key={item.id}
+              data-testid={`react-ws-production-row-${item.id}`}
+            >
+              <div>
+                <strong>{item.title}</strong>
+                <p className="muted small">
+                  {item.platform} · {item.type} · {item.legacyStatus}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                data-testid={`react-ws-production-edit-${item.id}`}
+                onClick={() => setEditingId(item.id)}
+              >
+                Editar
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="empty-state" data-testid="react-ws-production-empty">
+          No hay contenido existente para este cliente.
+        </p>
+      )}
+
+      <LegacyHandoff
+        actions={['generar contenido', 'mover el pipeline']}
+        testId="react-ws-production-handoff"
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
  * Page
  * ------------------------------------------------------------------ */
 
@@ -1447,6 +1575,7 @@ export function ReactClientWorkspacePage({
       {tab === 'briefs' ? <BriefsPanel /> : null}
       {tab === 'sources' ? <SourcesPanel /> : null}
       {tab === 'tasks' ? <TasksPanel workspaceClientId={clientId} /> : null}
+      {tab === 'production' ? <ProductionPanel workspaceClientId={clientId} /> : null}
       {tab === 'results' ? <ReactKpiWeeklyChart title="Resultados registrados" /> : null}
       {tab === 'positioning' ? (
         <>

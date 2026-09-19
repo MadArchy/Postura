@@ -67,6 +67,7 @@ const WORKSPACE_TAB_BY_ID: Record<string, WorkspaceTab> = {
   'ws-tasks': 'tasks',
   'ws-results': 'results',
   'ws-positioning': 'positioning',
+  'ws-production': 'production',
 };
 
 const PORTAL_TAB_BY_ID: Record<string, ClientPortalTab> = {

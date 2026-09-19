@@ -28,6 +28,7 @@ import {
   readPortfolioOverview,
   readThesisDetail,
   readThesisOptions,
+  readWorkspaceContent,
   readWorkspaceDeliver,
   readWorkspaceRadar,
   readWorkspaceSources,
@@ -39,7 +40,7 @@ import {
   readStrategicBriefs,
 } from '../data/canonicalReads';
 import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, radarCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
-import type { CurationDestination, TaskType } from '../../types';
+import type { ContentStatus, ContentType, CurationDestination, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
 
@@ -115,6 +116,52 @@ export function useContentDetail(scope: TrustedTenantScope | null, contentId: st
       : DISABLED,
     queryFn: () => readContentDetail(scope!, contentId),
     enabled: scope !== null && scope.clientId !== null && contentId !== null,
+  });
+}
+
+/** READ SOURCE: compatibility — #31 ADMIN production list. */
+export function useWorkspaceContent(scope: TrustedTenantScope | null) {
+  return useQuery({
+    queryKey: scope ? tenantQueryKey(scope, 'compatibility', 'workspace-content') : DISABLED,
+    queryFn: () => readWorkspaceContent(scope!),
+    enabled: scope !== null && scope.clientId !== null,
+  });
+}
+
+/** CR-1 #31 SaveContentDraft — P16 React content-editor parity (ADMIN, edit-existing). */
+export function useSaveContentDraft(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    CommandResult,
+    Error,
+    {
+      contentId: string;
+      fields: {
+        title?: string;
+        body?: string;
+        type?: ContentType;
+        targetPlatform?: 'LinkedIn' | 'YouTube' | 'PersonalWebsite' | 'Substack' | 'LegalJournal';
+        teleprompterScript?: string;
+        managerNotes?: string;
+      };
+      requestedTargetStatus?: ContentStatus;
+    }
+  >({
+    mutationFn: async (intent) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return executionDeliveryCommands.saveContentDraft({
+        requestedClientId: scope.clientId,
+        contentId: intent.contentId,
+        fields: intent.fields,
+        requestedTargetStatus: intent.requestedTargetStatus,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantInvalidationKey(scope, 'compatibility'),
+      });
+    },
   });
 }
 

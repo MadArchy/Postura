@@ -14,6 +14,7 @@ const REACT_WORKSPACE_TABS = new Set([
   'ws-tasks',
   'ws-results',
   'ws-positioning',
+  'ws-production',
 ]);
 
 const REACT_PORTAL_TABS = new Set([

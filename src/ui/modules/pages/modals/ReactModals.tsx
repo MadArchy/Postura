@@ -14,25 +14,29 @@
  *   ReactDeliveryPreviewModal   compatibility read + #18 SendDeliveryPackage (P7)
  *   ReactFeedbackModal          ONE canonical branch migrated (see below)
  *   ReactBriefSelectionModal    canonical brief read, generation stays legacy
+ *   ReactContentEditorModal     #31 SaveContentDraft (edit-existing only)
  *
- * NOT MIGRATED (6 of 13) — every one has a legacy write with no canonical
+ * NOT MIGRATED (5 of 13) — every one has a legacy write with no canonical
  * Application use case, so AUDIT010-09 forbids moving it, and the legacy modal
  * stays served: `create-client` (`createClientWithInvite` / CR-1 Client Lifecycle),
  * `add-evidence` (`addEvidenceItem`), `add-task` (`addTask`), `article-review`
- * (`saveClientArticleRevision`, `transitionContentPipeline`), `content-editor`
- * (`saveContent`), `teleprompter` (media capture + `confirmSendRecording`).
+ * (`saveClientArticleRevision`, `transitionContentPipeline`),
+ * `teleprompter` (media capture + `confirmSendRecording`).
+ * Generate-content (#33 CreateContentDraft) remains legacy.
  *
  * Two legacy behaviours are deliberately not reproduced, both recorded in
  * `tasks.md`: the diff modal's unescaped `diffHtml` injection, and the
  * generate-content modal's `approvedBriefs[0]` pre-selection.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useSession } from '../../../providers/SessionProvider';
 import { narrowToClient } from '../../../query/tenantScope';
+import type { ContentStatus, ContentType } from '../../../../types';
 import {
   useContentAuthorizingBriefs,
   useContentDetail,
+  useSaveContentDraft,
   useSendDeliveryPackage,
   useWorkspaceDeliver,
 } from '../../../hooks/useWave3Data';
@@ -308,6 +312,7 @@ export function ReactContentDiffModal({
 }) {
   const { tenantScope, isAdmin } = useSession();
   const { data, isLoading, isError } = useContentDetail(tenantScope, contentId);
+  const [editing, setEditing] = useState(false);
 
   if (!tenantScope) {
     return (
@@ -327,6 +332,15 @@ export function ReactContentDiffModal({
         kind="error"
         message="No se pudo cargar el historial."
         testId="react-content-diff-error"
+      />
+    );
+  }
+
+  if (editing) {
+    return (
+      <ReactContentEditorModal
+        contentId={contentId}
+        onClose={() => setEditing(false)}
       />
     );
   }
@@ -355,7 +369,14 @@ export function ReactContentDiffModal({
       )}
 
       {isAdmin ? (
-        <LegacyHandoff actions={['editar el contenido']} testId="react-content-diff-handoff" />
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          data-testid="react-content-diff-edit"
+          onClick={() => setEditing(true)}
+        >
+          Editar contenido
+        </button>
       ) : null}
     </ModalShell>
   );
@@ -729,6 +750,286 @@ export function ReactBriefSelectionModal({ onClose }: { onClose: () => void }) {
         actions={['generar el borrador de contenido']}
         testId="react-brief-selection-handoff"
       />
+    </ModalShell>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * 8. Content editor — #31 SaveContentDraft (edit-existing only)
+ * ------------------------------------------------------------------ */
+
+const EDITOR_PLATFORMS = ['LinkedIn', 'YouTube', 'Substack', 'LegalJournal'] as const;
+const EDITOR_TYPES: ContentType[] = [
+  'VIDEO_SCRIPT',
+  'LINKEDIN_ARTICLE',
+  'THOUGHT_LEADERSHIP',
+  'ACADEMIC_PAPER',
+];
+const EDITOR_STATUSES: ContentStatus[] = [
+  'DRAFT',
+  'CLIENT_REVIEW',
+  'CHANGES_REQUESTED',
+  'READY',
+  'PUBLISHED',
+];
+
+/**
+ * READ SOURCE: compatibility (`readContentDetail`).
+ * COMMAND: #31 SaveContentDraft via `useSaveContentDraft`.
+ * #33 CreateContentDraft / generate-content / AI = 0.
+ */
+export function ReactContentEditorModal({
+  contentId,
+  onClose,
+  onSaved,
+  workspaceClientId = null,
+}: {
+  contentId: string;
+  onClose: () => void;
+  onSaved?: () => void;
+  /** Shell-selected client for ADMIN workspace narrowing. Never caller-forged authority. */
+  workspaceClientId?: string | null;
+}) {
+  const { tenantScope } = useSession();
+  const scope = useMemo(() => {
+    if (!tenantScope) return null;
+    if (tenantScope.clientId) return tenantScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(tenantScope, requested);
+    } catch {
+      return null;
+    }
+  }, [tenantScope, workspaceClientId]);
+  const { data, isLoading, isError } = useContentDetail(scope, contentId);
+  const save = useSaveContentDraft(scope);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [platform, setPlatform] = useState<(typeof EDITOR_PLATFORMS)[number]>('LinkedIn');
+  const [type, setType] = useState<ContentType>('LINKEDIN_ARTICLE');
+  const [status, setStatus] = useState<ContentStatus>('DRAFT');
+  const [managerNotes, setManagerNotes] = useState('');
+  const [initialStatus, setInitialStatus] = useState<ContentStatus>('DRAFT');
+  const [rejection, setRejection] = useState('');
+
+  useEffect(() => {
+    if (!data?.resolved) return;
+    setTitle(data.title);
+    setBody(data.body);
+    setPlatform(
+      EDITOR_PLATFORMS.includes(data.platform as (typeof EDITOR_PLATFORMS)[number])
+        ? (data.platform as (typeof EDITOR_PLATFORMS)[number])
+        : 'LinkedIn'
+    );
+    setType(EDITOR_TYPES.includes(data.type as ContentType) ? (data.type as ContentType) : 'LINKEDIN_ARTICLE');
+    const loadedStatus = EDITOR_STATUSES.includes(data.legacyStatus as ContentStatus)
+      ? (data.legacyStatus as ContentStatus)
+      : 'DRAFT';
+    setStatus(loadedStatus);
+    setInitialStatus(loadedStatus);
+    setManagerNotes(data.managerNotes ?? '');
+  }, [data]);
+
+  if (!tenantScope) {
+    return (
+      <PanelState
+        kind="no-scope"
+        message="Sesión sin contexto de organización."
+        testId="react-content-editor-no-scope"
+      />
+    );
+  }
+  if (!scope) {
+    return (
+      <PanelState
+        kind="no-scope"
+        message="Selecciona un cliente del workspace para editar contenido existente."
+        testId="react-content-editor-no-client"
+      />
+    );
+  }
+  if (isLoading) {
+    return (
+      <PanelState kind="loading" message="Cargando contenido…" testId="react-content-editor-loading" />
+    );
+  }
+  if (isError || !data?.resolved) {
+    return (
+      <PanelState
+        kind="error"
+        message="Contenido no encontrado."
+        testId="react-content-editor-missing"
+      />
+    );
+  }
+
+  const busy = save.isPending;
+
+  const onSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setRejection('');
+    if (!title.trim() || !body.trim()) {
+      setRejection('El título y el cuerpo son obligatorios.');
+      return;
+    }
+    if (!contentId.trim()) {
+      setRejection('Contenido no encontrado.');
+      return;
+    }
+
+    const result = await save.mutateAsync({
+      contentId: contentId.trim(),
+      fields: {
+        title: title.trim(),
+        body,
+        type,
+        targetPlatform: platform,
+        managerNotes,
+        ...(type === 'VIDEO_SCRIPT' ? { teleprompterScript: body } : {}),
+      },
+      requestedTargetStatus: status !== initialStatus ? status : undefined,
+    });
+    if (!result.ok) {
+      setRejection(result.message);
+      return;
+    }
+    onSaved?.();
+    onClose();
+  };
+
+  return (
+    <ModalShell
+      title="Editor de contenido"
+      subtitle="Revisa y guarda un entregable existente."
+      onClose={onClose}
+      testId="react-content-editor"
+      authority="PRESENTATION"
+    >
+      {rejection ? (
+        <div className="login-error" role="alert" data-testid="react-content-editor-error">
+          <span>{rejection}</span>
+        </div>
+      ) : null}
+
+      <form onSubmit={(event) => void onSubmit(event)} data-testid="react-content-editor-form" noValidate>
+        <div className="form-group">
+          <label className="form-label" htmlFor="react-content-editor-title">
+            Título del contenido
+          </label>
+          <input
+            id="react-content-editor-title"
+            className="form-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            disabled={busy}
+            data-testid="react-content-editor-title"
+          />
+        </div>
+
+        <div className="grid-3">
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-content-editor-platform">
+              Plataforma destino
+            </label>
+            <select
+              id="react-content-editor-platform"
+              className="form-select"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as (typeof EDITOR_PLATFORMS)[number])}
+              disabled={busy}
+              data-testid="react-content-editor-platform"
+            >
+              {EDITOR_PLATFORMS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-content-editor-type">
+              Formato
+            </label>
+            <select
+              id="react-content-editor-type"
+              className="form-select"
+              value={type}
+              onChange={(e) => setType(e.target.value as ContentType)}
+              disabled={busy}
+              data-testid="react-content-editor-type"
+            >
+              {EDITOR_TYPES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-content-editor-status">
+              Estado
+            </label>
+            <select
+              id="react-content-editor-status"
+              className="form-select"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as ContentStatus)}
+              disabled={busy}
+              data-testid="react-content-editor-status"
+            >
+              {EDITOR_STATUSES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="react-content-editor-body">
+            Cuerpo del contenido
+          </label>
+          <textarea
+            id="react-content-editor-body"
+            className="form-textarea"
+            rows={10}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            disabled={busy}
+            data-testid="react-content-editor-body"
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="react-content-editor-notes">
+            Notas del Brand Manager
+          </label>
+          <input
+            id="react-content-editor-notes"
+            className="form-input"
+            value={managerNotes}
+            onChange={(e) => setManagerNotes(e.target.value)}
+            disabled={busy}
+            data-testid="react-content-editor-notes"
+          />
+        </div>
+
+        <div className="row-actions">
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={busy}>
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy}
+            data-testid="react-content-editor-submit"
+          >
+            {busy ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </form>
     </ModalShell>
   );
 }

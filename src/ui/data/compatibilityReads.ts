@@ -912,6 +912,32 @@ export interface ContentRowRead {
   readonly wordCount: number;
 }
 
+export interface WorkspaceContentRow {
+  readonly id: string;
+  readonly title: string;
+  readonly type: string;
+  readonly platform: string;
+  readonly legacyStatus: string;
+}
+
+/** CR-1 #31 — ADMIN production list. Read-only; no create/generate. */
+export function readWorkspaceContent(scope: TrustedTenantScope): {
+  readonly items: readonly WorkspaceContentRow[];
+} {
+  const clientId = requireClient(scope);
+  if (!clientId) return { items: [] };
+
+  return {
+    items: dbService.getContentForClient(clientId).map((item) => ({
+      id: item.id,
+      title: item.title,
+      type: item.type,
+      platform: item.targetPlatform,
+      legacyStatus: item.status,
+    })),
+  };
+}
+
 /** T-010-304 · content pending client review, plus the already-decided history. */
 export function readClientContent(scope: TrustedTenantScope): {
   readonly pending: readonly ContentRowRead[];
