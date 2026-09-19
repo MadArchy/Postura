@@ -65,6 +65,8 @@ import {
 import {
   assignClientTask,
   cancelClientTask,
+  removeCuration,
+  reopenCuration,
   reviewClientArticle,
   saveContentDraft,
   sendDeliveryPackage,
@@ -865,6 +867,64 @@ export const executionDeliveryCommands = {
     rationale: string;
   }): CurationDecideCommandResult {
     return runCurationDecidePresentation(intent);
+  },
+
+  /**
+   * Registry #16-R — RemoveCuration.
+   * Presentation adapter only. Canonical command owns delete authority.
+   * CURATION_NOT_FOUND is a bounded failure, not a success toast.
+   */
+  removeCuration(intent: {
+    requestedClientId: string | null | undefined;
+    curationEntryId: string;
+  }): CommandResult {
+    try {
+      const result = removeCuration(intent);
+      if (!result.ok && result.compat === 'CURATION_NOT_FOUND') {
+        return { ok: false, message: 'El ítem de curación ya no existe.' };
+      }
+      if (!result.ok) {
+        return { ok: false, message: 'No se pudo retirar el ítem' };
+      }
+      return { ok: true, message: 'Ítem retirado de la mesa' };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err instanceof ExecutionDeliveryError || err instanceof Error
+            ? err.message
+            : 'No se pudo retirar el ítem',
+      };
+    }
+  },
+
+  /**
+   * Registry #16-O — ReopenCuration.
+   * Presentation adapter only. Canonical command owns the decision reset.
+   * CURATION_NOT_FOUND is a bounded failure, not a success toast.
+   */
+  reopenCuration(intent: {
+    requestedClientId: string | null | undefined;
+    curationEntryId: string;
+  }): CommandResult {
+    try {
+      const result = reopenCuration(intent);
+      if (!result.ok && result.compat === 'CURATION_NOT_FOUND') {
+        return { ok: false, message: 'El ítem de curación ya no existe.' };
+      }
+      if (!result.ok) {
+        return { ok: false, message: 'No se pudo reabrir el ítem' };
+      }
+      return { ok: true, message: 'Ítem reabierto para volver a decidir' };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err instanceof ExecutionDeliveryError || err instanceof Error
+            ? err.message
+            : 'No se pudo reabrir el ítem',
+      };
+    }
   },
 
   /**

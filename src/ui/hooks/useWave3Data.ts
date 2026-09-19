@@ -267,6 +267,46 @@ export function useDecideCuration(scope: TrustedTenantScope | null) {
   });
 }
 
+/** CR-1 #16-R RemoveCuration — presentation only. */
+export function useRemoveCuration(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { curationEntryId: string }>({
+    mutationFn: async (intent) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return executionDeliveryCommands.removeCuration({
+        requestedClientId: scope.clientId,
+        curationEntryId: intent.curationEntryId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantQueryKey(scope, 'compatibility', 'workspace-deliver'),
+      });
+    },
+  });
+}
+
+/** CR-1 #16-O ReopenCuration — presentation only. */
+export function useReopenCuration(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { curationEntryId: string }>({
+    mutationFn: async (intent) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return executionDeliveryCommands.reopenCuration({
+        requestedClientId: scope.clientId,
+        curationEntryId: intent.curationEntryId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantQueryKey(scope, 'compatibility', 'workspace-deliver'),
+      });
+    },
+  });
+}
+
 /** CR-1 #15 ProposeAngle — P11 React deliver propose-angle parity. */
 export function useProposeAngle(scope: TrustedTenantScope | null) {
   const queryClient = useQueryClient();

@@ -139,9 +139,8 @@ describe('AUDIT010-09 / §6 — no blocked legacy write appears behind a React p
   const BLOCKED_MUTATORS = [
     // thesis lifecycle — saveThesis is CR-1 Thesis Lifecycle canonical (seam → consumer)
     // curation and delivery — decideCuration is CR-1 Execution Delivery canonical (P10)
+    // removeCuration / reopenCuration are CR-1 #16 canonical via the execution-delivery seam
     'decideSignal',
-    'removeCuration',
-    'reopenCuration',
     'setCurationAngle',
     'addToCuration',
     // ensureDraftDelivery / discardDraftDelivery — CR-1 #17 canonical via P13 seam

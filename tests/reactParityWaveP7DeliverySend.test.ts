@@ -197,7 +197,7 @@ describe('P7 §7 / §20 — React surface authority guards', () => {
     for (const source of [workspace, modal]) {
       expect(source).not.toMatch(/from\s+['"][^'"]*services\/db['"]/);
       expect(source).not.toMatch(/\bdbService\.(get|add|update|mark|discard|ensure)/);
-      expect(source).not.toMatch(/decideCuration|proposeAngle|removeCuration|reopenCuration/);
+      expect(source).not.toMatch(/\b(decideCuration|proposeAngle|removeCuration|reopenCuration)\s*\(/);
       expect(source).not.toMatch(
         /ensureDraftDelivery|addCurationToDelivery|discardDraftDelivery|updateDeliveryPackageMetadata/
       );

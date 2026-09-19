@@ -20,6 +20,7 @@
  *   - #21 radar send-to-curation → `AddSignalToCuration` + `MarkSignalSaved` (P9)
  *   - #14 decide curation       → `DecideCuration` (P10)
  *   - #15 propose angle         → `ProposeAngle` (P11)
+ *   - #16 remove/reopen curation → `RemoveCuration` / `ReopenCuration`
  *   - CR-2 brief create         → `createBriefFromCurationEntry` (P12)
  *   - #17 delivery assembly     → EnsureDraft/Add/Metadata/Remove/Discard (P13)
  * Outcome/brief/#18/#27/#20/#21-radar/#14/#15/#12/#17 change the caller only.
@@ -55,6 +56,8 @@ import {
   useDiscardDraftDelivery,
   useEnsureDraftDelivery,
   useProposeAngle,
+  useRemoveCuration,
+  useReopenCuration,
   useRemoveDeliveryItemFromDelivery,
   useUpdateDeliveryPackageMetadata,
   useDiscardRadarSignal,
@@ -425,6 +428,8 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
   }, [tenantScope, workspaceClientId]);
   const { data, isLoading, isError } = useWorkspaceDeliver(scope);
   const decide = useDecideCuration(scope);
+  const removeCuration = useRemoveCuration(scope);
+  const reopenCuration = useReopenCuration(scope);
   const propose = useProposeAngle(scope);
   const createBrief = useCreateBriefFromCuration(scope);
   const ensureDraft = useEnsureDraftDelivery(scope);
@@ -435,6 +440,8 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
   const [proposingId, setProposingId] = useState<string | null>(null);
   const [creatingBriefId, setCreatingBriefId] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [removingCurationId, setRemovingCurationId] = useState<string | null>(null);
+  const [reopeningId, setReopeningId] = useState<string | null>(null);
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [draftNote, setDraftNote] = useState('');
@@ -459,6 +466,41 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
       kind: result.kind === 'warning' ? 'warning' : 'success',
       text: result.message,
     });
+  };
+
+  const onRemoveCuration = async (curationEntryId: string) => {
+    if (removeCuration.isPending || removingCurationId) return;
+    setRemovingCurationId(curationEntryId);
+    setStatusMessage(null);
+    try {
+      const result = await removeCuration.mutateAsync({ curationEntryId });
+      if (!result.ok) {
+        setStatusMessage({ kind: 'error', text: result.message });
+        return;
+      }
+      setStatusMessage({ kind: 'success', text: result.message ?? 'Ítem retirado de la mesa' });
+    } finally {
+      setRemovingCurationId(null);
+    }
+  };
+
+  const onReopenCuration = async (curationEntryId: string) => {
+    if (reopenCuration.isPending || reopeningId) return;
+    setReopeningId(curationEntryId);
+    setStatusMessage(null);
+    try {
+      const result = await reopenCuration.mutateAsync({ curationEntryId });
+      if (!result.ok) {
+        setStatusMessage({ kind: 'error', text: result.message });
+        return;
+      }
+      setStatusMessage({
+        kind: 'success',
+        text: result.message ?? 'Ítem reabierto para volver a decidir',
+      });
+    } finally {
+      setReopeningId(null);
+    }
   };
 
   const onProposeAngle = async (curationEntryId: string) => {
@@ -661,7 +703,9 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
 
       {deliver.pending.length ? (
         <ul className="curation-list" data-testid="react-ws-curation-list">
-          {deliver.pending.map((entry) => (
+          {deliver.pending.map((entry) => {
+            const removeBusy = removeCuration.isPending && removingCurationId === entry.id;
+            return (
             <li className="curation-row" key={entry.id} data-testid={`react-ws-pending-${entry.id}`}>
               <div>
                 <strong>{entry.signalTitle}</strong>
@@ -672,13 +716,25 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
                 </p>
                 {entry.rationale ? <p className="small">{entry.rationale}</p> : null}
               </div>
-              <PendingCurationDecideForm
-                entryId={entry.id}
-                busy={decide.isPending}
-                onSubmit={(destination, rationale) => onDecide(entry.id, destination, rationale)}
-              />
+              <div className="curation-row-actions">
+                <PendingCurationDecideForm
+                  entryId={entry.id}
+                  busy={decide.isPending}
+                  onSubmit={(destination, rationale) => onDecide(entry.id, destination, rationale)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  data-testid={`react-ws-remove-curation-${entry.id}`}
+                  disabled={removeBusy || removeCuration.isPending}
+                  onClick={() => void onRemoveCuration(entry.id)}
+                >
+                  {removeBusy ? 'Retirando…' : 'Quitar'}
+                </button>
+              </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : (
         <p className="empty-state" data-testid="react-ws-curation-empty">
@@ -701,6 +757,7 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
               Boolean(entry.destination) &&
               entry.destination !== 'DISCARD';
             const addBusy = addToDelivery.isPending && addingId === entry.id;
+            const reopenBusy = reopenCuration.isPending && reopeningId === entry.id;
             return (
               <li className="curation-row" key={entry.id} data-testid={`react-ws-ready-${entry.id}`}>
                 <div>
@@ -751,6 +808,15 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
                       {addBusy ? 'Añadiendo…' : 'Añadir al briefing'}
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    data-testid={`react-ws-reopen-curation-${entry.id}`}
+                    disabled={reopenBusy || reopenCuration.isPending}
+                    onClick={() => void onReopenCuration(entry.id)}
+                  >
+                    {reopenBusy ? 'Reabriendo…' : 'Reabrir'}
+                  </button>
                 </div>
               </li>
             );
