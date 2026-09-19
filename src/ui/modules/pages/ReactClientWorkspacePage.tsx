@@ -26,12 +26,15 @@
  * #21 advisor AddAdviceActionToCuration, #22 score/investigate, #33 composite
  * recommendation→task path, and recordings remain legacy.
  *   - #31 save existing content → `SaveContentDraft` (P16) on ws-production
+ *   - #8/#24 register source → `RegisterSource` on ws-sources
+ *   - #9 poll/ingest → `PollRegisteredSource` / `PollAllActiveSources` on ws-sources
+ *   - #26 manual signal → `RegisterManualSignal` on ws-sources
  *
  * BLOCKED, left legacy — the large majority. #22 bulk/per-signal score UI and
  * investigate agents remain;
- * source registration and ingestion, #33 recommendation→task composite, evidence
- * assignment and content generation all write business state with no React parity
- * yet (AUDIT010-09).
+ * #25 source lifecycle (pause/reactivate/archive/test-feed), discovery/Tavily,
+ * #33 recommendation→task composite, evidence assignment and content generation
+ * all write business state with no React parity yet (AUDIT010-09).
  *
  * DELIBERATELY NOT REPRODUCED — the legacy radar and sources tabs call
  * `runSourceDiscoveryAgent` during render (`ClientWorkspace:1983`, `:2247`), so
@@ -62,11 +65,15 @@ import {
   useWorkspaceContent,
   useWorkspaceDeliver,
   useWorkspaceRadar,
+  usePollAllActiveSources,
+  usePollRegisteredSource,
+  useRegisterManualSignal,
+  useRegisterSource,
   useWorkspaceSources,
   useWorkspaceTasks,
 } from '../../hooks/useWave3Data';
 import { curationDestinationToAuthorizedAction } from '../../../domain/briefConsumerCore';
-import type { CurationDestination, TaskType } from '../../../types';
+import type { CurationDestination, SourceType, TaskType } from '../../../types';
 import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
@@ -1003,12 +1010,65 @@ function BriefsPanel() {
 }
 
 /* ------------------------------------------------------------------ *
- * Sources — compatibility read, all commands legacy
+ * Sources — #8/#24 RegisterSource + #9 poll + #26 manual signal native.
+ * #25 lifecycle and discovery remain LegacyHandoff.
  * ------------------------------------------------------------------ */
 
-function SourcesPanel() {
+const SOURCE_TYPE_OPTIONS: readonly SourceType[] = [
+  'REGULATORY',
+  'RSS',
+  'ACADEMIC',
+  'MEDIA',
+  'MANUAL',
+  'WEB',
+  'API',
+  'BLOG',
+  'SOCIAL',
+  'VIDEO',
+  'OTHER',
+];
+
+function SourcesPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
   const { tenantScope } = useSession();
-  const { data, isLoading, isError } = useWorkspaceSources(tenantScope);
+  const scope = useMemo(() => {
+    if (!tenantScope) return null;
+    if (tenantScope.clientId) return tenantScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(tenantScope, requested);
+    } catch {
+      return null;
+    }
+  }, [tenantScope, workspaceClientId]);
+
+  const { data, isLoading, isError } = useWorkspaceSources(scope);
+  const register = useRegisterSource(scope);
+  const pollOne = usePollRegisteredSource(scope);
+  const pollAll = usePollAllActiveSources(scope);
+  const manual = useRegisterManualSignal(scope);
+
+  const [showRegister, setShowRegister] = useState(false);
+  const [showManual, setShowManual] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState<SourceType>('RSS');
+  const [url, setUrl] = useState('');
+  const [intervalMinutes, setIntervalMinutes] = useState('');
+  const [manualTitle, setManualTitle] = useState('');
+  const [statusMessage, setStatusMessage] = useState<{
+    kind: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  if (!scope) {
+    return (
+      <PanelState
+        kind="empty"
+        message="Selecciona un cliente del workspace para gestionar fuentes."
+        testId="react-ws-sources-no-client"
+      />
+    );
+  }
 
   if (isLoading) {
     return <PanelState kind="loading" message="Cargando fuentes…" testId="react-ws-sources-loading" />;
@@ -1024,6 +1084,79 @@ function SourcesPanel() {
   }
 
   const sources = data ?? { sources: [], errors: 0, degraded: 0, paused: 0 };
+  const busy = register.isPending || pollOne.isPending || pollAll.isPending || manual.isPending;
+
+  const resetRegister = () => {
+    setName('');
+    setType('RSS');
+    setUrl('');
+    setIntervalMinutes('');
+    setShowRegister(false);
+  };
+
+  const onRegister = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!name.trim()) {
+      setStatusMessage({ kind: 'error', text: 'El nombre de la fuente es obligatorio.' });
+      return;
+    }
+    const parsedInterval = intervalMinutes.trim() ? Number(intervalMinutes) : undefined;
+    const result = await register.mutateAsync({
+      name: name.trim(),
+      type,
+      url: url.trim() || undefined,
+      fetchIntervalMinutes:
+        typeof parsedInterval === 'number' && Number.isFinite(parsedInterval)
+          ? parsedInterval
+          : undefined,
+    });
+    if (result.ok) {
+      setStatusMessage({ kind: 'success', text: 'Fuente registrada.' });
+      resetRegister();
+    } else {
+      setStatusMessage({ kind: 'error', text: result.message });
+    }
+  };
+
+  const onPollOne = async (sourceId: string) => {
+    const result = await pollOne.mutateAsync({ sourceId });
+    if (result.ok) {
+      setStatusMessage({
+        kind: 'success',
+        text: `${result.created} nueva(s) · ${result.fetched} leída(s) · ${result.rejected} filtrada(s) · ${result.duplicates} duplicada(s)`,
+      });
+    } else {
+      setStatusMessage({ kind: 'error', text: result.message });
+    }
+  };
+
+  const onPollAll = async () => {
+    const result = await pollAll.mutateAsync();
+    if (result.ok) {
+      setStatusMessage({
+        kind: 'success',
+        text: `${result.created} nueva(s) · ${result.failed} fallo(s) · ${result.polled} fuente(s)`,
+      });
+    } else {
+      setStatusMessage({ kind: 'error', text: result.message });
+    }
+  };
+
+  const onManual = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!manualTitle.trim()) {
+      setStatusMessage({ kind: 'error', text: 'El título de la señal es obligatorio.' });
+      return;
+    }
+    const result = await manual.mutateAsync({ title: manualTitle.trim() });
+    if (result.ok) {
+      setStatusMessage({ kind: 'success', text: 'Señal manual registrada.' });
+      setManualTitle('');
+      setShowManual(false);
+    } else {
+      setStatusMessage({ kind: 'error', text: result.message });
+    }
+  };
 
   return (
     <div data-testid="react-ws-sources">
@@ -1046,10 +1179,155 @@ function SourcesPanel() {
         </div>
       </div>
 
+      <div className="onboarding-footer" style={{ justifyContent: 'flex-start', marginBottom: '1rem' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          data-testid="react-ws-sources-open-register"
+          disabled={busy}
+          onClick={() => setShowRegister((open) => !open)}
+        >
+          {showRegister ? 'Cerrar registro' : '+ Registrar fuente'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          data-testid="react-ws-sources-poll-all"
+          disabled={busy}
+          onClick={() => void onPollAll()}
+        >
+          Ingerir todas
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          data-testid="react-ws-sources-open-manual"
+          disabled={busy}
+          onClick={() => setShowManual((open) => !open)}
+        >
+          {showManual ? 'Cerrar señal manual' : '+ Señal manual'}
+        </button>
+      </div>
+
+      {showRegister ? (
+        <form
+          className="card"
+          data-testid="react-ws-sources-register-form"
+          onSubmit={(e) => void onRegister(e)}
+          style={{ marginBottom: '1rem', padding: '1rem' }}
+        >
+          <h3>Registrar fuente</h3>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-source-name">
+              Nombre
+            </label>
+            <input
+              id="react-source-name"
+              className="form-input"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              data-testid="react-ws-sources-name"
+              disabled={busy}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-source-type">
+              Tipo
+            </label>
+            <select
+              id="react-source-type"
+              className="form-input"
+              required
+              value={type}
+              onChange={(e) => setType(e.target.value as SourceType)}
+              data-testid="react-ws-sources-type"
+              disabled={busy}
+            >
+              {SOURCE_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-source-url">
+              URL (opcional)
+            </label>
+            <input
+              id="react-source-url"
+              className="form-input"
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              data-testid="react-ws-sources-url"
+              disabled={busy}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-source-interval">
+              Intervalo en minutos (opcional)
+            </label>
+            <input
+              id="react-source-interval"
+              className="form-input"
+              type="number"
+              min={1}
+              value={intervalMinutes}
+              onChange={(e) => setIntervalMinutes(e.target.value)}
+              data-testid="react-ws-sources-interval"
+              disabled={busy}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            data-testid="react-ws-sources-register-submit"
+            disabled={busy}
+          >
+            Registrar
+          </button>
+        </form>
+      ) : null}
+
+      {showManual ? (
+        <form
+          className="card"
+          data-testid="react-ws-sources-manual-form"
+          onSubmit={(e) => void onManual(e)}
+          style={{ marginBottom: '1rem', padding: '1rem' }}
+        >
+          <h3>Señal manual</h3>
+          <div className="form-group">
+            <label className="form-label" htmlFor="react-manual-title">
+              Título
+            </label>
+            <input
+              id="react-manual-title"
+              className="form-input"
+              required
+              value={manualTitle}
+              onChange={(e) => setManualTitle(e.target.value)}
+              data-testid="react-ws-sources-manual-title"
+              disabled={busy}
+            />
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            data-testid="react-ws-sources-manual-submit"
+            disabled={busy}
+          >
+            Registrar señal
+          </button>
+        </form>
+      ) : null}
+
       {sources.sources.length ? (
         <ul className="source-list" data-testid="react-ws-source-list">
           {sources.sources.map((source) => (
-            <li className="source-row" key={source.id}>
+            <li className="source-row" key={source.id} data-testid={`react-ws-source-row-${source.id}`}>
               <div>
                 <strong>{source.name}</strong>
                 <p className="muted small">
@@ -1063,6 +1341,17 @@ function SourcesPanel() {
                 {source.healthLabel}
                 {source.acceptRate !== null ? ` · ${Math.round(source.acceptRate * 100)}%` : ''}
               </span>
+              {source.url ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  data-testid={`react-ws-source-poll-${source.id}`}
+                  disabled={busy}
+                  onClick={() => void onPollOne(source.id)}
+                >
+                  Ingerir ahora
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -1072,13 +1361,20 @@ function SourcesPanel() {
         </p>
       )}
 
+      {statusMessage ? (
+        <p
+          className={statusMessage.kind === 'error' ? 'form-error' : 'muted small'}
+          role={statusMessage.kind === 'error' ? 'alert' : undefined}
+          data-testid={
+            statusMessage.kind === 'error' ? 'react-ws-sources-error-msg' : 'react-ws-sources-success'
+          }
+        >
+          {statusMessage.text}
+        </p>
+      ) : null}
+
       <LegacyHandoff
-        actions={[
-          'registrar fuentes',
-          'ingerirlas',
-          'pausarlas o archivarlas',
-          'el descubrimiento automático',
-        ]}
+        actions={['pausarlas o archivarlas', 'el descubrimiento automático']}
         testId="react-ws-sources-handoff"
       />
     </div>
@@ -1581,7 +1877,7 @@ export function ReactClientWorkspacePage({
       {tab === 'radar' ? <RadarPanel workspaceClientId={clientId} /> : null}
       {tab === 'deliver' ? <DeliverPanel workspaceClientId={clientId} /> : null}
       {tab === 'briefs' ? <BriefsPanel /> : null}
-      {tab === 'sources' ? <SourcesPanel /> : null}
+      {tab === 'sources' ? <SourcesPanel workspaceClientId={clientId} /> : null}
       {tab === 'tasks' ? <TasksPanel workspaceClientId={clientId} /> : null}
       {tab === 'production' ? <ProductionPanel workspaceClientId={clientId} /> : null}
       {tab === 'results' ? <ReactKpiWeeklyChart title="Resultados registrados" /> : null}

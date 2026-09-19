@@ -16,7 +16,7 @@
  * effect is re-read from the source of truth (threats T-010-06, T-010-07).
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { tenantInvalidationKey, tenantQueryKey } from '../query/queryKeys';
 import type { TrustedTenantScope } from '../query/tenantScope';
 import {
@@ -40,8 +40,8 @@ import {
   readSignalOutcomes,
   readStrategicBriefs,
 } from '../data/canonicalReads';
-import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, radarCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
-import type { ContentStatus, ContentType, CurationDestination, TaskType } from '../../types';
+import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
+import type { ContentStatus, ContentType, CurationDestination, SourceType, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
 
@@ -313,6 +313,101 @@ export function useWorkspaceSources(scope: TrustedTenantScope | null) {
     queryKey: scope ? tenantQueryKey(scope, 'compatibility', 'workspace-sources') : DISABLED,
     queryFn: () => readWorkspaceSources(scope!),
     enabled: scope !== null && scope.clientId !== null,
+  });
+}
+
+function invalidateSourceReads(queryClient: QueryClient, scope: TrustedTenantScope) {
+  void queryClient.invalidateQueries({
+    queryKey: tenantQueryKey(scope, 'compatibility', 'workspace-sources'),
+  });
+  void queryClient.invalidateQueries({
+    queryKey: tenantQueryKey(scope, 'compatibility', 'sources'),
+  });
+}
+
+function invalidateRadarReads(queryClient: QueryClient, scope: TrustedTenantScope) {
+  void queryClient.invalidateQueries({
+    queryKey: tenantQueryKey(scope, 'compatibility', 'workspace-radar'),
+  });
+}
+
+/** CR-1 #8/#24 RegisterSource — presentation only. */
+export function useRegisterSource(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    CommandResult,
+    Error,
+    { name: string; type: SourceType; url?: string; fetchIntervalMinutes?: number }
+  >({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return signalIntakeCommands.registerSource({
+        requestedClientId: scope.clientId,
+        name: params.name,
+        type: params.type,
+        url: params.url,
+        fetchIntervalMinutes: params.fetchIntervalMinutes,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateSourceReads(queryClient, scope);
+    },
+  });
+}
+
+/** CR-1 #9 PollRegisteredSource — presentation only. */
+export function usePollRegisteredSource(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<PollRegisteredSourceCommandResult, Error, { sourceId: string }>({
+    mutationFn: async ({ sourceId }) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return signalIntakeCommands.pollRegisteredSource({
+        requestedClientId: scope.clientId,
+        sourceId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateSourceReads(queryClient, scope);
+      invalidateRadarReads(queryClient, scope);
+    },
+  });
+}
+
+/** CR-1 #9 PollAllActiveSources — presentation only; Application owns iteration. */
+export function usePollAllActiveSources(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<PollAllActiveSourcesCommandResult, Error, void>({
+    mutationFn: async () => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return signalIntakeCommands.pollAllActiveSources({
+        requestedClientId: scope.clientId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateSourceReads(queryClient, scope);
+      invalidateRadarReads(queryClient, scope);
+    },
+  });
+}
+
+/** CR-1 #26 RegisterManualSignal — presentation only. No scoring. */
+export function useRegisterManualSignal(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { title: string }>({
+    mutationFn: async ({ title }) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return signalIntakeCommands.registerManualSignal({
+        requestedClientId: scope.clientId,
+        title,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateRadarReads(queryClient, scope);
+    },
   });
 }
 

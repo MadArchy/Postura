@@ -18,7 +18,7 @@
  * legacy converge on the identical use case.
  *
  * CR-1 Client Lifecycle (#34, #1), Master Profile (#10), Thesis Lifecycle
- * (#11–#13), Signal Intake (#8/#24/#26), and Execution Delivery (#28/#31/#32)
+ * (#11–#13), Signal Intake (#8/#9/#24/#26), and Execution Delivery (#28/#31/#32)
  * are exposed below. Other AUDIT010-09 writes remain unexposed until their
  * Application owners exist
  * (full registry: `specs/010-react-migration/audit010-09-registry.md`):
@@ -57,6 +57,8 @@ import {
 } from '../../services/thesisLifecycleConsumer';
 import {
   discardSignal as discardSignalConsumer,
+  pollAllActiveSources,
+  pollRegisteredSource,
   registerManualSignal,
   registerSource,
 } from '../../services/signalIntakeConsumer';
@@ -644,9 +646,34 @@ export const thesisLifecycleCommands = {
   },
 } as const;
 
+export type PollRegisteredSourceCommandResult =
+  | {
+      ok: true;
+      sourceId: string;
+      fetched: number;
+      accepted: number;
+      rejected: number;
+      duplicates: number;
+      created: number;
+      message?: string;
+    }
+  | { ok: false; message: string };
+
+export type PollAllActiveSourcesCommandResult =
+  | {
+      ok: true;
+      created: number;
+      failed: number;
+      rejected: number;
+      polled: number;
+      message?: string;
+    }
+  | { ok: false; message: string };
+
 /**
- * CR-1 Signal Intake (#8/#24 RegisterSource, #26 RegisterManualSignal).
- * Seam authority = 0. No routing/scoring/thesis authority.
+ * CR-1 Signal Intake (#8/#24 RegisterSource, #9 PollRegisteredSource /
+ * PollAllActiveSources, #26 RegisterManualSignal).
+ * Seam authority = 0. No routing/scoring/thesis/feed authority.
  */
 export const signalIntakeCommands = {
   registerSource(intent: {
@@ -689,6 +716,55 @@ export const signalIntakeCommands = {
           err instanceof SignalIntakeError || err instanceof Error
             ? err.message
             : 'No se pudo registrar la señal',
+      };
+    }
+  },
+
+  async pollRegisteredSource(intent: {
+    requestedClientId: string | null | undefined;
+    sourceId: string;
+  }): Promise<PollRegisteredSourceCommandResult> {
+    try {
+      const result = await pollRegisteredSource(intent);
+      return {
+        ok: true,
+        sourceId: result.sourceId,
+        fetched: result.fetched,
+        accepted: result.accepted,
+        rejected: result.rejected,
+        duplicates: result.duplicates,
+        created: result.created,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err instanceof SignalIntakeError || err instanceof Error
+            ? err.message
+            : 'No se pudo ingerir la fuente',
+      };
+    }
+  },
+
+  async pollAllActiveSources(intent: {
+    requestedClientId: string | null | undefined;
+  }): Promise<PollAllActiveSourcesCommandResult> {
+    try {
+      const result = await pollAllActiveSources(intent);
+      return {
+        ok: true,
+        created: result.created,
+        failed: result.failed,
+        rejected: result.rejected,
+        polled: result.polled,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err instanceof SignalIntakeError || err instanceof Error
+            ? err.message
+            : 'No se pudo ingerir las fuentes',
       };
     }
   },
