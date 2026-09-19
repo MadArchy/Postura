@@ -38,11 +38,11 @@ omits the action or points at the legacy surface that still owns it.
 | # | Component | User action | Legacy symbol(s) | Business write | CU? | Disposition | Owning SPEC | Blocking phase |
 |---|---|---|---|---|---|---|---|---|
 | 1 | `Login` / invite flow | Accept invitation | `acceptClientInvitation` → Application `AcceptClientInvitation` (legacy symbols: `markInvitationAccepted`, `updateClient`) | invitation state + client record | **YES** | `KEEP_LEGACY` (legacy UI invokes canonical consumer) | **CR-1 Client Lifecycle Application** | 3 |
-| 2 | `ClientProfilePanel` | Add fact | `dbService.addProfileFact` | master profile facts | **NO** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_EXISTING | 3 |
-| 3 | `ClientProfilePanel` | Confirm fact | `dbService.confirmProfileFact` | fact verification state | **NO** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_EXISTING | 3 |
-| 4 | `ClientProfilePanel` | Reject fact | `dbService.rejectProfileFact` | fact verification state | **NO** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_EXISTING | 3 |
-| 5 | `ClientProfilePanel` | Edit fact value | `dbService.updateProfileFact` | master profile facts | **NO** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_EXISTING | 3 |
-| 6 | `ClientProfilePanel` | Extract facts from CV (paste or upload) | `dbService.importCandidateFactsFromCv` | bulk candidate facts | **NO** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_EXISTING | 3 |
+| 2 | `ClientProfilePanel` | Add fact | `addProfileFact` → Application `AddProfileFact` (legacy symbol: `dbService.addProfileFact`) | master profile facts | **YES** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · `#2 CANONICALIZED_AND_FROZEN` · implementation `40f9b59` · acceptance `14a8436` · React not started | 3 |
+| 3 | `ClientProfilePanel` | Confirm fact | `confirmProfileFact` → Application `ConfirmProfileFact` (legacy symbol: `dbService.confirmProfileFact`) | fact verification state | **YES** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · `#3 CANONICALIZED_AND_FROZEN` · candidate → confirmed · React not started | 3 |
+| 4 | `ClientProfilePanel` | Reject fact | `rejectProfileFact` → Application `RejectProfileFact` (legacy symbol: `dbService.rejectProfileFact`) | fact verification state | **YES** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · `#4 CANONICALIZED_AND_FROZEN` · candidate → rejected · no reopen · React not started | 3 |
+| 5 | `ClientProfilePanel` | Edit fact value | `updateProfileFact` → Application `UpdateProfileFact` (legacy symbol: `dbService.updateProfileFact`) | master profile facts | **YES** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · `#5 CANONICALIZED_AND_FROZEN` · confirmed value-only · not raw persist label/status mutation · React not started | 3 |
+| 6 | `ClientProfilePanel` | Extract facts from CV (paste or upload) | `importProfileFactsFromCv` → Application `ImportProfileFactsFromCv` (legacy symbol: `dbService.importCandidateFactsFromCv`) | bulk candidate facts | **YES** | `DISPLAY_ONLY_REACT` | **CR-1 Master Profile Application** · `#6 CANONICALIZED_AND_FROZEN` · local Domain extract · no AI/network · React not started | 3 |
 | 7 | `ProofWallPanel` | Mark asset ready / pending | `dbService.updateProofWallItem` | proof-wall item status | **NO** | `READ_ONLY_REACT` | **CR-1 Master Profile Application** · OWNER_RESOLVED_BY_CURRENT_EVIDENCE | 3 |
 | 8 | `SourceRegistryModal` | Register source | `registerSource` → Application `RegisterSource` (persistence: `dbService.addSource` via adapter) | source registry | **YES** | `READ_ONLY_REACT` (legacy UI invokes canonical consumer) | **CR-1 Signal Intake Application** | 3 |
 | 9 | `SourceRegistryModal` | Ingest now (one / all) | `pollRegisteredSource` / `pollAllActiveSources` → Application `PollRegisteredSource` | signals produced downstream | **YES** | `READ_ONLY_REACT` (legacy UI invokes canonical consumer) | **CR-1 Signal Intake Application** · `PollRegisteredSource` · Stage B blocker **COMPLETE** | 3 |
@@ -457,7 +457,7 @@ from React until separately owned.
 | Previous legacy authority | `main.ts` → `dbService.applyOnboardingStep` (now DEPRECATED fail-closed) |
 | Domain reuse | `buildFactsFromProfile`, `computeProfileCoverage` / `nextIncompleteOnboardingStep` (resume) |
 | Completeness | Domain-derived on `saveMasterProfile` refresh — not caller/legacy constant authority |
-| IDs 2–6 | OWNER_RESOLVED → Master Profile · **NOT_IMPLEMENTED** · ratified Phase B |
+| IDs 2–6 | Master Profile · `#2`–`#6 CANONICALIZED_AND_FROZEN` · `AddProfileFact` / `ConfirmProfileFact` / `RejectProfileFact` / `UpdateProfileFact` / `ImportProfileFactsFromCv` · implementation `40f9b59` · acceptance `14a8436` · React `DISPLAY_ONLY_REACT` not started · legacy handlers still call `dbService` |
 | IDs 7, 29, 30 | Master Profile noncutover · ratified Phase B |
 | Compatibility path | Legacy onboarding form → `masterProfileConsumer`; React remains `DISPLAY_ONLY_REACT` |
 | Removal eligibility | Not eligible — 9 other cutover-spine writes remain |
@@ -528,11 +528,11 @@ Per-row debt metadata (owner resolution does not change `CU?`):
 
 | # | Final owner | Owner state | Integration SPEC | CU? | Stage B | MVP E2E | Canonicalization target |
 |---|---|---|---|---|---|---|---|
-| 2 | Master Profile | OWNER_RESOLVED_EXISTING | — | NO | LEGACY_ISLAND | PARTIAL | Profile fact CRUD use case |
-| 3 | Master Profile | OWNER_RESOLVED_EXISTING | — | NO | LEGACY_ISLAND | PARTIAL | Confirm fact |
-| 4 | Master Profile | OWNER_RESOLVED_EXISTING | — | NO | LEGACY_ISLAND | PARTIAL | Reject fact |
-| 5 | Master Profile | OWNER_RESOLVED_EXISTING | — | NO | LEGACY_ISLAND | PARTIAL | Update fact |
-| 6 | Master Profile | OWNER_RESOLVED_EXISTING | — | NO | LEGACY_ISLAND | PARTIAL | CV import |
+| 2 | Master Profile | `#2` canonical | — | **YES** | LEGACY_ISLAND | PARTIAL | `AddProfileFact` · `#2 CANONICALIZED_AND_FROZEN` · implementation `40f9b59` · acceptance `14a8436` · React not started |
+| 3 | Master Profile | `#3` canonical | — | **YES** | LEGACY_ISLAND | PARTIAL | `ConfirmProfileFact` · `#3 CANONICALIZED_AND_FROZEN` · candidate → confirmed · React not started |
+| 4 | Master Profile | `#4` canonical | — | **YES** | LEGACY_ISLAND | PARTIAL | `RejectProfileFact` · `#4 CANONICALIZED_AND_FROZEN` · candidate → rejected · no reopen · React not started |
+| 5 | Master Profile | `#5` canonical | — | **YES** | LEGACY_ISLAND | PARTIAL | `UpdateProfileFact` · `#5 CANONICALIZED_AND_FROZEN` · confirmed value-only · React not started |
+| 6 | Master Profile | `#6` canonical | — | **YES** | LEGACY_ISLAND | PARTIAL | `ImportProfileFactsFromCv` · `#6 CANONICALIZED_AND_FROZEN` · local Domain extract · no AI/network · React not started |
 | 7 | Master Profile | OWNER_RESOLVED_BY_CURRENT_EVIDENCE | — | NO | LEGACY_ISLAND | NOT_REQUIRED | Proof wall toggle |
 | 9 | Signal Intake | OWNER_RESOLVED_EXISTING | SPEC-001 post-ingest consumer | **YES** | COMPLETE | REQUIRED | `PollRegisteredSource` / `PollAllActiveSources` |
 | 14 | Execution Delivery | `#14` canonical | SPEC-003 gate | **YES** | LEGACY_ISLAND | REQUIRED | `DecideCuration` · Wave B3 **CANONICALIZED_AND_FROZEN** |
