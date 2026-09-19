@@ -1,37 +1,63 @@
 /**
- * SPEC-010 · React ClientProfilePanel (wave 2, T-010-203) — DISPLAY_ONLY_REACT.
+ * SPEC-010 · React ClientProfilePanel (wave 2) — presentation write parity
+ * for Master Profile fact lifecycle (#2–#6).
  *
  * Authority: presentation only.
  *
- * READ SOURCE: compatibility (`readProfileOverview`). Coverage is computed by
- * `domain/profileCoverage` inside the facade, so no threshold, completeness rule
- * or section rule is evaluated here (threat T-010-19).
+ * READ SOURCE: compatibility (`readProfileOverview`). Coverage/completeness are
+ * consumed from the facade — React does not evaluate the 20/5 formula.
  *
- * COMMANDS: none. Every action the legacy panel offers is a business write with
- * no canonical Application use case (AUDIT010-09):
+ * WRITES: Wave2 hooks → `masterProfileCommands` → `masterProfileConsumer` →
+ * frozen Add/Confirm/Reject/Update/ImportProfileFactsFromCv.
  *
- *   add fact            → `dbService.addProfileFact`
- *   confirm fact        → `dbService.confirmProfileFact`
- *   reject fact         → `dbService.rejectProfileFact`
- *   edit fact           → `dbService.updateProfileFact`
- *   extract CV facts    → `dbService.importCandidateFactsFromCv`
+ * React may collect section/label/value, factId, value, and local CV text.
+ * It must not supply role, organization, trusted client identity, status,
+ * source, or completeness. CV import sends text only (`file.text()` / paste).
  *
- * Confirming a fact in particular changes what the system treats as verified
- * authority, so a React wrapper around the raw write is exactly what the
- * migration rule forbids. The read portion migrates; the writes stay legacy.
- *
- * Capability is preserved: the actions are visibly delegated to the legacy
- * surface, which is still served and unchanged, rather than being silently
- * dropped.
+ * #7 ProofWall remains a sibling Wave2 read-only surface.
+ * Legacy `ClientProfilePanel` + `profileHandlers` remain for rollback.
  */
 
+import { useEffect, useState } from 'react';
 import { useSession } from '../../providers/SessionProvider';
-import { useProfileOverview } from '../../hooks/useWave2Data';
+import {
+  useAddProfileFact,
+  useConfirmProfileFact,
+  useImportProfileFactsFromCv,
+  useProfileOverview,
+  useRejectProfileFact,
+  useUpdateProfileFact,
+} from '../../hooks/useWave2Data';
 import { applyUiMode } from '../../mount';
+import type { ProfileFactSection } from '../../../types';
+
+type StatusMessage = { kind: 'success' | 'error'; text: string };
 
 export function ReactClientProfilePanel() {
   const { tenantScope } = useSession();
   const { data, isLoading, isError } = useProfileOverview(tenantScope);
+  const addFact = useAddProfileFact(tenantScope);
+  const confirmFact = useConfirmProfileFact(tenantScope);
+  const rejectFact = useRejectProfileFact(tenantScope);
+  const updateFact = useUpdateProfileFact(tenantScope);
+  const importCv = useImportProfileFactsFromCv(tenantScope);
+
+  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
+  const [addingSection, setAddingSection] = useState<string | null>(null);
+  const [addLabel, setAddLabel] = useState('');
+  const [addValue, setAddValue] = useState('');
+  const [editingFactId, setEditingFactId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [cvText, setCvText] = useState('');
+  const [cvPrefillKey, setCvPrefillKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    const extracted = data?.cvExtractedText ?? '';
+    if (cvPrefillKey === null && extracted) {
+      setCvText(extracted.slice(0, 2000));
+      setCvPrefillKey(extracted);
+    }
+  }, [data?.cvExtractedText, cvPrefillKey]);
 
   if (!tenantScope) {
     return (
@@ -41,7 +67,7 @@ export function ReactClientProfilePanel() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <section className="card" data-testid="react-profile-loading">
         <p className="muted">Cargando perfil…</p>
@@ -64,14 +90,115 @@ export function ReactClientProfilePanel() {
     sections: [],
     clientDisplayName: null,
     profileCompleteness: 0,
+    cvExtractedText: '',
     serviceLines: [],
+  };
+
+  const showStatus = (kind: StatusMessage['kind'], text: string) => {
+    setStatusMessage({ kind, text });
+  };
+
+  const handleAdd = (section: ProfileFactSection) => {
+    const label = addLabel.trim();
+    const value = addValue.trim();
+    if (!label || !value) {
+      showStatus('error', 'Escribe una etiqueta y un valor.');
+      return;
+    }
+    addFact.mutate(
+      { section, label, value },
+      {
+        onSuccess: (result) => {
+          if (!result.ok) {
+            showStatus('error', result.message);
+            return;
+          }
+          setAddingSection(null);
+          setAddLabel('');
+          setAddValue('');
+          showStatus('success', result.message || 'Fact añadido');
+        },
+        onError: () => showStatus('error', 'No se pudo añadir el fact de perfil'),
+      }
+    );
+  };
+
+  const handleConfirm = (factId: string) => {
+    confirmFact.mutate(
+      { factId },
+      {
+        onSuccess: (result) => {
+          showStatus(result.ok ? 'success' : 'error', result.message || (result.ok ? 'Fact confirmado' : 'No se pudo confirmar el fact de perfil'));
+        },
+        onError: () => showStatus('error', 'No se pudo confirmar el fact de perfil'),
+      }
+    );
+  };
+
+  const handleReject = (factId: string) => {
+    rejectFact.mutate(
+      { factId },
+      {
+        onSuccess: (result) => {
+          showStatus(result.ok ? 'success' : 'error', result.message || (result.ok ? 'Fact descartado' : 'No se pudo rechazar el fact de perfil'));
+        },
+        onError: () => showStatus('error', 'No se pudo rechazar el fact de perfil'),
+      }
+    );
+  };
+
+  const handleUpdate = (factId: string) => {
+    const value = editValue.trim();
+    if (!value) {
+      showStatus('error', 'Escribe un valor.');
+      return;
+    }
+    updateFact.mutate(
+      { factId, value },
+      {
+        onSuccess: (result) => {
+          if (!result.ok) {
+            showStatus('error', result.message);
+            return;
+          }
+          setEditingFactId(null);
+          setEditValue('');
+          showStatus('success', result.message || 'Fact actualizado');
+        },
+        onError: () => showStatus('error', 'No se pudo actualizar el fact de perfil'),
+      }
+    );
+  };
+
+  const handleImportCv = () => {
+    const text = cvText.trim();
+    if (!text) {
+      showStatus('error', 'Pega el texto del CV o sube un archivo .txt');
+      return;
+    }
+    importCv.mutate(
+      { cvText: text },
+      {
+        onSuccess: (result) => {
+          showStatus(result.ok ? 'success' : 'error', result.message);
+        },
+        onError: () => showStatus('error', 'No se pudieron importar facts desde CV'),
+      }
+    );
+  };
+
+  const handleCvFile = async (file: File | undefined) => {
+    if (!file) return;
+    const text = await file.text();
+    setCvText(text);
+    setCvPrefillKey(text);
   };
 
   return (
     <div
       className="profile-page-stack"
       data-testid="react-profile-panel"
-      data-authority="DISPLAY_ONLY"
+      data-authority="PRESENTATION"
     >
       <section className="card">
         <div className="card-header">
@@ -102,17 +229,72 @@ export function ReactClientProfilePanel() {
           ))}
         </div>
 
-        <p className="muted small" data-testid="react-profile-delegation">
-          Añadir, confirmar, editar o descartar facts, y extraer facts del CV, se siguen haciendo en
-          la interfaz anterior.{' '}
+        {statusMessage ? (
+          <p
+            className={statusMessage.kind === 'error' ? 'form-error' : 'form-success'}
+            role="status"
+            data-testid={
+              statusMessage.kind === 'error' ? 'react-profile-error-msg' : 'react-profile-success'
+            }
+          >
+            {statusMessage.text}
+          </p>
+        ) : null}
+
+        <p className="muted small" data-testid="react-profile-rollback">
           <button type="button" className="link-btn" onClick={() => void applyUiMode('legacy')}>
             Abrir interfaz anterior
           </button>
         </p>
       </section>
 
+      <section className="card" data-testid="react-profile-cv">
+        <div className="card-header">
+          <div>
+            <h3>Subir CV para extraer facts</h3>
+            <p className="muted small">Acepta .txt o .md. También puedes pegar texto plano del CV.</p>
+          </div>
+        </div>
+        <div className="cv-upload-block">
+          <label className="btn btn-secondary btn-sm">
+            Seleccionar archivo
+            <input
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown"
+              className="sr-only"
+              data-testid="react-profile-cv-file"
+              onChange={(event) => {
+                void handleCvFile(event.currentTarget.files?.[0]);
+                event.currentTarget.value = '';
+              }}
+            />
+          </label>
+          <textarea
+            className="form-textarea cv-paste-area"
+            rows={5}
+            placeholder="O pega aquí el texto de tu CV…"
+            data-testid="react-profile-cv-paste"
+            value={cvText}
+            onChange={(event) => setCvText(event.target.value)}
+          />
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            data-testid="react-profile-cv-submit"
+            disabled={importCv.isPending}
+            onClick={handleImportCv}
+          >
+            {importCv.isPending ? 'Extrayendo…' : 'Extraer facts candidatos'}
+          </button>
+        </div>
+      </section>
+
       {profile.sections.map((section) => (
-        <section className="card profile-facts-section" key={section.section}>
+        <section
+          className="card profile-facts-section"
+          key={section.section}
+          data-fact-section={section.section}
+        >
           <div className="card-header">
             <div>
               <h3>{section.label}</h3>
@@ -122,7 +304,56 @@ export function ReactClientProfilePanel() {
                   : 'Sin facts todavía'}
               </p>
             </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              data-testid={`react-profile-add-${section.section}`}
+              disabled={addFact.isPending}
+              onClick={() => {
+                setAddingSection((current) =>
+                  current === section.section ? null : section.section
+                );
+                setAddLabel('');
+                setAddValue('');
+              }}
+            >
+              + Añadir
+            </button>
           </div>
+
+          {addingSection === section.section ? (
+            <div className="profile-add-form" data-testid={`react-profile-add-form-${section.section}`}>
+              <label className="muted small" htmlFor={`react-profile-add-label-${section.section}`}>
+                Etiqueta
+              </label>
+              <input
+                id={`react-profile-add-label-${section.section}`}
+                className="form-input"
+                data-testid={`react-profile-add-label-${section.section}`}
+                value={addLabel}
+                onChange={(event) => setAddLabel(event.target.value)}
+              />
+              <label className="muted small" htmlFor={`react-profile-add-value-${section.section}`}>
+                Valor
+              </label>
+              <input
+                id={`react-profile-add-value-${section.section}`}
+                className="form-input"
+                data-testid={`react-profile-add-value-${section.section}`}
+                value={addValue}
+                onChange={(event) => setAddValue(event.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                data-testid={`react-profile-add-submit-${section.section}`}
+                disabled={addFact.isPending}
+                onClick={() => handleAdd(section.section as ProfileFactSection)}
+              >
+                {addFact.isPending ? 'Guardando…' : 'Guardar fact'}
+              </button>
+            </div>
+          ) : null}
 
           {section.facts.length ? (
             <div className="profile-facts-list">
@@ -130,6 +361,9 @@ export function ReactClientProfilePanel() {
                 <div
                   className={`profile-fact-row ${fact.status === 'candidate' ? 'is-candidate' : ''}`}
                   key={fact.id}
+                  data-testid={`react-profile-fact-${fact.id}`}
+                  data-fact-id={fact.id}
+                  data-fact-status={fact.status}
                 >
                   <div className="profile-fact-main">
                     <span
@@ -138,15 +372,83 @@ export function ReactClientProfilePanel() {
                       {fact.status === 'confirmed' ? 'Confirmado' : 'Candidato'}
                     </span>
                     <strong>{fact.label}</strong>
-                    <p className="muted small">{fact.value}</p>
+                    {editingFactId === fact.id ? (
+                      <input
+                        className="form-input"
+                        data-testid={`react-profile-edit-value-${fact.id}`}
+                        value={editValue}
+                        onChange={(event) => setEditValue(event.target.value)}
+                      />
+                    ) : (
+                      <p className="muted small">{fact.value}</p>
+                    )}
+                  </div>
+                  <div className="profile-fact-actions">
+                    {fact.status === 'candidate' ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-success btn-sm"
+                          data-testid={`react-profile-confirm-${fact.id}`}
+                          disabled={confirmFact.isPending || rejectFact.isPending}
+                          onClick={() => handleConfirm(fact.id)}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          data-testid={`react-profile-reject-${fact.id}`}
+                          disabled={confirmFact.isPending || rejectFact.isPending}
+                          onClick={() => handleReject(fact.id)}
+                        >
+                          Descartar
+                        </button>
+                      </>
+                    ) : editingFactId === fact.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          data-testid={`react-profile-edit-submit-${fact.id}`}
+                          disabled={updateFact.isPending}
+                          onClick={() => handleUpdate(fact.id)}
+                        >
+                          {updateFact.isPending ? 'Guardando…' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          data-testid={`react-profile-edit-cancel-${fact.id}`}
+                          disabled={updateFact.isPending}
+                          onClick={() => {
+                            setEditingFactId(null);
+                            setEditValue('');
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        data-testid={`react-profile-edit-${fact.id}`}
+                        disabled={updateFact.isPending}
+                        onClick={() => {
+                          setEditingFactId(fact.id);
+                          setEditValue(fact.value);
+                        }}
+                      >
+                        Editar
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="empty-state">
-              Añade facts confirmados o extrae candidatos desde tu CV en la interfaz anterior.
-            </p>
+            <p className="empty-state">Añade facts confirmados o extrae candidatos desde tu CV.</p>
           )}
         </section>
       ))}
@@ -178,7 +480,7 @@ export function ReactClientProfilePanel() {
       ) : null}
 
       {profile.clientDisplayName ? (
-        <p className="muted small profile-footnote">
+        <p className="muted small profile-footnote" data-testid="react-profile-completeness">
           Perfil de {profile.clientDisplayName} · completitud {profile.profileCompleteness}%
         </p>
       ) : null}

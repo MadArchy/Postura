@@ -278,6 +278,7 @@ export interface ProfileOverviewRead {
   readonly sections: readonly ProfileSectionRead[];
   readonly clientDisplayName: string | null;
   readonly profileCompleteness: number;
+  readonly cvExtractedText: string;
   readonly serviceLines: readonly {
     readonly name: string;
     readonly description: string;
@@ -285,7 +286,7 @@ export interface ProfileOverviewRead {
   }[];
 }
 
-/** T-010-203 · `ClientProfilePanel`, display portion only. Fact mutation stays legacy (AUDIT010-09). */
+/** T-010-203 · `ClientProfilePanel` factual read. Writes go through masterProfileCommands. */
 export function readProfileOverview(scope: TrustedTenantScope): ProfileOverviewRead {
   const clientId = requireClient(scope);
   const empty: ProfileOverviewRead = {
@@ -295,6 +296,7 @@ export function readProfileOverview(scope: TrustedTenantScope): ProfileOverviewR
     sections: [],
     clientDisplayName: null,
     profileCompleteness: 0,
+    cvExtractedText: '',
     serviceLines: [],
   };
   if (!clientId) return empty;
@@ -324,6 +326,7 @@ export function readProfileOverview(scope: TrustedTenantScope): ProfileOverviewR
     }),
     clientDisplayName: client?.displayName ?? null,
     profileCompleteness: client?.profileCompleteness || 0,
+    cvExtractedText: profile?.cvExtractedText ?? '',
     serviceLines: (dossier?.serviceLines || []).map((line) => ({
       name: line.name,
       description: line.description,

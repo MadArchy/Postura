@@ -17,15 +17,12 @@
  * migrated command is a change of caller, never a change of authority: React and
  * legacy converge on the identical use case.
  *
- * CR-1 Client Lifecycle (#34, #1), Master Profile (#10), Thesis Lifecycle
+ * CR-1 Client Lifecycle (#34, #1), Master Profile (#10 + #2–#6), Thesis Lifecycle
  * (#11–#13), Signal Intake (#8/#9/#24/#26), and Execution Delivery (#28/#31/#32)
  * are exposed below. Other AUDIT010-09 writes remain unexposed until their
  * Application owners exist
  * (full registry: `specs/010-react-migration/audit010-09-registry.md`):
  *
- *   - profile fact lifecycle     (`addProfileFact`, `confirmProfileFact`,
- *                                 `rejectProfileFact`, `updateProfileFact`,
- *                                 `importCandidateFactsFromCv`)
  *   - proof-wall status toggle   (`updateProofWallItem`)
  *
  * In every remaining case the legacy surface remains served, so no capability is
@@ -49,7 +46,14 @@ import {
   acceptClientInvitation,
   createClientWithInvite,
 } from '../../services/clientLifecycleConsumer';
-import { applyOnboardingStep } from '../../services/masterProfileConsumer';
+import {
+  addProfileFact,
+  applyOnboardingStep,
+  confirmProfileFact,
+  importProfileFactsFromCv,
+  rejectProfileFact,
+  updateProfileFact,
+} from '../../services/masterProfileConsumer';
 import {
   activateThesis,
   decideThesisClientReview,
@@ -95,6 +99,7 @@ import type {
   ContentStatus,
   ContentType,
   CurationDestination,
+  ProfileFactSection,
   SourceType,
   TaskType,
   ThesisEditableFields,
@@ -125,6 +130,10 @@ export type OnboardingStepCommandResult =
       step: number;
       message?: string;
     }
+  | { ok: false; message: string };
+
+export type ProfileFactImportCommandResult =
+  | { ok: true; importedCount: number; message: string }
   | { ok: false; message: string };
 
 export type ThesisSaveCommandResult =
@@ -486,11 +495,19 @@ export const clientLifecycleCommands = {
   },
 } as const;
 
+function mapMasterProfileError(err: unknown, fallback: string): CommandResult {
+  if (err instanceof MasterProfileError) {
+    return { ok: false, message: err.message };
+  }
+  return { ok: false, message: err instanceof Error ? err.message : fallback };
+}
+
 /**
- * CR-1 Master Profile (#10 ApplyOnboardingStep).
+ * CR-1 Master Profile (#10 ApplyOnboardingStep + #2–#6 fact lifecycle).
  *
  * Seam authority = 0. Delegates to `masterProfileConsumer`, which gates via
- * `requireTenantScope`. React and legacy must converge on this use case.
+ * `requireTenantScope`. React and legacy must converge on these use cases.
+ * Adapters do not authorize, persist, extract CV facts, or compute completeness.
  */
 export const masterProfileCommands = {
   applyOnboardingStep(intent: {
@@ -531,6 +548,82 @@ export const masterProfileCommands = {
       return {
         ok: false,
         message: err instanceof Error ? err.message : 'No se pudo guardar el onboarding',
+      };
+    }
+  },
+
+  addProfileFact(intent: {
+    requestedClientId: string | null | undefined;
+    section: ProfileFactSection;
+    label: string;
+    value: string;
+  }): CommandResult {
+    try {
+      addProfileFact(intent);
+      return { ok: true, message: 'Fact añadido' };
+    } catch (err) {
+      return mapMasterProfileError(err, 'No se pudo añadir el fact de perfil');
+    }
+  },
+
+  confirmProfileFact(intent: {
+    requestedClientId: string | null | undefined;
+    factId: string;
+  }): CommandResult {
+    try {
+      confirmProfileFact(intent);
+      return { ok: true, message: 'Fact confirmado' };
+    } catch (err) {
+      return mapMasterProfileError(err, 'No se pudo confirmar el fact de perfil');
+    }
+  },
+
+  rejectProfileFact(intent: {
+    requestedClientId: string | null | undefined;
+    factId: string;
+  }): CommandResult {
+    try {
+      rejectProfileFact(intent);
+      return { ok: true, message: 'Fact descartado' };
+    } catch (err) {
+      return mapMasterProfileError(err, 'No se pudo rechazar el fact de perfil');
+    }
+  },
+
+  updateProfileFact(intent: {
+    requestedClientId: string | null | undefined;
+    factId: string;
+    value: string;
+  }): CommandResult {
+    try {
+      updateProfileFact(intent);
+      return { ok: true, message: 'Fact actualizado' };
+    } catch (err) {
+      return mapMasterProfileError(err, 'No se pudo actualizar el fact de perfil');
+    }
+  },
+
+  importProfileFactsFromCv(intent: {
+    requestedClientId: string | null | undefined;
+    cvText: string;
+  }): ProfileFactImportCommandResult {
+    try {
+      const result = importProfileFactsFromCv(intent);
+      const importedCount = result.importedCount;
+      return {
+        ok: true,
+        importedCount,
+        message: importedCount
+          ? `${importedCount} facts candidatos extraídos`
+          : 'No se encontraron facts nuevos',
+      };
+    } catch (err) {
+      if (err instanceof MasterProfileError) {
+        return { ok: false, message: err.message };
+      }
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : 'No se pudieron importar facts desde CV',
       };
     }
   },

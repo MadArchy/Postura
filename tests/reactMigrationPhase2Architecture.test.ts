@@ -130,10 +130,9 @@ describe('AUDIT010-09 / §7 — no legacy business write is wrapped in React', (
   const BLOCKED_MUTATORS = [
     'markInvitationAccepted',
     'updateClient',
-    'addProfileFact',
-    'confirmProfileFact',
-    'rejectProfileFact',
-    'updateProfileFact',
+    // addProfileFact / confirmProfileFact / rejectProfileFact / updateProfileFact
+    // are canonical CR-1 Master Profile (seam → consumer). Still forbidden:
+    // dbService.* of those names and the legacy CV symbol below.
     'importCandidateFactsFromCv',
     'updateProofWallItem',
     'addSource',
@@ -360,12 +359,11 @@ describe('T-010-15 / §23 — multi-thesis and no primary-item authority', () =>
 
 describe('§13 / §14 — blocked actions are delegated, not silently dropped', () => {
   const delegating = [
-    'src/ui/modules/ClientProfile/ReactClientProfilePanel.tsx',
     'src/ui/modules/ProofWall/ReactProofWallPanel.tsx',
     'src/ui/modules/SourceRegistry/ReactSourceRegistryPanel.tsx',
   ];
 
-  it('each read-only component tells the user where the action still lives', () => {
+  it('each remaining read-only component tells the user where the action still lives', () => {
     for (const path of delegating) {
       const source = read(join(ROOT, path));
       expect(source).toContain('interfaz anterior');
@@ -373,11 +371,19 @@ describe('§13 / §14 — blocked actions are delegated, not silently dropped', 
     }
   });
 
-  it('each read-only component records its restricted authority', () => {
+  it('each remaining read-only component records its restricted authority', () => {
     for (const path of delegating) {
       const source = read(join(ROOT, path));
       expect(/data-authority="(READ_ONLY|DISPLAY_ONLY)"/.test(source)).toBe(true);
     }
+  });
+
+  it('profile panel retains rollback without exclusive display-only delegation', () => {
+    const source = read(join(ROOT, 'src/ui/modules/ClientProfile/ReactClientProfilePanel.tsx'));
+    expect(source).toContain('applyUiMode');
+    expect(source).toContain('interfaz anterior');
+    expect(source).toContain('data-authority="PRESENTATION"');
+    expect(source).not.toContain('data-authority="DISPLAY_ONLY"');
   });
 
 });

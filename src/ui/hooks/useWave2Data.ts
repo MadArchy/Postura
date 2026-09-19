@@ -32,7 +32,15 @@ import {
   readSources,
 } from '../data/compatibilityReads';
 import { readClientOpportunityCards } from '../data/canonicalReads';
-import { opportunityCommands, resultCommands, masterProfileCommands, type CommandResult, type OnboardingStepCommandResult } from '../commands/commandSeam';
+import {
+  opportunityCommands,
+  resultCommands,
+  masterProfileCommands,
+  type CommandResult,
+  type OnboardingStepCommandResult,
+  type ProfileFactImportCommandResult,
+} from '../commands/commandSeam';
+import type { ProfileFactSection } from '../../types';
 
 const DISABLED = ['disabled'] as const;
 
@@ -104,6 +112,107 @@ export function useApplyOnboardingStep(scope: TrustedTenantScope | null) {
     onSuccess: (result) => {
       if (!scope || !result.ok) return;
       void queryClient.invalidateQueries({ queryKey: tenantInvalidationKey(scope, 'compatibility') });
+    },
+  });
+}
+
+function invalidateCompatibility(scope: TrustedTenantScope, queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: tenantInvalidationKey(scope, 'compatibility') });
+}
+
+/** CR-1 #2 AddProfileFact — presentation only. */
+export function useAddProfileFact(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    CommandResult,
+    Error,
+    { section: ProfileFactSection; label: string; value: string }
+  >({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.addProfileFact({
+        requestedClientId: scope.clientId,
+        section: params.section,
+        label: params.label,
+        value: params.value,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
+    },
+  });
+}
+
+/** CR-1 #3 ConfirmProfileFact — presentation only. */
+export function useConfirmProfileFact(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { factId: string }>({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.confirmProfileFact({
+        requestedClientId: scope.clientId,
+        factId: params.factId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
+    },
+  });
+}
+
+/** CR-1 #4 RejectProfileFact — presentation only. */
+export function useRejectProfileFact(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { factId: string }>({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.rejectProfileFact({
+        requestedClientId: scope.clientId,
+        factId: params.factId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
+    },
+  });
+}
+
+/** CR-1 #5 UpdateProfileFact — presentation only. Value only. */
+export function useUpdateProfileFact(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<CommandResult, Error, { factId: string; value: string }>({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.updateProfileFact({
+        requestedClientId: scope.clientId,
+        factId: params.factId,
+        value: params.value,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
+    },
+  });
+}
+
+/** CR-1 #6 ImportProfileFactsFromCv — presentation only. Text in, no extraction. */
+export function useImportProfileFactsFromCv(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<ProfileFactImportCommandResult, Error, { cvText: string }>({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.importProfileFactsFromCv({
+        requestedClientId: scope.clientId,
+        cvText: params.cvText,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
     },
   });
 }
