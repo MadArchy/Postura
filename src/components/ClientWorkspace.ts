@@ -27,6 +27,7 @@ import { computeThesisLearningMetrics, type ThesisLearningMetrics } from '../dom
 import { icon } from '../lib/icons';
 import { deriveWorkStage, WORK_STAGE_BADGE, WORK_STAGE_LABELS } from '../domain/workPipeline';
 import { normalizeTab } from '../ui/presentation/pageTabMeta';
+import { shouldRenderLegacyDossierSlot } from '../ui/presentation/dossierSlot';
 import { renderPage } from './PageHeader';
 import { renderContentPipeline, renderScientificFocusPanel } from './ManagerCockpit';
 import { buildProfileKeywords, normalizeSourceUrl } from '../services/sourceDiscovery';
@@ -1887,7 +1888,7 @@ function renderPositioning(
            <p class="empty-state">Sin tesis registrada. Créala para activar el radar y el scoring.</p>
          </section>`}
 
-    ${dossier
+    ${dossier && shouldRenderLegacyDossierSlot()
       ? `<details class="card disclosure" id="dossier-maestro">
            <summary>Dossier maestro</summary>
            <div class="disclosure-body">${renderMasterDossierPanel(dossier, client)}</div>

@@ -14,8 +14,13 @@
  * MOUNT     creates the root once and renders the React shell into it.
  * UNMOUNT   unmounts the root, releasing React listeners and query
  *           subscriptions, and leaves #react-root empty — the declared empty
- *           state. The legacy UI is untouched throughout and remains operational,
- *           so unmounting is a complete rollback with no data migration.
+ *           state. The legacy UI is untouched throughout.
+ *
+ * Whole-app unmount rollback remains legal only while no React-exclusive slot
+ * exists. If a slot has been cut over (presentation-only exclusive-slot
+ * registry), a legacy request must keep React mounted so that slot can still
+ * render. Visibility stays exclusive: served mode remains `react`, so #app
+ * does not become the replacement shell (A38).
  *
  * Mounting is idempotent: repeated calls do not create a second root.
  */
@@ -23,6 +28,7 @@
 import './strangler/strangler.css';
 import { applyUiModeAttribute, readUiMode, writeUiMode, type UiMode } from './strangler/toggle';
 import { mountLegacyIsland, unmountLegacyIsland } from '../controllers/legacyIslandBridge';
+import { hasReactExclusiveSlot, resolveServedUiMode } from './presentation/reactExclusiveSlots';
 
 export const REACT_ROOT_ID = 'react-root';
 export const LEGACY_ROOT_ID = 'app';
@@ -72,36 +78,45 @@ export function unmountReactShell(): void {
 }
 
 /**
- * Applies a presentation mode: publishes it, persists it, and mounts or unmounts
- * React accordingly. Canonical business state is never read or written here.
+ * Applies a presentation mode: publishes it, persists the request, and mounts
+ * or unmounts React according to exclusive-slot rules. Canonical business
+ * state is never read or written here.
+ *
+ * A persisted `legacy` request still does not unmount React when a
+ * React-exclusive slot exists. In that case the served attribute stays
+ * `react` so A38 keeps exactly one visible root.
  */
 export async function applyUiMode(mode: UiMode): Promise<void> {
   writeUiMode(mode);
-  applyUiModeAttribute(mode);
 
-  if (mode === 'react') {
+  const decision = resolveServedUiMode(mode);
+
+  if (decision.keepReactMounted) {
+    applyUiModeAttribute(decision.served);
     const mounted = await mountReactShell();
     if (!mounted) {
-      // No container: fail closed to the legacy presentation rather than
-      // leaving the user with nothing rendered.
+      if (hasReactExclusiveSlot()) {
+        applyUiModeAttribute('react');
+        return;
+      }
       applyUiModeAttribute('legacy');
       writeUiMode('legacy');
     }
     return;
   }
 
+  applyUiModeAttribute('legacy');
   unmountReactShell();
 }
 
 /**
  * Boot entry called once by the legacy bootstrap.
  *
- * Stage B (T-010-403): normal mode mounts the React shell; legacy rollback skips React import.
+ * Stage B (T-010-403): normal mode mounts the React shell. A stored legacy
+ * request still mounts React when a React-exclusive slot exists.
  */
 export async function initReactStrangler(): Promise<void> {
-  const mode = readUiMode();
-  applyUiModeAttribute(mode);
-  if (mode === 'react') await applyUiMode('react');
+  await applyUiMode(readUiMode());
 }
 
 /** Exposed for the E2E harness and manual rollback verification. */

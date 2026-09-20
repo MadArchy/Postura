@@ -1,0 +1,104 @@
+/**
+ * SPEC-010 · presentation-only React-exclusive slot registry.
+ *
+ * A listed slot has no remaining legal full-legacy renderer for that disclosure.
+ * Whole-app unmount rollback is then illegal: React must stay mounted so the
+ * exclusive slot can still render (Phase-6 Option E / A43 C6).
+ *
+ * This is UI metadata only. It is not a Domain concept, not persisted product
+ * state, not an authorization source, and not a tenant or role authority.
+ *
+ * Default is empty (coexistence). A later cutover authorization adds ids.
+ */
+
+import type { UiMode } from '../strangler/toggle';
+
+export const CLIENT_WORKSPACE_DOSSIER_SLOT = 'client-workspace-dossier';
+
+const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [CLIENT_WORKSPACE_DOSSIER_SLOT] as const;
+
+export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
+
+/** Compile-time exclusive set. Empty until a separate cutover is authorized. */
+const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [];
+
+let exclusiveSlotOverride: readonly string[] | null = null;
+
+function configuredSlotIds(): readonly string[] {
+  return exclusiveSlotOverride ?? CONFIGURED_REACT_EXCLUSIVE_SLOTS;
+}
+
+function isKnownSlotId(id: string): id is ReactExclusiveSlotId {
+  return (KNOWN_REACT_EXCLUSIVE_SLOT_IDS as readonly string[]).includes(id);
+}
+
+/**
+ * True when any slot id is configured. Unknown ids fail closed to keeping
+ * React mounted rather than allowing whole-app unmount.
+ */
+export function hasReactExclusiveSlot(): boolean {
+  return configuredSlotIds().length > 0;
+}
+
+export function isReactExclusiveSlot(id: string): boolean {
+  return isKnownSlotId(id) && configuredSlotIds().includes(id);
+}
+
+export function listKnownReactExclusiveSlotIds(): readonly ReactExclusiveSlotId[] {
+  return KNOWN_REACT_EXCLUSIVE_SLOT_IDS;
+}
+
+export type ServedPresentation = {
+  readonly requested: UiMode;
+  readonly served: UiMode;
+  readonly mayUnmountReact: boolean;
+  readonly mayActivateLegacyRoot: boolean;
+  readonly keepReactMounted: boolean;
+};
+
+/**
+ * Resolves which shell may be served for a presentation request.
+ * Never reads business, tenant, or persistence state.
+ */
+export function resolveServedUiMode(
+  requested: UiMode,
+  exclusive = hasReactExclusiveSlot()
+): ServedPresentation {
+  if (requested === 'react') {
+    return {
+      requested,
+      served: 'react',
+      mayUnmountReact: false,
+      mayActivateLegacyRoot: false,
+      keepReactMounted: true,
+    };
+  }
+
+  if (exclusive) {
+    return {
+      requested,
+      served: 'react',
+      mayUnmountReact: false,
+      mayActivateLegacyRoot: false,
+      keepReactMounted: true,
+    };
+  }
+
+  return {
+    requested,
+    served: 'legacy',
+    mayUnmountReact: true,
+    mayActivateLegacyRoot: true,
+    keepReactMounted: false,
+  };
+}
+
+/**
+ * In-memory test seam for exclusive-slot presence. Not persisted and not an
+ * authority API. Pass `null` to restore the compile-time (empty) default.
+ *
+ * @internal
+ */
+export function __setReactExclusiveSlotsForTests(ids: readonly string[] | null): void {
+  exclusiveSlotOverride = ids;
+}
