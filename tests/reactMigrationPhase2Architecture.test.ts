@@ -134,6 +134,8 @@ describe('AUDIT010-09 / §7 — no legacy business write is wrapped in React', (
     // are canonical CR-1 Master Profile (seam → consumer). Still forbidden:
     // dbService.* of those names and the legacy CV symbol below.
     'importCandidateFactsFromCv',
+    // setProofWallItemReadiness is canonical CR-1 Master Profile (seam → consumer).
+    // Still forbidden: dbService.updateProofWallItem.
     'updateProofWallItem',
     'addSource',
     // applyOnboardingStep is canonical CR-1 Master Profile (seam → consumer).
@@ -359,7 +361,6 @@ describe('T-010-15 / §23 — multi-thesis and no primary-item authority', () =>
 
 describe('§13 / §14 — blocked actions are delegated, not silently dropped', () => {
   const delegating = [
-    'src/ui/modules/ProofWall/ReactProofWallPanel.tsx',
     'src/ui/modules/SourceRegistry/ReactSourceRegistryPanel.tsx',
   ];
 
@@ -380,6 +381,14 @@ describe('§13 / §14 — blocked actions are delegated, not silently dropped', 
 
   it('profile panel retains rollback without exclusive display-only delegation', () => {
     const source = read(join(ROOT, 'src/ui/modules/ClientProfile/ReactClientProfilePanel.tsx'));
+    expect(source).toContain('applyUiMode');
+    expect(source).toContain('interfaz anterior');
+    expect(source).toContain('data-authority="PRESENTATION"');
+    expect(source).not.toContain('data-authority="DISPLAY_ONLY"');
+  });
+
+  it('proof-wall panel retains rollback without exclusive read-only delegation', () => {
+    const source = read(join(ROOT, 'src/ui/modules/ProofWall/ReactProofWallPanel.tsx'));
     expect(source).toContain('applyUiMode');
     expect(source).toContain('interfaz anterior');
     expect(source).toContain('data-authority="PRESENTATION"');

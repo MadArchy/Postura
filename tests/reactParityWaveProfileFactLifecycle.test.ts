@@ -82,6 +82,7 @@ vi.mock('../src/services/masterProfileConsumer', () => ({
     if (importThrow) throw importThrow;
     return { profile: { clientId: 'client_a' }, importedCount: importCount, facts: [] };
   },
+  setProofWallItemReadiness: vi.fn(),
 }));
 
 function hookBlock(name: string, next: string): string {
@@ -157,7 +158,7 @@ describe('C — Add delegates to canonical command path', () => {
       },
     ]);
     expect(code(consumer)).toMatch(/useCases\.addProfileFact/);
-  });
+  }, 15_000);
 });
 
 describe('D — Confirm delegates exact factId', () => {

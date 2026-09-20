@@ -17,13 +17,11 @@
  * migrated command is a change of caller, never a change of authority: React and
  * legacy converge on the identical use case.
  *
- * CR-1 Client Lifecycle (#34, #1), Master Profile (#10 + #2–#6), Thesis Lifecycle
+ * CR-1 Client Lifecycle (#34, #1), Master Profile (#10 + #2–#6 + #7), Thesis Lifecycle
  * (#11–#13), Signal Intake (#8/#9/#24/#26), and Execution Delivery (#28/#31/#32)
  * are exposed below. Other AUDIT010-09 writes remain unexposed until their
  * Application owners exist
- * (full registry: `specs/010-react-migration/audit010-09-registry.md`):
- *
- *   - proof-wall status toggle   (`updateProofWallItem`)
+ * (full registry: `specs/010-react-migration/audit010-09-registry.md`).
  *
  * In every remaining case the legacy surface remains served, so no capability is
  * lost by not migrating it yet.
@@ -52,6 +50,7 @@ import {
   confirmProfileFact,
   importProfileFactsFromCv,
   rejectProfileFact,
+  setProofWallItemReadiness,
   updateProfileFact,
 } from '../../services/masterProfileConsumer';
 import {
@@ -503,7 +502,7 @@ function mapMasterProfileError(err: unknown, fallback: string): CommandResult {
 }
 
 /**
- * CR-1 Master Profile (#10 ApplyOnboardingStep + #2–#6 fact lifecycle).
+ * CR-1 Master Profile (#10 ApplyOnboardingStep + #2–#6 fact lifecycle + #7 ProofWall).
  *
  * Seam authority = 0. Delegates to `masterProfileConsumer`, which gates via
  * `requireTenantScope`. React and legacy must converge on these use cases.
@@ -625,6 +624,25 @@ export const masterProfileCommands = {
         ok: false,
         message: err instanceof Error ? err.message : 'No se pudieron importar facts desde CV',
       };
+    }
+  },
+
+  setProofWallItemReadiness(intent: {
+    requestedClientId: string | null | undefined;
+    proofWallItemId: string;
+    targetStatus: 'pending' | 'complete';
+  }): CommandResult {
+    try {
+      setProofWallItemReadiness(intent);
+      return {
+        ok: true,
+        message:
+          intent.targetStatus === 'complete'
+            ? 'Activo marcado como listo'
+            : 'Activo marcado como pendiente',
+      };
+    } catch (err) {
+      return mapMasterProfileError(err, 'No se pudo actualizar el estado del activo');
     }
   },
 } as const;

@@ -226,6 +226,29 @@ export function useProofWall(scope: TrustedTenantScope | null) {
   });
 }
 
+/** CR-1 #7 SetProofWallItemReadiness — presentation only. */
+export function useSetProofWallItemReadiness(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    CommandResult,
+    Error,
+    { proofWallItemId: string; targetStatus: 'pending' | 'complete' }
+  >({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return masterProfileCommands.setProofWallItemReadiness({
+        requestedClientId: scope.clientId,
+        proofWallItemId: params.proofWallItemId,
+        targetStatus: params.targetStatus,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      invalidateCompatibility(scope, queryClient);
+    },
+  });
+}
+
 /** READ SOURCE: compatibility — T-010-204. */
 export function useSources(scope: TrustedTenantScope | null) {
   return useQuery({

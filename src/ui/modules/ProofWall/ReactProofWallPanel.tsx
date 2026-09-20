@@ -1,30 +1,36 @@
 /**
- * SPEC-010 · React ProofWallPanel (wave 2, T-010-203) — READ_ONLY_REACT.
+ * SPEC-010 · React ProofWallPanel (wave 2) — presentation write parity
+ * for ProofWall readiness (#7).
  *
  * Authority: presentation only.
  *
  * READ SOURCE: compatibility (`readProofWall`).
  *
- * COMMAND: none, deliberately. The legacy status toggle completes with
- * `dbService.updateProofWallItem`, a business write with no canonical
- * Application use case (AUDIT010-09). Wrapping it in React would put a legacy
- * business mutation inside the presentation layer, so the toggle is NOT
- * migrated: the React view renders the same read-only status the client-facing
- * legacy view renders, and editing stays on the legacy manager surface, which is
- * still served and unchanged.
+ * WRITES: Wave2 hook → `masterProfileCommands` → `masterProfileConsumer` →
+ * frozen SetProofWallItemReadiness. React may send proofWallItemId and
+ * targetStatus (`pending` | `complete`) plus the session client id.
+ * It must not supply role, organization, trusted client authority, or
+ * any other ProofWall item field.
  *
- * Capability is therefore preserved rather than removed — the button is absent
- * here exactly as it is absent in the legacy non-editable view, and the notice
- * below points to the surface that still owns the action.
+ * `isAdmin` only shows or hides the toggle. Application remains the
+ * authority. CLIENT stays on the same READ_ONLY badges as the legacy
+ * non-editable view.
+ *
+ * Legacy `ProofWallPanel` + `profileHandlers` remain for rollback.
  */
 
+import { useState } from 'react';
 import { useSession } from '../../providers/SessionProvider';
-import { useProofWall } from '../../hooks/useWave2Data';
+import { useProofWall, useSetProofWallItemReadiness } from '../../hooks/useWave2Data';
 import { applyUiMode } from '../../mount';
 
+type StatusMessage = { kind: 'success' | 'error'; text: string };
+
 export function ReactProofWallPanel() {
-  const { tenantScope } = useSession();
+  const { tenantScope, isAdmin } = useSession();
   const { data, isLoading, isError } = useProofWall(tenantScope);
+  const setReadiness = useSetProofWallItemReadiness(tenantScope);
+  const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
 
   if (!tenantScope) {
     return (
@@ -51,12 +57,36 @@ export function ReactProofWallPanel() {
   }
 
   const wall = data ?? { items: [], complete: 0, total: 0, percentComplete: 0 };
+  const showToggle = isAdmin && Boolean(tenantScope.clientId);
+
+  const handleToggle = (proofWallItemId: string, complete: boolean) => {
+    const targetStatus = complete ? 'pending' : 'complete';
+    setReadiness.mutate(
+      { proofWallItemId, targetStatus },
+      {
+        onSuccess: (result) => {
+          setStatusMessage({
+            kind: result.ok ? 'success' : 'error',
+            text:
+              result.message ||
+              (result.ok ? 'Activo actualizado' : 'No se pudo actualizar el estado del activo'),
+          });
+        },
+        onError: () =>
+          setStatusMessage({
+            kind: 'error',
+            text: 'No se pudo actualizar el estado del activo',
+          }),
+      }
+    );
+  };
 
   return (
     <section
       className="card proof-wall-card"
       data-testid="react-proof-wall-panel"
-      data-authority="READ_ONLY"
+      data-authority="PRESENTATION"
+      data-client-view="READ_ONLY"
     >
       <div className="card-header">
         <div>
@@ -78,6 +108,17 @@ export function ReactProofWallPanel() {
       <div className="progress-track proof-wall-track">
         <div className="progress-fill" style={{ width: `${wall.percentComplete}%` }} />
       </div>
+
+      {statusMessage ? (
+        <p
+          className={statusMessage.kind === 'error' ? 'form-error' : 'form-success'}
+          data-testid={
+            statusMessage.kind === 'error' ? 'react-proof-wall-error-msg' : 'react-proof-wall-success'
+          }
+        >
+          {statusMessage.text}
+        </p>
+      ) : null}
 
       {wall.items.length ? (
         <ul className="proof-wall-list">
@@ -103,9 +144,25 @@ export function ReactProofWallPanel() {
                   </a>
                 ) : null}
               </div>
-              <span className={`badge ${item.complete ? 'badge-ready' : 'badge-pending'}`}>
-                {item.complete ? 'Listo' : 'Pendiente'}
-              </span>
+              {showToggle ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  data-testid={`react-proof-wall-toggle-${item.id}`}
+                  disabled={setReadiness.isPending}
+                  onClick={() => handleToggle(item.id, item.complete)}
+                >
+                  {setReadiness.isPending
+                    ? 'Guardando…'
+                    : item.complete
+                      ? 'Marcar pendiente'
+                      : 'Marcar listo'}
+                </button>
+              ) : (
+                <span className={`badge ${item.complete ? 'badge-ready' : 'badge-pending'}`}>
+                  {item.complete ? 'Listo' : 'Pendiente'}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -116,7 +173,7 @@ export function ReactProofWallPanel() {
       )}
 
       <p className="muted small" data-testid="react-proof-wall-delegation">
-        Cambiar el estado de un activo se sigue haciendo en la interfaz anterior.{' '}
+        La interfaz anterior sigue disponible para rollback.{' '}
         <button type="button" className="link-btn" onClick={() => void applyUiMode('legacy')}>
           Abrir interfaz anterior
         </button>

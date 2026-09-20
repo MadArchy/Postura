@@ -63,6 +63,7 @@ vi.mock('../src/services/masterProfileConsumer', () => ({
       step: intent.step,
     };
   },
+  setProofWallItemReadiness: vi.fn(),
 }));
 
 vi.mock('../src/services/notifications', () => ({
