@@ -60,7 +60,7 @@ No sixth operational Application boundary is required.
 | ID | Capability | Owner state |
 |----|------------|-------------|
 | 2–6 | Profile fact lifecycle / CV extract | `#2`–`#6` canonical |
-| 7 | ProofWallItem readiness checklist | OWNER_RESOLVED_BY_CURRENT_EVIDENCE |
+| 7 | ProofWallItem readiness checklist | `#7` canonical |
 | 29 | Evidence ↔ thesis dossier association | OWNER_RESOLVED_BY_CURRENT_EVIDENCE |
 | 30 | Evidence vault CRUD | OWNER_RESOLVED_BY_CURRENT_EVIDENCE |
 
