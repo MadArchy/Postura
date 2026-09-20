@@ -27,7 +27,6 @@ import { computeThesisLearningMetrics, type ThesisLearningMetrics } from '../dom
 import { icon } from '../lib/icons';
 import { deriveWorkStage, WORK_STAGE_BADGE, WORK_STAGE_LABELS } from '../domain/workPipeline';
 import { normalizeTab } from '../ui/presentation/pageTabMeta';
-import { shouldRenderLegacyDossierSlot } from '../ui/presentation/dossierSlot';
 import { renderPage } from './PageHeader';
 import { renderContentPipeline, renderScientificFocusPanel } from './ManagerCockpit';
 import { buildProfileKeywords, normalizeSourceUrl } from '../services/sourceDiscovery';
@@ -77,7 +76,6 @@ import { labelSourceRunError } from '../domain/sourceIngestCore';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
 import { isPlayableRecordingRef } from '../services/recordings';
 import { signalsAwaitingOutcome, computeConversionStats } from '../domain/radarFeedbackCore';
-import { renderMasterDossierPanel } from './MasterDossierPanel';
 import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
 import { renderKpiSummaryTiles, renderKpiWeeklyChart } from './KpiWeeklyChart';
 import { getLatestTopicAgentRun } from '../services/topicAgent';
@@ -182,8 +180,7 @@ export function renderClientWorkspace(
       return renderPage(
         'ws-positioning',
         renderPositioning(client, theses, filters),
-        `<a class="btn btn-secondary btn-sm" href="#dossier-maestro" style="text-decoration:none;">Ver dossier</a>
-         <button class="btn btn-primary btn-open-thesis-editor" data-client-id="${esc(clientId)}">Nueva tesis</button>`
+        `<button class="btn btn-primary btn-open-thesis-editor" data-client-id="${esc(clientId)}">Nueva tesis</button>`
       );
     case 'ws-production':
       return renderPage(
@@ -1771,7 +1768,6 @@ function renderPositioning(
   const profile = dbService.getMasterProfile(clientId);
   const campaigns = dbService.getCampaignsByClient(clientId);
   const evidence = dbService.getEvidenceVaultByClient(clientId);
-  const dossier = dbService.getMasterDossier(clientId);
   const activeCount = ordered.filter((t) => t.status === 'ACTIVE').length;
   const publishedContent = dbService
     .getContentByClient(clientId)
@@ -1887,13 +1883,6 @@ function renderPositioning(
       : `<section class="card">
            <p class="empty-state">Sin tesis registrada. Créala para activar el radar y el scoring.</p>
          </section>`}
-
-    ${dossier && shouldRenderLegacyDossierSlot()
-      ? `<details class="card disclosure" id="dossier-maestro">
-           <summary>Dossier maestro</summary>
-           <div class="disclosure-body">${renderMasterDossierPanel(dossier, client)}</div>
-         </details>`
-      : ''}
 
     <details class="card disclosure" id="proof-wall-section">
       <summary>Pruebas y líneas de servicio</summary>

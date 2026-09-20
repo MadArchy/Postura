@@ -93,9 +93,9 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests(null);
   });
 
-  it('defaults to no React-exclusive slot (coexistence)', () => {
-    expect(hasReactExclusiveSlot()).toBe(false);
-    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(false);
+  it('compile-time default activates the dossier exclusive slot', () => {
+    expect(hasReactExclusiveSlot()).toBe(true);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(true);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_DOSSIER_SLOT);
   });
 
@@ -168,6 +168,7 @@ describe('Phase 6 — applyUiMode exclusive-slot evolution', () => {
   });
 
   it('no exclusive slot + legacy request unmounts React and serves #app', async () => {
+    __setReactExclusiveSlotsForTests([]);
     const { attrs } = installPresentationDocument();
     const { applyUiMode, isReactMounted } = await import('../src/ui/mount');
 
@@ -179,6 +180,21 @@ describe('Phase 6 — applyUiMode exclusive-slot evolution', () => {
     expect(isReactMounted()).toBe(false);
     expect(reactRootMocks.unmount).toHaveBeenCalled();
     expect(attrs.get(UI_MODE_ATTRIBUTE)).toBe('legacy');
+    expect(localStorage.getItem(UI_MODE_STORAGE_KEY)).toBe('legacy');
+  });
+
+  it('cutover default + legacy request keeps React mounted and hides #app', async () => {
+    const { attrs } = installPresentationDocument();
+    const { applyUiMode, isReactMounted } = await import('../src/ui/mount');
+
+    await applyUiMode('react');
+    reactRootMocks.unmount.mockClear();
+
+    await applyUiMode('legacy');
+    expect(hasReactExclusiveSlot()).toBe(true);
+    expect(isReactMounted()).toBe(true);
+    expect(reactRootMocks.unmount).not.toHaveBeenCalled();
+    expect(attrs.get(UI_MODE_ATTRIBUTE)).toBe('react');
     expect(localStorage.getItem(UI_MODE_STORAGE_KEY)).toBe('legacy');
   });
 
@@ -198,6 +214,7 @@ describe('Phase 6 — applyUiMode exclusive-slot evolution', () => {
   });
 
   it('React mount failure without exclusive slot still fail-closes to legacy', async () => {
+    __setReactExclusiveSlotsForTests([]);
     const { attrs } = installPresentationDocument({ reactRoot: false });
     const { applyUiMode, isReactMounted } = await import('../src/ui/mount');
 
@@ -266,25 +283,37 @@ describe('Phase 6 — A38 root ownership remains exclusive', () => {
   });
 });
 
-describe('Phase 6 — dossier presentation boundary (coexistence)', () => {
-  it('default presentation remains legacy coexistence, not cutover', () => {
-    expect(dossierSlotPresentation()).toBe('legacy');
-    expect(shouldRenderLegacyDossierSlot()).toBe(true);
+describe('Phase 6 — dossier cutover pairing', () => {
+  it('omit-slot, exclusive activation, and zero ClientWorkspace import are atomic', () => {
+    const omitted = dossierSlotPresentation() === 'omit' && !shouldRenderLegacyDossierSlot();
+    const exclusive = hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    const host = code('src/components/ClientWorkspace.ts');
+    const importRemoved =
+      !/from\s+['"]\.\/MasterDossierPanel['"]/.test(host) &&
+      !/renderMasterDossierPanel/.test(host) &&
+      !/shouldRenderLegacyDossierSlot/.test(host);
+    expect({ omitted, exclusive, importRemoved }).toEqual({
+      omitted: true,
+      exclusive: true,
+      importRemoved: true,
+    });
   });
 
-  it('ClientWorkspace routes the dossier slot through the presentation boundary', () => {
+  it('ClientWorkspace no longer renders or anchors the legacy dossier disclosure', () => {
     const source = code('src/components/ClientWorkspace.ts');
-    expect(source).toMatch(/from\s+['"][^'"]*presentation\/dossierSlot['"]/);
-    expect(source).toMatch(/shouldRenderLegacyDossierSlot\(/);
-    expect(source).toMatch(/renderMasterDossierPanel\(/);
-    expect(source).toMatch(/from\s+['"]\.\/MasterDossierPanel['"]/);
+    expect(source).not.toMatch(/dossier-maestro/);
+    expect(source).not.toMatch(/Ver dossier/);
+    expect(source).not.toMatch(/renderMasterDossierPanel/);
+    expect(source).not.toMatch(/from\s+['"]\.\/MasterDossierPanel['"]/);
+    expect(source).not.toMatch(/import\s*\(\s*['"][^'"]*MasterDossierPanel['"]/);
   });
 
-  it('legacy and React dossier renderers both remain available', () => {
+  it('legacy file remains present while React is the served renderer', () => {
     expect(statSync(join(ROOT, 'src/components/MasterDossierPanel.ts')).isFile()).toBe(true);
     expect(statSync(join(ROOT, 'src/ui/modules/MasterDossier/ReactMasterDossierPanel.tsx')).isFile()).toBe(
       true
     );
+    expect(code('src/ui/modules/pages/ReactClientWorkspacePage.tsx')).toMatch(/<ReactMasterDossierPanel/);
   });
 
   it('hosts do not nest each other\'s dossier renderer', () => {

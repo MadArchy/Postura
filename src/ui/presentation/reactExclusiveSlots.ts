@@ -8,7 +8,8 @@
  * This is UI metadata only. It is not a Domain concept, not persisted product
  * state, not an authorization source, and not a tenant or role authority.
  *
- * Default is empty (coexistence). A later cutover authorization adds ids.
+ * Phase-6 dossier cutover activates `client-workspace-dossier`. Other slots
+ * remain unlisted until their own cutover authorization.
  */
 
 import type { UiMode } from '../strangler/toggle';
@@ -19,8 +20,8 @@ const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [CLIENT_WORKSPACE_DOSSIER_SLOT] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Empty until a separate cutover is authorized. */
-const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [];
+/** Compile-time exclusive set. Dossier cutover is active. */
+const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [CLIENT_WORKSPACE_DOSSIER_SLOT];
 
 let exclusiveSlotOverride: readonly string[] | null = null;
 
