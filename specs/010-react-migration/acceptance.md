@@ -82,7 +82,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A40 | Component migration matrix complete — a row per UI file, dispositioned | 0 | ✅ PASS | `migration-matrix.md` (17 files) |
 | A41 | Behavioral parity proven per migrated module across all applicable dimensions | 5 | ⚠️ PARTIAL | Page-level evidence for 12 of 18 dimensions per migrated page; dimensions whose legacy command stays outside React are classified, not claimed. **0** modules cut over — cutover parity is Phase 5 |
 | A42 | E2E/parity harness (Playwright) implemented; legacy-vs-React journeys pass | 5 | ⚠️ PARTIAL | T-508 + Stage-B: **21/21 PASS**; governed MVP journey (Planner excluded). Full cutover parity remains Phase 6 |
-| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ⚠️ PARTIAL | Option E + T-508 rollback; **2** leaves removed (`MasterDossierPanel.ts` @ `564aa1f`; `OpportunityPanel.ts` @ `7b19454`, `t-010-603-opportunity-subset-removal.md`); remaining candidates keep T-603 **OPEN** |
+| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ⚠️ PARTIAL | Option E + T-508 rollback; **3** leaves removed (`MasterDossierPanel.ts` @ `564aa1f`; `OpportunityPanel.ts` @ `7b19454`; `KpiWeeklyChart.ts` @ `1ca331f`, `t-010-603-kpiweeklychart-subset-removal.md`); remaining candidates keep T-603 **OPEN** |
 | A44 | Full check + rules regression at CODE_COMPLETE; no unintended regression | 6 | ⏳ PENDING | **T602 REGRESSION_GATE_PASS** @ 1965/1965 · 91/91 · BUILD · 73/73 · 21/21. **A44 formal PASS** requires CODE_COMPLETE Required A* + T-604 |
 
 **Acceptance count:** **44** (A1–A44) — unchanged.
@@ -255,6 +255,25 @@ Evidence: `t-010-603-opportunity-subset-removal.md` · implementation `7b194545f
 | T-010-604 | **NOT_AUTHORIZED** |
 
 T-601 / T-602 / dossier subset snapshot rows above are historical and are **not** rewritten.
+
+### Phase-6 T-010-603 KPI weekly chart subset (bounded)
+
+Evidence: `t-010-603-kpiweeklychart-subset-removal.md` · implementation `1ca331fb25a625a93f820ebefcc935eaba3d8ded`.
+
+| Item | Verdict |
+|------|---------|
+| KPI unit C1–C7 / C8 | **PASS / N/A** |
+| `KpiWeeklyChart.ts` | **ABSENT** (already removed @ `1ca331f`; no second delete) |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/KpiWeeklyChart.ts` only) |
+| C6 / C7 | **VERIFIED PASS** / **ACCEPTED** |
+| T-010-603 KPI unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| KPI unit A43 | **PASS** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking handler / scanner / comment / E2E debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity subset snapshot rows above are historical and are **not** rewritten.
 
 ### Phase-3 acceptance movement (T-010-301…306)
 
