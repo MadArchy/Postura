@@ -11,6 +11,7 @@ import { join, relative } from 'node:path';
 import { readdirSync } from 'node:fs';
 
 import {
+  CLIENT_PORTAL_OPPORTUNITY_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
@@ -22,6 +23,10 @@ import {
   dossierSlotPresentation,
   shouldRenderLegacyDossierSlot,
 } from '../src/ui/presentation/dossierSlot';
+import {
+  opportunitySlotPresentation,
+  shouldRenderLegacyOpportunitySlot,
+} from '../src/ui/presentation/opportunitySlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -97,6 +102,24 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     expect(hasReactExclusiveSlot()).toBe(true);
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(true);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_DOSSIER_SLOT);
+  });
+
+  it('compile-time default activates the opportunity exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_OPPORTUNITY_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+    expect(CLIENT_PORTAL_OPPORTUNITY_SLOT).toBe('client-portal-opportunity');
+    expect(CLIENT_PORTAL_OPPORTUNITY_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+  });
+
+  it('opportunity exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_PORTAL_OPPORTUNITY_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_OPPORTUNITY_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
   });
 
   it('treats a configured known slot as exclusive', () => {
@@ -342,10 +365,41 @@ describe('Phase 6 — dossier cutover pairing', () => {
   });
 });
 
+describe('Phase 6 — opportunity cutover pairing', () => {
+  it('omit-slot, exclusive activation, and zero ClientPortal import are atomic', () => {
+    const omitted = opportunitySlotPresentation() === 'omit' && !shouldRenderLegacyOpportunitySlot();
+    const exclusive = hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+    const host = code('src/components/ClientPortal.ts');
+    const importRemoved =
+      !/from\s+['"]\.\/OpportunityPanel['"]/.test(host) &&
+      !/renderOpportunityCard/.test(host) &&
+      !/renderOpportunitySpotlight/.test(host) &&
+      !/renderClientOpportunitiesBody/.test(host) &&
+      !/listOpportunitiesForClient/.test(host);
+    expect({ omitted, exclusive, importRemoved }).toEqual({
+      omitted: true,
+      exclusive: true,
+      importRemoved: true,
+    });
+  });
+
+  it('the opportunity boundary introduces no command, persistence, or tenant authority', () => {
+    const source = code('src/ui/presentation/opportunitySlot.ts');
+    expect(source).not.toMatch(/\bdbService\b/);
+    expect(source).not.toMatch(/\w+Consumer\b/);
+    expect(source).not.toMatch(/from\s+['"][^'"]*application\//);
+    expect(source).not.toMatch(/from\s+['"][^'"]*domain\//);
+    expect(source).not.toMatch(/requireTenantScope/);
+    expect(source).not.toMatch(/localStorage/);
+    expect(source).not.toMatch(/firestore/i);
+  });
+});
+
 describe('Phase 6 — security / authority of the rollback boundary', () => {
   const presentationFiles = [
     'src/ui/presentation/reactExclusiveSlots.ts',
     'src/ui/presentation/dossierSlot.ts',
+    'src/ui/presentation/opportunitySlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

@@ -5,11 +5,6 @@ import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabel
 import { icon } from '../lib/icons';
 import { renderClientProfileBody } from './ClientProfilePanel';
 import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
-import { renderClientOpportunitiesBody, renderOpportunityCard, renderOpportunitySpotlight } from './OpportunityPanel';
-import {
-  listOpportunitiesForClient,
-  type OpportunityDisplayProjection,
-} from '../services/opportunityScoutConsumer';
 import { renderKpiHomeDashboard, renderKpiSummaryTiles, renderKpiWeeklyChart } from './KpiWeeklyChart';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
@@ -17,6 +12,11 @@ import { normalizeThesis, AUDIENCE_TIER_LABELS } from '../domain/thesisModelCore
 import { computeProfileCoverage } from '../domain/profileCoverage';
 import { thesisForClientReview, thesesAwaitingClientAction } from '../domain/thesisRevisionCore';
 import type { DeliveryPackage } from '../types';
+
+/**
+ * Phase-6 ClientPortal opportunity cutover (`client-portal-opportunity`):
+ * legacy renderOpportunity HTML is omitted. ReactClientPortalPage serves Scout.
+ */
 
 function clientPage(tab: string, body: string): string {
   return renderPage(tab, body);
@@ -111,12 +111,6 @@ export function renderClientPortal(
   const tasks = dbService.getTasksForClient(client.id, campaignId);
   const theses = dbService.getThesesByClient(client.id);
   const profile = dbService.getMasterProfile(client.id);
-  let opportunities: OpportunityDisplayProjection[] = [];
-  try {
-    opportunities = listOpportunitiesForClient(client.id);
-  } catch {
-    opportunities = [];
-  }
   const campaigns = dbService.getCampaignsByClient(client.id);
   const effectiveCampaignId = campaignId || campaigns[0]?.id || CAMP_ADOPTION;
 
@@ -124,11 +118,11 @@ export function renderClientPortal(
     case 'client-home':
       return clientPage('client-home', renderClientHomeBody(client, tasks, effectiveCampaignId, theses, highlightTaskId));
     case 'client-feed':
-      return clientPage('client-feed', renderClientTaskFeedBody(client, tasks, opportunities));
+      return clientPage('client-feed', renderClientTaskFeedBody(client, tasks));
     case 'client-content':
       return clientPage('client-content', renderClientContentReviewBody(client, effectiveCampaignId));
     case 'client-opps':
-      return clientPage('client-opps', renderClientOpportunitiesBody(client.id));
+      return clientPage('client-opps', '');
     case 'client-profile':
       return clientPage('client-profile', renderClientProfileBody(client.id));
     case 'client-thesis':
@@ -378,7 +372,6 @@ function renderClientHomeBody(
            </section>`
         : ''}
 
-      ${renderOpportunitySpotlight(clientId)}
       ${renderPlanProgress(campaignId)}
       ${renderUpcomingMilestones(campaignId)}
       ${renderWeeklyStrip(campaignId, tasks)}
@@ -432,7 +425,7 @@ function renderClientHomeBody(
   `;
 }
 
-function renderClientTaskFeedBody(_client: ReturnType<typeof dbService.getClientById>, tasks: ReturnType<typeof dbService.getTasksByClient>, opportunities: OpportunityDisplayProjection[]): string {
+function renderClientTaskFeedBody(_client: ReturnType<typeof dbService.getClientById>, tasks: ReturnType<typeof dbService.getTasksByClient>): string {
   const pendingTasks = tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'CANCELLED');
 
   return `
@@ -502,24 +495,6 @@ function renderClientTaskFeedBody(_client: ReturnType<typeof dbService.getClient
               🎉 ¡Excelente! No tienes tareas pendientes por el momento. Tu Brand Manager está preparando las siguientes oportunidades.
             </div>
           `}
-        </div>
-      </div>
-
-      <!-- Opportunities (The Scout) -->
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h3>Oportunidades (The Scout)</h3>
-            <p style="font-size: 0.9rem;">Acepta, completa el checklist y marca la postulación enviada.</p>
-          </div>
-          <button type="button" class="btn btn-ghost btn-sm" data-tab="client-opps">Ver todas</button>
-        </div>
-        <div class="opportunity-list">
-          ${opportunities.length
-            ? opportunities
-                .map((opp) => renderOpportunityCard(opp))
-                .join('')
-            : '<p class="empty-state">No hay oportunidades pendientes por ahora.</p>'}
         </div>
       </div>
   `;
