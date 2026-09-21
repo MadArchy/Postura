@@ -2,7 +2,8 @@
  * SPEC-010 Phase 6 — ClientPortal Home KPI parity (`MOUNT_ON_HOME`).
  *
  * Presentation-only reuse of ReactKpiWeeklyChart on the live Home branch.
- * Not cutover: KpiWeeklyChart.ts remains present and legacy hosts stay intact.
+ * Results-only cutover (`client-kpi-results`) does not remove Home React KPI
+ * or the legacy Home renderer. Whole-leaf `kpiSlot.ts` remains absent.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -16,7 +17,6 @@ const PORTAL = 'src/ui/modules/pages/ReactClientPortalPage.tsx';
 const WAVE2 = 'src/ui/modules/wave2/Wave2Surface.tsx';
 const WORKSPACE = 'src/ui/modules/pages/ReactClientWorkspacePage.tsx';
 const HOST_PORTAL = 'src/components/ClientPortal.ts';
-const HOST_WORKSPACE = 'src/components/ClientWorkspace.ts';
 const HOOK = 'src/ui/hooks/useWave2Data.ts';
 const READ = 'src/ui/data/compatibilityReads.ts';
 const SEAM = 'src/ui/commands/commandSeam.ts';
@@ -99,7 +99,7 @@ describe('Phase 6 KPI Home parity — C2 / C3 capability', () => {
   });
 });
 
-describe('Phase 6 KPI Home parity — A38 / no cutover', () => {
+describe('Phase 6 KPI Home parity — A38 / Home legacy retained', () => {
   it('does not create a second React root or mount inside #app', () => {
     expect(code(PORTAL)).not.toMatch(/createRoot/);
     expect(code(REACT)).not.toMatch(/createRoot/);
@@ -108,16 +108,16 @@ describe('Phase 6 KPI Home parity — A38 / no cutover', () => {
     expect(code(MOUNT)).not.toMatch(/createRoot\([^)]*#app/);
   });
 
-  it('legacy KPI file and host imports remain; cutover has not started', () => {
+  it('legacy KPI file and Home renderer remain; whole-leaf cutover is not authorized', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
     expect(code(HOST_PORTAL)).toMatch(/renderKpiHomeDashboard/);
-    expect(code(HOST_PORTAL)).toMatch(/renderKpiSummaryTiles/);
-    expect(code(HOST_PORTAL)).toMatch(/renderKpiWeeklyChart/);
-    expect(code(HOST_WORKSPACE)).toMatch(/renderKpiSummaryTiles/);
-    expect(code(HOST_WORKSPACE)).toMatch(/renderKpiWeeklyChart/);
+    expect(code(LEGACY)).toMatch(/export function renderKpiHomeDashboard/);
+    expect(code(LEGACY)).toMatch(/renderKpiSummaryTiles\(clientId\)/);
+    expect(code(LEGACY)).toMatch(/renderKpiWeeklyChart\(clientId, 'Tendencia semanal'\)/);
+    expect(code(LEGACY)).toMatch(/form-quick-kpi-consultation/);
     expect(existsSync(join(ROOT, 'src/ui/presentation/kpiSlot.ts'))).toBe(false);
-    expect(code(SLOTS)).not.toMatch(/kpi/);
+    expect(code(SLOTS)).not.toMatch(/kpiSlot/);
     expect(code(HANDLERS)).toMatch(/form-quick-kpi-consultation/);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
   });

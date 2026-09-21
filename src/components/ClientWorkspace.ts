@@ -77,7 +77,6 @@ import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCo
 import { isPlayableRecordingRef } from '../services/recordings';
 import { signalsAwaitingOutcome, computeConversionStats } from '../domain/radarFeedbackCore';
 import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
-import { renderKpiSummaryTiles, renderKpiWeeklyChart } from './KpiWeeklyChart';
 import { getLatestTopicAgentRun } from '../services/topicAgent';
 import { canActivateThesis } from '../domain/thesisRevisionCore';
 
@@ -2526,9 +2525,6 @@ function renderResults(client: Client): string {
   const results = dbService.getResultsByClient(client.id);
 
   return `
-    ${renderKpiSummaryTiles(client.id)}
-    ${renderKpiWeeklyChart(client.id, 'KPIs semanales — cliente')}
-
     <section class="card">
       <div class="card-header">
         <div>

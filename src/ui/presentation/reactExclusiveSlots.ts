@@ -10,6 +10,8 @@
  *
  * Phase-6 dossier cutover activates `client-workspace-dossier`.
  * Phase-6 opportunity cutover activates `client-portal-opportunity`.
+ * Phase-6 KPI Results cutover activates `client-kpi-results` (Results only;
+ * Home `renderKpiHomeDashboard` remains a legal legacy renderer).
  * Other slots remain unlisted until their own cutover authorization.
  */
 
@@ -17,18 +19,21 @@ import type { UiMode } from '../strangler/toggle';
 
 export const CLIENT_WORKSPACE_DOSSIER_SLOT = 'client-workspace-dossier';
 export const CLIENT_PORTAL_OPPORTUNITY_SLOT = 'client-portal-opportunity';
+export const CLIENT_KPI_RESULTS_SLOT = 'client-kpi-results';
 
 const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
+  CLIENT_KPI_RESULTS_SLOT,
 ] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Dossier and opportunity cutovers are active. */
+/** Compile-time exclusive set. Dossier, opportunity, and KPI Results cutovers are active. */
 const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
+  CLIENT_KPI_RESULTS_SLOT,
 ];
 
 let exclusiveSlotOverride: readonly string[] | null = null;
