@@ -5,7 +5,6 @@ import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabel
 import { icon } from '../lib/icons';
 import { renderClientProfileBody } from './ClientProfilePanel';
 import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
-import { renderKpiHomeDashboard } from './KpiWeeklyChart';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
 import { normalizeThesis, AUDIENCE_TIER_LABELS } from '../domain/thesisModelCore';
@@ -17,9 +16,9 @@ import type { DeliveryPackage } from '../types';
  * Phase-6 ClientPortal opportunity cutover (`client-portal-opportunity`):
  * legacy renderOpportunity HTML is omitted. ReactClientPortalPage serves Scout.
  *
- * Phase-6 KPI Results cutover (`client-kpi-results`): Results tiles/chart are
- * omitted. Wave2Surface serves React KPI. Home still renders
- * `renderKpiHomeDashboard`.
+ * Phase-6 KPI Results cutover (`client-kpi-results`): Results tiles/chart omitted.
+ * Phase-6 KPI Home cutover (`client-kpi-home`): Home dashboard omitted.
+ * ReactClientPortalPage and Wave2Surface serve React KPI.
  */
 
 function clientPage(tab: string, body: string): string {
@@ -423,7 +422,6 @@ function renderClientHomeBody(
         <summary>Métricas de la campaña</summary>
         <div class="disclosure-body content-stack content-stack-lg">
           ${renderClientStats(campaignId, tasks, clientId)}
-          ${renderKpiHomeDashboard(clientId)}
         </div>
       </details>
   `;

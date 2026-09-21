@@ -2,8 +2,8 @@
  * SPEC-010 Phase 6 — ClientPortal Home KPI parity (`MOUNT_ON_HOME`).
  *
  * Presentation-only reuse of ReactKpiWeeklyChart on the live Home branch.
- * Results-only cutover (`client-kpi-results`) does not remove Home React KPI
- * or the legacy Home renderer. Whole-leaf `kpiSlot.ts` remains absent.
+ * Home/Results presentation cutovers omit legacy hosts. React Home KPI remains
+ * served. Whole-leaf `kpiSlot.ts` remains absent.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -16,7 +16,6 @@ const REACT = 'src/ui/modules/Kpi/ReactKpiWeeklyChart.tsx';
 const PORTAL = 'src/ui/modules/pages/ReactClientPortalPage.tsx';
 const WAVE2 = 'src/ui/modules/wave2/Wave2Surface.tsx';
 const WORKSPACE = 'src/ui/modules/pages/ReactClientWorkspacePage.tsx';
-const HOST_PORTAL = 'src/components/ClientPortal.ts';
 const HOOK = 'src/ui/hooks/useWave2Data.ts';
 const READ = 'src/ui/data/compatibilityReads.ts';
 const SEAM = 'src/ui/commands/commandSeam.ts';
@@ -99,7 +98,7 @@ describe('Phase 6 KPI Home parity — C2 / C3 capability', () => {
   });
 });
 
-describe('Phase 6 KPI Home parity — A38 / Home legacy retained', () => {
+describe('Phase 6 KPI Home parity — A38 / file present', () => {
   it('does not create a second React root or mount inside #app', () => {
     expect(code(PORTAL)).not.toMatch(/createRoot/);
     expect(code(REACT)).not.toMatch(/createRoot/);
@@ -108,10 +107,9 @@ describe('Phase 6 KPI Home parity — A38 / Home legacy retained', () => {
     expect(code(MOUNT)).not.toMatch(/createRoot\([^)]*#app/);
   });
 
-  it('legacy KPI file and Home renderer remain; whole-leaf cutover is not authorized', () => {
+  it('legacy KPI file remains present; whole-leaf cutover is not authorized', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    expect(code(HOST_PORTAL)).toMatch(/renderKpiHomeDashboard/);
     expect(code(LEGACY)).toMatch(/export function renderKpiHomeDashboard/);
     expect(code(LEGACY)).toMatch(/renderKpiSummaryTiles\(clientId\)/);
     expect(code(LEGACY)).toMatch(/renderKpiWeeklyChart\(clientId, 'Tendencia semanal'\)/);

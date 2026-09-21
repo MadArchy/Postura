@@ -11,6 +11,7 @@ import { join, relative } from 'node:path';
 import { readdirSync } from 'node:fs';
 
 import {
+  CLIENT_KPI_HOME_SLOT,
   CLIENT_KPI_RESULTS_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
@@ -32,6 +33,10 @@ import {
   kpiResultsSlotPresentation,
   shouldRenderLegacyKpiResultsSlot,
 } from '../src/ui/presentation/kpiResultsSlot';
+import {
+  kpiHomeSlotPresentation,
+  shouldRenderLegacyKpiHomeSlot,
+} from '../src/ui/presentation/kpiHomeSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -140,6 +145,26 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_OPPORTUNITY_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_KPI_RESULTS_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the KPI Home exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_KPI_HOME_SLOT);
+    expect(CLIENT_KPI_HOME_SLOT).toBe('client-kpi-home');
+    expect(CLIENT_KPI_HOME_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
+    expect(CLIENT_KPI_HOME_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    expect(CLIENT_KPI_HOME_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+  });
+
+  it('KPI Home exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_KPI_HOME_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_KPI_RESULTS_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -443,12 +468,10 @@ describe('Phase 6 — KPI Results cutover pairing', () => {
       !/renderKpiSummaryTiles/.test(portal) &&
       !/renderKpiWeeklyChart/.test(portal) &&
       !/from\s+['"]\.\/KpiWeeklyChart['"]/.test(workspace);
-    const homeRetained = /renderKpiHomeDashboard/.test(portal);
-    expect({ omitted, exclusive, resultsOmitted, homeRetained }).toEqual({
+    expect({ omitted, exclusive, resultsOmitted }).toEqual({
       omitted: true,
       exclusive: true,
       resultsOmitted: true,
-      homeRetained: true,
     });
   });
 
@@ -463,7 +486,7 @@ describe('Phase 6 — KPI Results cutover pairing', () => {
     expect(source).not.toMatch(/firestore/i);
   });
 
-  it('legacy preference may exist; React Results stay authoritative and Home is not marked removed', () => {
+  it('legacy preference may exist; React Results stay authoritative and the file remains', () => {
     expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(true);
     expect(code('src/components/KpiWeeklyChart.ts')).toMatch(/export function renderKpiHomeDashboard/);
     expect(code('src/ui/modules/wave2/Wave2Surface.tsx')).toMatch(/<ReactKpiWeeklyChart/);
@@ -480,12 +503,55 @@ describe('Phase 6 — KPI Results cutover pairing', () => {
   });
 });
 
+describe('Phase 6 — KPI Home cutover pairing', () => {
+  it('omit-slot, exclusive activation, and ClientPortal Home omit are atomic', () => {
+    const omitted = kpiHomeSlotPresentation() === 'omit' && !shouldRenderLegacyKpiHomeSlot();
+    const exclusive = hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT);
+    const portal = code('src/components/ClientPortal.ts');
+    const importRemoved = !/from\s+['"]\.\/KpiWeeklyChart['"]/.test(portal);
+    const homeOmitted = !/renderKpiHomeDashboard/.test(portal);
+    expect({ omitted, exclusive, importRemoved, homeOmitted }).toEqual({
+      omitted: true,
+      exclusive: true,
+      importRemoved: true,
+      homeOmitted: true,
+    });
+  });
+
+  it('the KPI Home boundary introduces no command, persistence, or tenant authority', () => {
+    const source = code('src/ui/presentation/kpiHomeSlot.ts');
+    expect(source).not.toMatch(/\bdbService\b/);
+    expect(source).not.toMatch(/\w+Consumer\b/);
+    expect(source).not.toMatch(/from\s+['"][^'"]*application\//);
+    expect(source).not.toMatch(/from\s+['"][^'"]*domain\//);
+    expect(source).not.toMatch(/requireTenantScope/);
+    expect(source).not.toMatch(/localStorage/);
+    expect(source).not.toMatch(/firestore/i);
+  });
+
+  it('legacy preference may exist; React Home stays authoritative and the file is not deleted', () => {
+    expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(true);
+    expect(code('src/ui/modules/pages/ReactClientPortalPage.tsx')).toMatch(
+      /tab === 'home'[\s\S]*<ReactKpiWeeklyChart title="Dashboard semanal"/
+    );
+    expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(true);
+    expect(isReactExclusiveSlot(CLIENT_KPI_RESULTS_SLOT)).toBe(true);
+    const legacyRequest = resolveServedUiMode('legacy');
+    expect(legacyRequest.requested).toBe('legacy');
+    expect(legacyRequest.served).toBe('react');
+    expect(legacyRequest.keepReactMounted).toBe(true);
+    expect(legacyRequest.mayActivateLegacyRoot).toBe(false);
+    expect(legacyRequest.mayUnmountReact).toBe(false);
+  });
+});
+
 describe('Phase 6 — security / authority of the rollback boundary', () => {
   const presentationFiles = [
     'src/ui/presentation/reactExclusiveSlots.ts',
     'src/ui/presentation/dossierSlot.ts',
     'src/ui/presentation/opportunitySlot.ts',
     'src/ui/presentation/kpiResultsSlot.ts',
+    'src/ui/presentation/kpiHomeSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];
