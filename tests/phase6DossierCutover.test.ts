@@ -20,7 +20,6 @@ import {
 
 const ROOT = join(__dirname, '..');
 const REACT_PANEL = 'src/ui/modules/MasterDossier/ReactMasterDossierPanel.tsx';
-const LEGACY_PANEL = 'src/components/MasterDossierPanel.ts';
 const HOST = 'src/components/ClientWorkspace.ts';
 const REACT_HOST = 'src/ui/modules/pages/ReactClientWorkspacePage.tsx';
 const WAVE2 = 'src/ui/modules/wave2/Wave2Surface.tsx';
@@ -148,40 +147,6 @@ describe('Phase 6 dossier cutover — C2 focused presentation', () => {
 });
 
 describe('Phase 6 dossier cutover — C3 equivalence', () => {
-  it('legacy and React panels share the same substantive labels', () => {
-    const legacy = read(LEGACY_PANEL);
-    const react = read(REACT_PANEL);
-    for (const label of SUBSTANTIVE_LABELS) {
-      expect(legacy).toContain(label);
-      expect(react).toContain(label);
-    }
-  });
-
-  it('legacy and React panels bind the same dossier data fields', () => {
-    const legacy = code(LEGACY_PANEL);
-    const react = code(REACT_PANEL);
-    for (const token of [
-      'taglineEn',
-      'subtitleEn',
-      'executiveSummary',
-      'narrativeArc',
-      'newsEditorialRule',
-      'identityDimensions',
-      'serviceLines',
-      'targetAudiences',
-      'clientQuestions',
-      'topicsToOwn',
-      'topicsToAvoid',
-      'pendingVerification',
-      'differentiators',
-      'channelGuides',
-      'version',
-    ]) {
-      expect(legacy).toContain(token);
-      expect(react).toContain(token);
-    }
-  });
-
   it('React read remains tenant-scoped compatibility, not a new authority', () => {
     const readSource = code(READ);
     const hook = code('src/ui/hooks/useWave2Data.ts');
@@ -196,7 +161,6 @@ describe('Phase 6 dossier cutover — C3 equivalence', () => {
 
   it('cutover introduces no business write and keeps handlers retained', () => {
     expect(statSync(join(ROOT, HANDLERS)).isFile()).toBe(true);
-    expect(statSync(join(ROOT, LEGACY_PANEL)).isFile()).toBe(true);
     expect(code(REACT_PANEL)).not.toMatch(/dbService\.(save|update|create|add|remove|delete)/);
     expect(code(HOST)).not.toMatch(/dbService\.getMasterDossier/);
   });

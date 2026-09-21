@@ -37,7 +37,7 @@ Legend — **Disposition:** MIGRATE · ADAPT · KEEP · COMPATIBILITY · REMOVE_
 | 6 | `SourceRegistryModal.ts` | 117 | source registry modal | 4 (`getActiveTheses`, `getClientById`, `getSources`, `getSourcesByClient`) | 0 | no | `dbService` | clientId | **LOW** | **LOW** | `<SourceRegistryModal/>` | **2** | **MIGRATE** |
 | 7 | `KpiWeeklyChart.ts` | 126 | KPI chart | 1 (`getResultsByClient`) | 0 | no | `dbService` | clientId | **NONE** | **LOW** | `<KpiWeeklyChart/>` | **2** | **MIGRATE** |
 | 8 | `PageHeader.ts` | 132 | page header chrome | **0** | 0 | no | none | n/a | **NONE** | **LOW** | `<PageHeader/>` | **2** | **MIGRATE** |
-| 9 | `MasterDossierPanel.ts` | 166 | master dossier display | **0** | 0 | no | none | n/a | **NONE** | **LOW** | `<MasterDossierPanel/>` | **2** | **MIGRATE** |
+| 9 | `MasterDossierPanel.ts` | 166 | master dossier display | **0** | 0 | no | none | n/a | **NONE** | **LOW** | `<MasterDossierPanel/>` | **2** | **REMOVE_AFTER_PARITY** |
 | 10 | `OnboardingWizard.ts` | 221 | onboarding flow | 2 (`getClientById`, `getMasterProfile`) | 0 | no | `dbService` | clientId | **LOW** | **MEDIUM** (multi-step form) | `<OnboardingWizard/>` (RHF) | **2** | **MIGRATE** |
 | 11 | `OpportunityPanel.ts` | 240 | Opportunity display | **0** | 1 (`opportunityScoutConsumer`) | no | **consumer** | canonical | **NONE** | **LOW** | `<OpportunityPanel/>` | **2** (reference module) | **MIGRATE** |
 | 12 | `AppShell.ts` | 271 | app chrome · nav · badge counts | 11 | 0 (+`authService`, `firebase/config`) | no | `dbService` | clientId | **MEDIUM** (nav ownership) | **MEDIUM** | `<AppShell/>` — Stage-A mount host | **1** | **MIGRATE** |
@@ -121,7 +121,7 @@ organizations must not collide in cache or in a read result.
 |---|---|---|---|---|
 | `PageHeader.ts` | `ReactPageHeader.tsx` | none | none | **MIGRATED** (metadata imported, not copied) |
 | `ClaimSafetyPanel.ts` | `ReactClaimSafetyPanel.tsx` | props | presentation intent | **MIGRATED** |
-| `MasterDossierPanel.ts` | `ReactMasterDossierPanel.tsx` | compatibility | `PRESENTATION_ONLY` via seam | **MIGRATED** |
+| `MasterDossierPanel.ts` | `ReactMasterDossierPanel.tsx` | compatibility | `PRESENTATION_ONLY` via seam | **REMOVE_AFTER_PARITY** |
 | `OpportunityPanel.ts` | `ReactOpportunityPanel.tsx` | **canonical** | **canonical consumer** ×4 | **MIGRATED** (reference module) |
 | `KpiWeeklyChart.ts` | `ReactKpiWeeklyChart.tsx` | compatibility | **canonical consumer** | **MIGRATED** |
 | `ClientProfilePanel.ts` | `ReactClientProfilePanel.tsx` | compatibility | none — 5 writes blocked | **PARTIAL · DISPLAY_ONLY_REACT** |
@@ -129,8 +129,9 @@ organizations must not collide in cache or in a read result.
 | `SourceRegistryModal.ts` | `ReactSourceRegistryPanel.tsx` | compatibility | none — 2 actions blocked | **PARTIAL · READ_ONLY_REACT** |
 | `OnboardingWizard.ts` | `ReactOnboardingWizard.tsx` | compatibility | none — step write is `main.ts`-owned and blocked | **PARTIAL · DISPLAY_ONLY_REACT** (RHF + Zod shape validation; saving delegated to legacy) |
 
-All nine legacy files remain present and unmodified, so their matrix disposition
-stays `MIGRATE` rather than `REMOVE_AFTER_PARITY` until the Phase-6 parity gate.
+Eight of the nine wave-2 legacy files remain present. `MasterDossierPanel.ts` was
+removed after the Phase-6 parity gate (`REMOVE_AFTER_PARITY`). The remaining eight
+stay `MIGRATE` until their own Phase-6 subset removal.
 No page was migrated: page orchestration is still entirely legacy.
 
 React `AppShell` and `Login` exist alongside their legacy counterparts; neither legacy file was modified

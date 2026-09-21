@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { readdirSync } from 'node:fs';
 
@@ -308,12 +308,16 @@ describe('Phase 6 — dossier cutover pairing', () => {
     expect(source).not.toMatch(/import\s*\(\s*['"][^'"]*MasterDossierPanel['"]/);
   });
 
-  it('legacy file remains present while React is the served renderer', () => {
-    expect(statSync(join(ROOT, 'src/components/MasterDossierPanel.ts')).isFile()).toBe(true);
+  it('React remains the served renderer when the exclusive-slot legacy dossier file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/MasterDossierPanel.ts'))).toBe(false);
     expect(statSync(join(ROOT, 'src/ui/modules/MasterDossier/ReactMasterDossierPanel.tsx')).isFile()).toBe(
       true
     );
     expect(code('src/ui/modules/pages/ReactClientWorkspacePage.tsx')).toMatch(/<ReactMasterDossierPanel/);
+    expect(hasReactExclusiveSlot()).toBe(true);
+    expect(resolveServedUiMode('legacy').served).toBe('react');
+    expect(resolveServedUiMode('legacy').keepReactMounted).toBe(true);
+    expect(resolveServedUiMode('legacy').mayActivateLegacyRoot).toBe(false);
   });
 
   it('hosts do not nest each other\'s dossier renderer', () => {
