@@ -39,7 +39,7 @@ Legend — **Disposition:** MIGRATE · ADAPT · KEEP · COMPATIBILITY · REMOVE_
 | 8 | `PageHeader.ts` | 132 | page header chrome | **0** | 0 | no | none | n/a | **NONE** | **LOW** | `<PageHeader/>` | **2** | **MIGRATE** |
 | 9 | `MasterDossierPanel.ts` | 166 | master dossier display | **0** | 0 | no | none | n/a | **NONE** | **LOW** | `<MasterDossierPanel/>` | **2** | **REMOVE_AFTER_PARITY** |
 | 10 | `OnboardingWizard.ts` | 221 | onboarding flow | 2 (`getClientById`, `getMasterProfile`) | 0 | no | `dbService` | clientId | **LOW** | **MEDIUM** (multi-step form) | `<OnboardingWizard/>` (RHF) | **2** | **MIGRATE** |
-| 11 | `OpportunityPanel.ts` | 240 | Opportunity display | **0** | 1 (`opportunityScoutConsumer`) | no | **consumer** | canonical | **NONE** | **LOW** | `<OpportunityPanel/>` | **2** (reference module) | **MIGRATE** |
+| 11 | `OpportunityPanel.ts` | 240 | Opportunity display | **0** | 1 (`opportunityScoutConsumer`) | no | **consumer** | canonical | **NONE** | **LOW** | `<OpportunityPanel/>` | **2** (reference module) | **REMOVE_AFTER_PARITY** |
 | 12 | `AppShell.ts` | 271 | app chrome · nav · badge counts | 11 | 0 (+`authService`, `firebase/config`) | no | `dbService` | clientId | **MEDIUM** (nav ownership) | **MEDIUM** | `<AppShell/>` — Stage-A mount host | **1** | **MIGRATE** |
 | 13 | `ThesisEditorModal.ts` | 307 | thesis editing form | 2 (`getClientById`, `getThesesByClient`) | 0 | no | `dbService` | clientId | **MEDIUM** (multi-thesis) | **MEDIUM** | `<ThesisEditorModal/>` (RHF+Zod) | **3** | **HYBRID · READ_ONLY_REACT_WITH_LEGACY_COMMAND** (T-010-301 — `ReactThesisEditorPage`; both save intents end in `dbService.saveThesis`, registry #11, so the save stays legacy) |
 | 14 | `ManagerCockpit.ts` | 595 | manager dashboard | 10 (incl. `getAiRuns`, `getSignalOutcomes`, `getSubscription`) | 0 (+`firebase/config`) | no | `dbService` | clientId | **MEDIUM** | **HIGH** | `<ManagerCockpit/>` | **3** | **HYBRID · READ_ONLY_REACT_WITH_LEGACY_COMMAND** (T-010-303 — `ReactManagerCockpitPage`; all 5 commands blocked, registry #33–#34) |
@@ -122,16 +122,16 @@ organizations must not collide in cache or in a read result.
 | `PageHeader.ts` | `ReactPageHeader.tsx` | none | none | **MIGRATED** (metadata imported, not copied) |
 | `ClaimSafetyPanel.ts` | `ReactClaimSafetyPanel.tsx` | props | presentation intent | **MIGRATED** |
 | `MasterDossierPanel.ts` | `ReactMasterDossierPanel.tsx` | compatibility | `PRESENTATION_ONLY` via seam | **REMOVE_AFTER_PARITY** |
-| `OpportunityPanel.ts` | `ReactOpportunityPanel.tsx` | **canonical** | **canonical consumer** ×4 | **MIGRATED** (reference module) |
+| `OpportunityPanel.ts` | `ReactOpportunityPanel.tsx` | **canonical** | **canonical consumer** ×4 | **REMOVE_AFTER_PARITY** |
 | `KpiWeeklyChart.ts` | `ReactKpiWeeklyChart.tsx` | compatibility | **canonical consumer** | **MIGRATED** |
 | `ClientProfilePanel.ts` | `ReactClientProfilePanel.tsx` | compatibility | none — 5 writes blocked | **PARTIAL · DISPLAY_ONLY_REACT** |
 | `ProofWallPanel.ts` | `ReactProofWallPanel.tsx` | compatibility | none — toggle blocked | **PARTIAL · READ_ONLY_REACT** |
 | `SourceRegistryModal.ts` | `ReactSourceRegistryPanel.tsx` | compatibility | none — 2 actions blocked | **PARTIAL · READ_ONLY_REACT** |
 | `OnboardingWizard.ts` | `ReactOnboardingWizard.tsx` | compatibility | none — step write is `main.ts`-owned and blocked | **PARTIAL · DISPLAY_ONLY_REACT** (RHF + Zod shape validation; saving delegated to legacy) |
 
-Eight of the nine wave-2 legacy files remain present. `MasterDossierPanel.ts` was
-removed after the Phase-6 parity gate (`REMOVE_AFTER_PARITY`). The remaining eight
-stay `MIGRATE` until their own Phase-6 subset removal.
+Seven of the nine wave-2 legacy files remain present. `MasterDossierPanel.ts` and
+`OpportunityPanel.ts` were removed after the Phase-6 parity gate (`REMOVE_AFTER_PARITY`).
+The remaining seven stay `MIGRATE` until their own Phase-6 subset removal.
 No page was migrated: page orchestration is still entirely legacy.
 
 React `AppShell` and `Login` exist alongside their legacy counterparts; neither legacy file was modified

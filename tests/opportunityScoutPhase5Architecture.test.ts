@@ -35,7 +35,7 @@ const COMPOSE = join(ROOT, 'src/composition/opportunityScout');
 const CONSUMER = join(ROOT, 'src/services/opportunityScoutConsumer.ts');
 const LEGACY_SURFACE = readLegacyControllerSurface();
 const DELIVERY_SEND = join(ROOT, 'src/infrastructure/executionDelivery/DbDeliverySendAdapter.ts');
-const PANEL = join(ROOT, 'src/components/OpportunityPanel.ts');
+const REACT_PANEL = join(ROOT, 'src/ui/modules/Opportunity/ReactOpportunityPanel.tsx');
 const PORTAL = join(ROOT, 'src/components/ClientPortal.ts');
 const DB = join(ROOT, 'src/services/db.ts');
 
@@ -94,7 +94,7 @@ describe('T-007-501 — architecture bans (Domain / UI / [0] thesis)', () => {
   });
 
   it('UI Panel/Portal have zero primaryThesisId / Opportunity status assignment authority', () => {
-    for (const file of [PANEL, PORTAL]) {
+    for (const file of [REACT_PANEL, PORTAL]) {
       const content = stripComments(readFileSync(file, 'utf8'));
       expect(content).not.toMatch(/primaryThesisId|getPrimaryThesis/);
       expect(content).not.toMatch(/lifecycleStage\s*=/);
@@ -102,17 +102,17 @@ describe('T-007-501 — architecture bans (Domain / UI / [0] thesis)', () => {
       expect(content).not.toMatch(/localStorage/);
       expect(content).not.toMatch(/LocalOpportunityRepository|postura_opportunity_/);
     }
-    // OpportunityPanel must not use theses[0] as Opportunity thesis authority
-    const panel = stripComments(readFileSync(PANEL, 'utf8'));
+    // React OpportunityPanel must not use theses[0] as Opportunity thesis authority
+    const panel = stripComments(readFileSync(REACT_PANEL, 'utf8'));
     expect(panel).not.toMatch(/theses\s*\[\s*0\s*\]/);
     // ClientPortal theses[0] on thesis tab is OTHER_SPEC presentation — not Opportunity authority
     const portal = readFileSync(PORTAL, 'utf8');
     expect(portal).toMatch(/listOpportunitiesForClient|renderOpportunity/);
   });
 
-  it('OpportunityPanel issues intent classes only — no dbService mutation', () => {
-    const panel = stripComments(readFileSync(PANEL, 'utf8'));
-    expect(panel).toMatch(/listOpportunitiesForClient|btn-accept-opp/);
+  it('ReactOpportunityPanel issues intent through the canonical seam — no dbService mutation', () => {
+    const panel = stripComments(readFileSync(REACT_PANEL, 'utf8'));
+    expect(panel).toMatch(/useOpportunityCommands/);
     expect(panel).not.toMatch(
       /dbService\.(addOpportunity|updateOpportunityDecision|submitOpportunity|toggleOpportunityChecklistItem)/
     );
@@ -196,7 +196,6 @@ describe('T-007-508 — SPEC-005 advisory-only; no paid AI', () => {
       ...collectTsFiles(INFRA),
       ...collectTsFiles(COMPOSE),
       CONSUMER,
-      PANEL,
     ];
     const hits: string[] = [];
     for (const file of paths) {
@@ -250,7 +249,6 @@ describe('T-007-510 — SPEC-001/002 regression + OpportunityScore ≠ Strategic
       CONSUMER,
       ...collectTsFiles(APP),
       ...collectTsFiles(COMPOSE),
-      PANEL,
       PORTAL,
     ];
     for (const file of files) {
@@ -307,7 +305,7 @@ describe('T-007-12 / authority search — AUTHORITY_BYPASS = 0 on SPEC-007 paths
         class: 'DISPLAY_ONLY',
       },
       {
-        file: 'src/components/OpportunityPanel.ts',
+        file: 'src/ui/data/canonicalReads.ts',
         pattern: /listOpportunitiesForClient/,
         class: 'CANONICAL',
       },

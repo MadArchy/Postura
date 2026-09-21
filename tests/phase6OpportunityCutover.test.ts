@@ -1,12 +1,11 @@
 /**
  * SPEC-010 Phase 6 — ClientPortal opportunity cutover.
  *
- * C1–C5 evidence for the bounded unit. C6 file-absence is not executed here.
- * OpportunityPanel.ts remains present until a later T603 authorization.
+ * C1–C5 evidence for the bounded unit. T-010-603 removed OpportunityPanel.ts.
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -42,8 +41,8 @@ function code(rel: string): string {
 }
 
 describe('Phase 6 opportunity cutover — C1 served ownership', () => {
-  it('OpportunityPanel remains present until T603', () => {
-    expect(statSync(join(ROOT, LEGACY_PANEL)).isFile()).toBe(true);
+  it('OpportunityPanel is absent after T603 subset removal', () => {
+    expect(existsSync(join(ROOT, LEGACY_PANEL))).toBe(false);
   });
 
   it('React opportunity exists and is served from portal home, opportunities tab, and Wave2', () => {

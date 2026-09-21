@@ -90,7 +90,6 @@ describe('T-010-201…205 — the claimed wave-2 components exist', () => {
     const legacy = [
       'src/components/PageHeader.ts',
       'src/components/ClaimSafetyPanel.ts',
-      'src/components/OpportunityPanel.ts',
       'src/components/KpiWeeklyChart.ts',
       'src/components/ClientProfilePanel.ts',
       'src/components/ProofWallPanel.ts',

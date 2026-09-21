@@ -454,18 +454,10 @@ describe('SPEC-007 Phase 4 — source scans (T-007-401/403/406/407)', () => {
   });
 
   it('OpportunityPanel / ClientPortal do not mutate lifecycle via dbService', () => {
-    for (const rel of [
-      'src/components/OpportunityPanel.ts',
-      'src/components/ClientPortal.ts',
-    ]) {
-      const content = readFileSync(join(ROOT, rel), 'utf8');
-      expect(content).not.toMatch(/dbService\.(addOpportunity|updateOpportunityDecision|submitOpportunity|toggleOpportunityChecklistItem)/);
-      expect(content).not.toMatch(/status\s*=\s*['"]ACCEPTED['"]/);
-      expect(content).not.toMatch(/lifecycleStage\s*=/);
-    }
-    const panel = readFileSync(join(ROOT, 'src/components/OpportunityPanel.ts'), 'utf8');
-    expect(panel).toMatch(/listOpportunitiesForClient/);
-    expect(panel).toMatch(/DISPLAY_ONLY|display-only|AUDIT007-08/i);
+    const content = readFileSync(join(ROOT, 'src/components/ClientPortal.ts'), 'utf8');
+    expect(content).not.toMatch(/dbService\.(addOpportunity|updateOpportunityDecision|submitOpportunity|toggleOpportunityChecklistItem)/);
+    expect(content).not.toMatch(/status\s*=\s*['"]ACCEPTED['"]/);
+    expect(content).not.toMatch(/lifecycleStage\s*=/);
   });
 
   it('composition wires Application to Infrastructure adapters', () => {
@@ -502,7 +494,6 @@ describe('SPEC-007 Phase 4 — source scans (T-007-401/403/406/407)', () => {
     const files = [
       'src/services/opportunityScoutConsumer.ts',
       'src/composition/opportunityScout/composeOpportunityScout.ts',
-      'src/components/OpportunityPanel.ts',
     ];
     for (const rel of files) {
       const content = readFileSync(join(ROOT, rel), 'utf8')

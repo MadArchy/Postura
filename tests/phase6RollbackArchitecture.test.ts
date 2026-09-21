@@ -393,6 +393,19 @@ describe('Phase 6 — opportunity cutover pairing', () => {
     expect(source).not.toMatch(/localStorage/);
     expect(source).not.toMatch(/firestore/i);
   });
+
+  it('React remains the served renderer when the exclusive-slot legacy opportunity file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/OpportunityPanel.ts'))).toBe(false);
+    expect(statSync(join(ROOT, 'src/ui/modules/Opportunity/ReactOpportunityPanel.tsx')).isFile()).toBe(
+      true
+    );
+    expect(code('src/ui/modules/pages/ReactClientPortalPage.tsx')).toMatch(/<ReactOpportunityPanel/);
+    expect(hasReactExclusiveSlot()).toBe(true);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_OPPORTUNITY_SLOT)).toBe(true);
+    expect(resolveServedUiMode('legacy').served).toBe('react');
+    expect(resolveServedUiMode('legacy').keepReactMounted).toBe(true);
+    expect(resolveServedUiMode('legacy').mayActivateLegacyRoot).toBe(false);
+  });
 });
 
 describe('Phase 6 — security / authority of the rollback boundary', () => {

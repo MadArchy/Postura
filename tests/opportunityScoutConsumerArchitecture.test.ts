@@ -103,8 +103,6 @@ describe('SPEC-007 Phase 4 — consumer architecture (T-007-407)', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\/\/.*$/gm, '');
     expect(main).not.toMatch(/getOpportunityById\s*\(/);
-    const panel = readFileSync(join(ROOT, 'src/components/OpportunityPanel.ts'), 'utf8');
-    expect(panel).not.toMatch(/getOpportunityById/);
     const portal = readFileSync(join(ROOT, 'src/components/ClientPortal.ts'), 'utf8');
     expect(portal).not.toMatch(/getOpportunityById/);
   });
