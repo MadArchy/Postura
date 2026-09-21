@@ -82,7 +82,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A40 | Component migration matrix complete — a row per UI file, dispositioned | 0 | ✅ PASS | `migration-matrix.md` (17 files) |
 | A41 | Behavioral parity proven per migrated module across all applicable dimensions | 5 | ⚠️ PARTIAL | Page-level evidence for 12 of 18 dimensions per migrated page; dimensions whose legacy command stays outside React are classified, not claimed. **0** modules cut over — cutover parity is Phase 5 |
 | A42 | E2E/parity harness (Playwright) implemented; legacy-vs-React journeys pass | 5 | ⚠️ PARTIAL | T-508 + Stage-B: **21/21 PASS**; governed MVP journey (Planner excluded). Full cutover parity remains Phase 6 |
-| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ⚠️ PARTIAL | T-508 rollback stability proven; **0** legacy removed (T-603 not authorized) |
+| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ⚠️ PARTIAL | Option E + T-508 rollback; **1** dossier leaf removed (`MasterDossierPanel.ts` @ `564aa1f`, `t-010-603-dossier-subset-removal.md`); remaining candidates keep T-603 **OPEN** |
 | A44 | Full check + rules regression at CODE_COMPLETE; no unintended regression | 6 | ⏳ PENDING | **T602 REGRESSION_GATE_PASS** @ 1965/1965 · 91/91 · BUILD · 73/73 · 21/21. **A44 formal PASS** requires CODE_COMPLETE Required A* + T-604 |
 
 **Acceptance count:** **44** (A1–A44) — unchanged.
@@ -225,6 +225,21 @@ Evidence: `t-010-phase6-pre-removal-gates.md` · `t-010-phase6-a1-a44-reconcilia
 | T-010-604 | **NOT_AUTHORIZED** |
 
 **T603 manifest:** 5 future subset candidates (wave-2 leaves) · 12+ blocked · **FULL LEGACY DELETION READY = NO**
+
+### Phase-6 T-010-603 dossier subset (bounded)
+
+Evidence: `t-010-603-dossier-subset-removal.md` · implementation `564aa1f0064551e32a4850c524d5f0fec48d8f90`.
+
+| Item | Verdict |
+|------|---------|
+| Dossier unit C1–C7 / C8 | **PASS / N/A** |
+| `MasterDossierPanel.ts` | **ABSENT** (`REMOVE_AFTER_PARITY`) |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (this file only) |
+| T-010-603 **global** | **OPEN** — not DONE |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+T-601 / T-602 snapshot rows above are historical and are **not** rewritten.
 
 ### Phase-3 acceptance movement (T-010-301…306)
 
