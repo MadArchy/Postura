@@ -1249,6 +1249,7 @@ export function ReactClientPortalPage({ tab = 'home' }: { tab?: ClientPortalTab 
           <TasksPanel onOpenArticleReview={openArticleReview} />
           <BriefingPanel />
           <ReactOpportunityPanel />
+          <ReactKpiWeeklyChart title="Dashboard semanal" />
         </>
       ) : null}
 
