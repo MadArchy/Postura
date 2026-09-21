@@ -2,7 +2,7 @@
  * SPEC-010 Phase 6 — KPI Results-only cutover (`client-kpi-results`).
  *
  * Omits legacy Results tiles/chart on ClientPortal and ClientWorkspace.
- * Does not delete KpiWeeklyChart.ts. Home omit is proven by the Home cutover test.
+ * Physical absence of KpiWeeklyChart.ts is intentional. Home omit is proven by the Home cutover test.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -46,9 +46,8 @@ function code(rel: string): string {
 }
 
 describe('Phase 6 KPI Results cutover — C1 served ownership', () => {
-  it('KpiWeeklyChart.ts remains present and Home React KPI stays mounted', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('KpiWeeklyChart.ts is absent and Home React KPI stays mounted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     expect(code(PORTAL)).toMatch(
       /tab === 'home'[\s\S]*<ReactKpiWeeklyChart title="Dashboard semanal"/
@@ -104,7 +103,6 @@ describe('Phase 6 KPI Results cutover — C2 / C3 canonical path', () => {
     expect(code(HOST_PORTAL)).toMatch(/form-add-result/);
     expect(code(HANDLERS)).toMatch(/form-add-result/);
     expect(code(HANDLERS)).toMatch(/form-quick-kpi-consultation/);
-    expect(code(LEGACY)).toMatch(/form-quick-kpi-consultation/);
   });
 });
 
@@ -132,8 +130,8 @@ describe('Phase 6 KPI Results cutover — C4 / C5 / no T603', () => {
     expect(code(WORKSPACE)).not.toMatch(/createRoot/);
   });
 
-  it('T603 remains unauthorized and the legacy file stays present', () => {
+  it('T603 remains unauthorized and the legacy file is absent', () => {
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
   });
 });

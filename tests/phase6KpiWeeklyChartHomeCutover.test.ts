@@ -2,7 +2,7 @@
  * SPEC-010 Phase 6 — KPI Home presentation cutover (`client-kpi-home`).
  *
  * Omits legacy Home `renderKpiHomeDashboard` from ClientPortal.
- * Does not delete KpiWeeklyChart.ts. Results omit remains Results-only.
+ * Physical absence of KpiWeeklyChart.ts is intentional. Results omit remains Results-only.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -65,9 +65,8 @@ function collectTs(dir: string): string[] {
 }
 
 describe('Phase 6 KPI Home cutover — C1 served ownership', () => {
-  it('KpiWeeklyChart.ts remains present and React Home KPI stays mounted', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('KpiWeeklyChart.ts is absent and React Home KPI stays mounted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     expect(code(PORTAL)).toMatch(
       /tab === 'home'[\s\S]*<ReactKpiWeeklyChart title="Dashboard semanal"/
@@ -136,7 +135,6 @@ describe('Phase 6 KPI Home cutover — C2 / C3 seams and Results coexistence', (
     expect(code(HANDLERS)).toMatch(/form-add-result/);
     expect(code(HANDLERS)).toMatch(/form-quick-kpi-consultation/);
     expect(code(HOST_PORTAL)).not.toMatch(/form-quick-kpi-consultation/);
-    expect(code(LEGACY)).toMatch(/form-quick-kpi-consultation/);
   });
 });
 
@@ -163,11 +161,8 @@ describe('Phase 6 KPI Home cutover — C4 / C5 / no T603', () => {
     expect(code(PORTAL)).not.toMatch(/#app/);
   });
 
-  it('C6 / C7 / T603 are not executed; the file stays present', () => {
+  it('physical absence is intentional; C7 and T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(code(LEGACY)).toMatch(/export function renderKpiHomeDashboard/);
-    expect(code(LEGACY)).toMatch(/export function renderKpiSummaryTiles/);
-    expect(code(LEGACY)).toMatch(/export function renderKpiWeeklyChart/);
   });
 });

@@ -98,7 +98,7 @@ describe('Phase 6 KPI Home parity — C2 / C3 capability', () => {
   });
 });
 
-describe('Phase 6 KPI Home parity — A38 / file present', () => {
+describe('Phase 6 KPI Home parity — A38 / file absent', () => {
   it('does not create a second React root or mount inside #app', () => {
     expect(code(PORTAL)).not.toMatch(/createRoot/);
     expect(code(REACT)).not.toMatch(/createRoot/);
@@ -107,13 +107,8 @@ describe('Phase 6 KPI Home parity — A38 / file present', () => {
     expect(code(MOUNT)).not.toMatch(/createRoot\([^)]*#app/);
   });
 
-  it('legacy KPI file remains present; whole-leaf cutover is not authorized', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    expect(code(LEGACY)).toMatch(/export function renderKpiHomeDashboard/);
-    expect(code(LEGACY)).toMatch(/renderKpiSummaryTiles\(clientId\)/);
-    expect(code(LEGACY)).toMatch(/renderKpiWeeklyChart\(clientId, 'Tendencia semanal'\)/);
-    expect(code(LEGACY)).toMatch(/form-quick-kpi-consultation/);
+  it('legacy KPI file is absent; whole-leaf exclusive id and T603 remain unauthorized', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/presentation/kpiSlot.ts'))).toBe(false);
     expect(code(SLOTS)).not.toMatch(/kpiSlot/);
     expect(code(HANDLERS)).toMatch(/form-quick-kpi-consultation/);

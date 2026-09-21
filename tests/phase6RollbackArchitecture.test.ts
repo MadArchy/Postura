@@ -486,9 +486,8 @@ describe('Phase 6 — KPI Results cutover pairing', () => {
     expect(source).not.toMatch(/firestore/i);
   });
 
-  it('legacy preference may exist; React Results stay authoritative and the file remains', () => {
-    expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(true);
-    expect(code('src/components/KpiWeeklyChart.ts')).toMatch(/export function renderKpiHomeDashboard/);
+  it('legacy preference may exist; React Results stay authoritative and the file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(false);
     expect(code('src/ui/modules/wave2/Wave2Surface.tsx')).toMatch(/<ReactKpiWeeklyChart/);
     expect(code('src/ui/modules/pages/ReactClientWorkspacePage.tsx')).toMatch(
       /tab === 'results'[\s\S]*<ReactKpiWeeklyChart/
@@ -529,8 +528,8 @@ describe('Phase 6 — KPI Home cutover pairing', () => {
     expect(source).not.toMatch(/firestore/i);
   });
 
-  it('legacy preference may exist; React Home stays authoritative and the file is not deleted', () => {
-    expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(true);
+  it('legacy preference may exist; React Home stays authoritative and the file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(false);
     expect(code('src/ui/modules/pages/ReactClientPortalPage.tsx')).toMatch(
       /tab === 'home'[\s\S]*<ReactKpiWeeklyChart title="Dashboard semanal"/
     );
