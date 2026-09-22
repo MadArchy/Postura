@@ -2,7 +2,7 @@
  * SPEC-010 Phase 6 — ClientPortal profile cutover (`client-portal-profile`).
  *
  * Omits legacy `renderClientProfileBody` from ClientPortal.
- * `ClientProfilePanel.ts` remains physically present. C6 / C7 / T603 are not executed.
+ * Physical absence of ClientProfilePanel.ts is intentional. C6 is not yet verified. C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -66,9 +66,9 @@ function collectTs(dir: string): string[] {
 }
 
 describe('Phase 6 ClientProfile cutover — C1 served ownership', () => {
-  it('ClientProfilePanel.ts remains physically present', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('ClientProfilePanel.ts is absent and React profile stays mounted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
+    expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
   });
 
   it('React profile is served from AppShell client-profile → Wave2 profile', () => {
@@ -223,8 +223,8 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
     expect(listKnownReactExclusiveSlotIds()).not.toContain('client-onboarding-modal');
   });
 
-  it('physical presence is intentional; C6, C7, and T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('physical absence is intentional; C6 is not yet verified; C7 and T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
   });
 });

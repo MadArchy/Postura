@@ -359,11 +359,10 @@ describe('Q — successful writes invalidate compatibility profile queries', () 
   });
 });
 
-describe('R — legacy rollback retained', () => {
-  it('legacy panel, handlers, and UI-mode switch remain', () => {
-    expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(true);
+describe('R — leftover panel absent; handlers and UI-mode switch remain', () => {
+  it('handlers and UI-mode switch remain; leftover panel is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/legacy/handlers/profileHandlers.ts'))).toBe(true);
-    expect(read('src/components/ClientProfilePanel.ts')).toMatch(/btn-add-profile-fact/);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/btn-extract-cv-facts/);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/dbService\.addProfileFact/);
     expect(code(panel)).toMatch(/applyUiMode\('legacy'\)/);

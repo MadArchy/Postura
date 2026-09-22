@@ -597,8 +597,8 @@ describe('Phase 6 — ClientProfile cutover pairing', () => {
     expect(source).not.toMatch(/firestore/i);
   });
 
-  it('legacy preference may exist; React profile stays authoritative and the file remains present', () => {
-    expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(true);
+  it('legacy preference may exist; React profile stays authoritative and the file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(false);
     expect(code('src/ui/modules/wave2/Wave2Surface.tsx')).toMatch(
       /group === 'profile'[\s\S]*<ReactClientProfilePanel/
     );
