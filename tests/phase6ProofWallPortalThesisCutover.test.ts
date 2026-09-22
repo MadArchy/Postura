@@ -5,7 +5,8 @@
  * Omits leftover `renderProofWall` from ClientPortal `renderClientThesisBody`.
  * ProofWallPanel.ts remains present. Portal leftover service-lines are a
  * separate omit (`client-portal-thesis-service-lines`). Workspace leftover
- * ProofWall and write remain. C6 / C7 / T603 are not executed.
+ * ProofWall is omitted (`client-workspace-proof-wall`). Leftover write remains.
+ * C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -19,6 +20,7 @@ import {
   CLIENT_PORTAL_PROFILE_SLOT,
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
+  CLIENT_WORKSPACE_PROOF_WALL_SLOT,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
   listKnownReactExclusiveSlotIds,
@@ -70,11 +72,12 @@ describe('Phase 6 ProofWall portal thesis cutover — C1 served ownership', () =
     expect(proofWallPortalThesisSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover ProofWall and service lines remain product-required', () => {
+  it('workspace leftover ProofWall is omitted; service lines remain product-required', () => {
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
     expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
     expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
   });
@@ -88,8 +91,9 @@ describe('Phase 6 ProofWall portal thesis cutover — C1 served ownership', () =
     expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
     expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
     expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_PORTAL_PROFILE_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_WORKSPACE_PROOF_WALL_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain('client-portal-thesis-proof-wall');
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-proof-wall');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
     expect(listKnownReactExclusiveSlotIds()).not.toContain('proof-wall');
     expect(listKnownReactExclusiveSlotIds()).not.toContain('proofwall');
   });
@@ -105,14 +109,14 @@ describe('Phase 6 ProofWall portal thesis cutover — C2 / C3 authority', () => 
     expect(code(REACT)).not.toMatch(/from\s+['"][^'"]*infrastructure\//);
   });
 
-  it('portal thesis leftover write stays none; workspace write stays leftover', () => {
+  it('portal thesis leftover write stays none; workspace leftover ProofWall call is omitted', () => {
     const host = code(HOST);
     expect(host).not.toMatch(/btn-toggle-proof-wall/);
     expect(host).not.toMatch(/updateProofWallItem/);
     expect(host).not.toMatch(/setProofWallItemReadiness/);
     expect(code(HANDLERS)).toMatch(/querySelectorAll\('\.btn-toggle-proof-wall'\)/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
   });
 
   it('Wave2 profile ProofWall mount and #7 path stay unchanged', () => {
@@ -158,7 +162,7 @@ describe('Phase 6 ProofWall portal thesis cutover — C4 / C5 / coexistence', ()
 
   it('file remains present; whole-file C6 / C7 / T603 are not eligible', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
   });

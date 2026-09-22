@@ -76,7 +76,11 @@ import { labelSourceRunError } from '../domain/sourceIngestCore';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
 import { isPlayableRecordingRef } from '../services/recordings';
 import { signalsAwaitingOutcome, computeConversionStats } from '../domain/radarFeedbackCore';
-import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
+// Phase-6 workspace ProofWall cutover (`client-workspace-proof-wall`):
+// leftover `renderProofWall` is omitted from `renderPositioning`.
+// ReactClientWorkspacePage positioning serves ReactProofWallPanel.
+// leftover `renderServiceLinesReadOnly` remains.
+import { renderServiceLinesReadOnly } from './ProofWallPanel';
 import { getLatestTopicAgentRun } from '../services/topicAgent';
 import { canActivateThesis } from '../domain/thesisRevisionCore';
 
@@ -1886,7 +1890,6 @@ function renderPositioning(
     <details class="card disclosure" id="proof-wall-section">
       <summary>Pruebas y líneas de servicio</summary>
       <div class="disclosure-body content-stack">
-        ${renderProofWall(clientId, { editable: true })}
         ${renderServiceLinesReadOnly(clientId)}
       </div>
     </details>

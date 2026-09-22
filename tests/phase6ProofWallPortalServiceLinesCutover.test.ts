@@ -4,8 +4,8 @@
  *
  * Omits leftover `renderServiceLinesReadOnly` from ClientPortal
  * `renderClientThesisBody`. ProofWallPanel.ts remains present.
- * Workspace leftover ProofWall and service-lines remain. Closed Dossier
- * React ownership is unchanged. C6 / C7 / T603 are not executed.
+ * Workspace leftover ProofWall is omitted. Workspace leftover service-lines
+ * remain. Closed Dossier React ownership is unchanged. C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -74,11 +74,12 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C1 served ow
     expect(serviceLinesPortalThesisSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover ProofWall and service-lines remain product-required', () => {
+  it('workspace leftover ProofWall is omitted; leftover service-lines remain product-required', () => {
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
     expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
     expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
   });
@@ -110,7 +111,7 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C2 / C3 auth
     expect(code(DOSSIER)).not.toMatch(/from\s+['"][^'"]*infrastructure\//);
   });
 
-  it('portal leftover service-lines write stays none; workspace ProofWall write stays leftover', () => {
+  it('portal leftover service-lines write stays none; workspace leftover ProofWall call is omitted', () => {
     const host = code(HOST);
     expect(host).not.toMatch(/renderServiceLinesReadOnly/);
     expect(host).not.toMatch(/btn-toggle-proof-wall/);
@@ -118,7 +119,7 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C2 / C3 auth
     expect(host).not.toMatch(/setProofWallItemReadiness/);
     expect(code(HANDLERS)).toMatch(/querySelectorAll\('\.btn-toggle-proof-wall'\)/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
   });
 
   it('closed Dossier React owner, slot, exclusive id, and T603 record stay unchanged', () => {
@@ -162,7 +163,7 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C4 / C5 / co
 
   it('file remains present; whole-file C6 / C7 / T603 are not eligible', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);

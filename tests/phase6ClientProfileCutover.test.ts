@@ -164,7 +164,7 @@ describe('Phase 6 ClientProfile cutover — C2 / C3 canonical path', () => {
     expect(code(HOST)).not.toMatch(/btn-reject-profile-fact/);
     expect(code(HOST)).not.toMatch(/btn-edit-profile-fact/);
     expect(code(HOST)).not.toMatch(/input-cv-upload/);
-    expect(code(WORKSPACE)).toMatch(/btn-toggle-proof-wall|renderProofWall/);
+    expect(code(WORKSPACE)).not.toMatch(/btn-toggle-proof-wall|renderProofWall/);
   });
 });
 
@@ -202,15 +202,16 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('ProofWall workspace remains leftover; thesis leftover ProofWall is omitted; profile nest is unserved', () => {
+  it('ProofWall workspace leftover is omitted; thesis leftover ProofWall is omitted; profile nest is unserved', () => {
     expect(statSync(join(ROOT, PROOFWALL)).isFile()).toBe(true);
     expect(code(HOST)).not.toMatch(/renderProofWall/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
     expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
-    expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
+    expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
     expect(code(HOST)).not.toMatch(/renderClientProfileBody/);
     expect(listKnownReactExclusiveSlotIds()).toContain('client-portal-thesis-proof-wall');
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-proof-wall');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
   });
 
   it('onboarding modal and remaining entry points stay served', () => {
