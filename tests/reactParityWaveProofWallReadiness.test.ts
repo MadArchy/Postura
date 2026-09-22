@@ -129,7 +129,7 @@ describe('C — ADMIN complete → pending uses the canonical seam', () => {
 
 describe('D — CLIENT cannot obtain write authority from presentation', () => {
   it('toggle is gated by isAdmin and CLIENT still sees badges only', () => {
-    expect(code(panel)).toMatch(/showToggle = isAdmin && Boolean\(tenantScope\.clientId\)/);
+    expect(code(panel)).toMatch(/showToggle = isAdmin && Boolean\(scope\?\.clientId\)/);
     expect(code(panel)).toMatch(/item\.complete \? 'Listo' : 'Pendiente'/);
     expect(code(panel)).not.toMatch(/actorRole:/);
     expect(code(panel)).not.toMatch(/editable/);

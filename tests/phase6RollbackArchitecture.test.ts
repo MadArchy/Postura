@@ -731,6 +731,20 @@ describe('Phase 6 — ProofWall portal thesis cutover pairing', () => {
   });
 });
 
+describe('Phase 6 — ProofWall workspace React owner pairing', () => {
+  it('React workspace positioning serves ReactProofWallPanel; leftover workspace calls remain', () => {
+    expect(code('src/ui/modules/pages/ReactClientWorkspacePage.tsx')).toMatch(
+      /tab === 'positioning'[\s\S]*<ReactProofWallPanel\s+workspaceClientId=\{clientId\}/
+    );
+    expect(code('src/components/ClientWorkspace.ts')).toMatch(
+      /renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}/
+    );
+    expect(code('src/components/ClientWorkspace.ts')).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-proof-wall');
+  });
+});
+
 describe('Phase 6 — security / authority of the rollback boundary', () => {
   const presentationFiles = [
     'src/ui/presentation/reactExclusiveSlots.ts',

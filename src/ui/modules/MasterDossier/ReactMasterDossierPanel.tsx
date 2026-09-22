@@ -13,8 +13,9 @@
  * actions. No `dbService` write is involved.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from '../../providers/SessionProvider';
+import { narrowToClient } from '../../query/tenantScope';
 import { useMasterDossier } from '../../hooks/useWave2Data';
 import { dossierPresentationCommands } from '../../commands/commandSeam';
 
@@ -26,12 +27,29 @@ const CHANNEL_LABELS: Record<string, string> = {
   FACEBOOK: 'Facebook',
 };
 
-export function ReactMasterDossierPanel() {
-  const { tenantScope } = useSession();
+export function ReactMasterDossierPanel({
+  workspaceClientId = null,
+}: {
+  /** Shell-selected client for ADMIN workspace; CLIENT sessions already carry clientId. */
+  workspaceClientId?: string | null;
+}) {
+  const { tenantScope: sessionScope } = useSession();
+  const scope = useMemo(() => {
+    if (!sessionScope) return null;
+    if (sessionScope.clientId) return sessionScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(sessionScope, requested);
+    } catch {
+      return null;
+    }
+  }, [sessionScope, workspaceClientId]);
+  const tenantScope = scope;
   const { data, isLoading, isError } = useMasterDossier(tenantScope);
   const [notice, setNotice] = useState<string | null>(null);
 
-  if (!tenantScope) {
+  if (!sessionScope) {
     return (
       <section className="card" data-testid="react-dossier-no-scope">
         <p className="muted">Sesión sin contexto de organización — no se muestra el dossier.</p>

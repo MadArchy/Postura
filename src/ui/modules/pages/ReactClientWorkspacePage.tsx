@@ -82,6 +82,7 @@ import { curationDestinationToAuthorizedAction } from '../../../domain/briefCons
 import type { CurationDestination, SourceType, TaskType } from '../../../types';
 import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPanel';
+import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
 import { ReactContentEditorModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
@@ -2085,7 +2086,8 @@ export function ReactClientWorkspacePage({
         <>
           <ReactThesisEditorPage workspaceClientId={clientId} />
           <AdviceActionsPanel workspaceClientId={clientId} />
-          <ReactMasterDossierPanel />
+          <ReactProofWallPanel workspaceClientId={clientId} />
+          <ReactMasterDossierPanel workspaceClientId={clientId} />
         </>
       ) : null}
     </div>

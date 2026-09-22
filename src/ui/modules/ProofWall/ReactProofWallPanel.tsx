@@ -19,20 +19,38 @@
  * Legacy `ProofWallPanel` + `profileHandlers` remain for rollback.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from '../../providers/SessionProvider';
+import { narrowToClient } from '../../query/tenantScope';
 import { useProofWall, useSetProofWallItemReadiness } from '../../hooks/useWave2Data';
 import { applyUiMode } from '../../mount';
 
 type StatusMessage = { kind: 'success' | 'error'; text: string };
 
-export function ReactProofWallPanel() {
-  const { tenantScope, isAdmin } = useSession();
+export function ReactProofWallPanel({
+  workspaceClientId = null,
+}: {
+  /** Shell-selected client for ADMIN workspace; CLIENT sessions already carry clientId. */
+  workspaceClientId?: string | null;
+}) {
+  const { tenantScope: sessionScope, isAdmin } = useSession();
+  const scope = useMemo(() => {
+    if (!sessionScope) return null;
+    if (sessionScope.clientId) return sessionScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(sessionScope, requested);
+    } catch {
+      return null;
+    }
+  }, [sessionScope, workspaceClientId]);
+  const tenantScope = scope;
   const { data, isLoading, isError } = useProofWall(tenantScope);
   const setReadiness = useSetProofWallItemReadiness(tenantScope);
   const [statusMessage, setStatusMessage] = useState<StatusMessage | null>(null);
 
-  if (!tenantScope) {
+  if (!sessionScope) {
     return (
       <section className="card" data-testid="react-proof-wall-no-scope">
         <p className="muted">Sesión sin contexto de organización — no se muestra el muro.</p>
@@ -57,7 +75,7 @@ export function ReactProofWallPanel() {
   }
 
   const wall = data ?? { items: [], complete: 0, total: 0, percentComplete: 0 };
-  const showToggle = isAdmin && Boolean(tenantScope.clientId);
+  const showToggle = isAdmin && Boolean(scope?.clientId);
 
   const handleToggle = (proofWallItemId: string, complete: boolean) => {
     const targetStatus = complete ? 'pending' : 'complete';
