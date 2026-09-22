@@ -3,7 +3,7 @@
  * (`client-workspace-service-lines`).
  *
  * Omits leftover `renderServiceLinesReadOnly` from ClientWorkspace
- * `renderPositioning`. ProofWallPanel.ts remains present. ClientWorkspace
+ * `renderPositioning`. ProofWallPanel.ts is absent. ClientWorkspace
  * drops the ProofWallPanel import. `#proof-wall-section` is removed.
  * React workspace ProofWall and ReactMasterDossierPanel stay served.
  * C6 / C7 / T603 are not executed.
@@ -95,8 +95,8 @@ function productSources(): string[] {
 }
 
 describe('Phase 6 ProofWall workspace service-lines cutover — C1 served ownership', () => {
-  it('ProofWallPanel.ts remains present and React workspace ProofWall plus dossier stay mounted', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('ProofWallPanel.ts is absent and React workspace ProofWall plus dossier stay mounted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     expect(statSync(join(ROOT, DOSSIER)).isFile()).toBe(true);
     expect(code(APPSHELL)).toMatch(/'ws-positioning':\s*'positioning'/);
@@ -216,8 +216,8 @@ describe('Phase 6 ProofWall workspace service-lines cutover — C4 / C5 / coexis
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('Product graph is zero; file remains present; C6 / C7 / T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('Product graph is zero; file is absent; C6 / C7 / T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     const sources = productSources();
     expect(
       sources.some((source) => /from\s+['"](?:\.\/ProofWallPanel|[^'"]*\/ProofWallPanel)['"]/.test(source))

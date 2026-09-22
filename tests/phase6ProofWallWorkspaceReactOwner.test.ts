@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import {
@@ -140,8 +140,8 @@ describe('Phase 6 ProofWall workspace React owner — defaults and A38', () => {
 });
 
 describe('Phase 6 ProofWall workspace React owner — leftover gate separation', () => {
-  it('ClientWorkspace leftover ProofWall and leftover service-lines are omitted; file remains', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('ClientWorkspace leftover ProofWall and leftover service-lines are omitted; file is absent', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
@@ -150,8 +150,8 @@ describe('Phase 6 ProofWall workspace React owner — leftover gate separation',
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
   });
 
-  it('file remains present; C6 is not executed; workspace ProofWall and service-lines slots/ids are active', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('file is absent; C6 is not executed; workspace ProofWall and service-lines slots/ids are active', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/presentation/proofWallWorkspaceSlot.ts'))).toBe(true);
     expect(existsSync(join(ROOT, 'src/ui/presentation/serviceLinesWorkspaceSlot.ts'))).toBe(true);
     expect(proofWallWorkspaceSlotPresentation()).toBe('omit');

@@ -3,7 +3,7 @@
  * (`client-workspace-proof-wall`).
  *
  * Omits leftover `renderProofWall` from ClientWorkspace `renderPositioning`.
- * ProofWallPanel.ts remains present. ClientWorkspace ProofWallPanel import
+ * ProofWallPanel.ts is absent. ClientWorkspace ProofWallPanel import
  * is absent. Leftover workspace service-lines are omitted
  * (`client-workspace-service-lines`). React workspace ProofWall stays served.
  * C6 / C7 / T603 are not executed.
@@ -76,8 +76,8 @@ function code(rel: string): string {
 }
 
 describe('Phase 6 ProofWall workspace ProofWall cutover — C1 served ownership', () => {
-  it('ProofWallPanel.ts remains present and React workspace ProofWall stays mounted', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('ProofWallPanel.ts is absent and React workspace ProofWall stays mounted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     expect(code(APPSHELL)).toMatch(/'ws-positioning':\s*'positioning'/);
     expect(code(PAGE)).toMatch(
@@ -97,8 +97,8 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C1 served ownership'
     expect(proofWallWorkspaceSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover service-lines are omitted; React dossier facts stay served; file stays present', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('workspace leftover service-lines are omitted; React dossier facts stay served; file is absent', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(DOSSIER)).toMatch(/dossier\.serviceLines/);
@@ -193,8 +193,8 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C4 / C5 / coexistenc
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('file remains present; Product graph is zero; Dossier stays closed; C6 / C7 / T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('file is absent; Product graph is zero; Dossier stays closed; C6 / C7 / T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HOST)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);

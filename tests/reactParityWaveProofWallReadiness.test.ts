@@ -224,11 +224,10 @@ describe('J — no optimistic persisted state and no SPEC-006', () => {
   });
 });
 
-describe('K — legacy retained and React stays presentation', () => {
-  it('legacy toggle and handler remain; panel is PRESENTATION only', () => {
-    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(true);
+describe('K — leftover file is absent and React stays presentation', () => {
+  it('leftover ProofWallPanel.ts is absent; handler remains; panel is PRESENTATION only', () => {
+    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/legacy/handlers/profileHandlers.ts'))).toBe(true);
-    expect(read('src/components/ProofWallPanel.ts')).toMatch(/btn-toggle-proof-wall/);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/dbService\.updateProofWallItem/);
     expect(code(panel)).toMatch(/data-authority="PRESENTATION"/);
     expect(code(panel)).toMatch(/applyUiMode\('legacy'\)/);

@@ -773,7 +773,7 @@ describe('Phase 6 — ProofWall portal thesis cutover pairing', () => {
       workspaceExclusive: true,
       workspaceServiceLinesSlotOmitted: true,
       workspaceServiceLinesExclusive: true,
-      filePresent: true,
+      filePresent: false,
     });
   });
 
@@ -788,8 +788,8 @@ describe('Phase 6 — ProofWall portal thesis cutover pairing', () => {
     expect(source).not.toMatch(/firestore/i);
   });
 
-  it('legacy preference may exist; React thesis ProofWall stays authoritative and the file remains', () => {
-    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(true);
+  it('legacy preference may exist; React thesis ProofWall stays authoritative and the file is absent', () => {
+    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(false);
     expect(code('src/ui/modules/pages/ReactClientPortalPage.tsx')).toMatch(/<ReactProofWallPanel\s*\/>/);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(true);
     const legacyRequest = resolveServedUiMode('legacy');
@@ -811,7 +811,7 @@ describe('Phase 6 — ProofWall workspace React owner pairing', () => {
     );
     expect(code('src/components/ClientWorkspace.ts')).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code('src/components/ClientWorkspace.ts')).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
-    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(true);
+    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(false);
     expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
     expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-service-lines');
     expect(proofWallWorkspaceSlotPresentation()).toBe('omit');

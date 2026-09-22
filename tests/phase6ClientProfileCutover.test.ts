@@ -203,7 +203,7 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
   });
 
   it('ProofWall workspace leftover is omitted; thesis leftover ProofWall is omitted; profile nest is unserved', () => {
-    expect(statSync(join(ROOT, PROOFWALL)).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, PROOFWALL))).toBe(false);
     expect(code(HOST)).not.toMatch(/renderProofWall/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
     expect(code(WORKSPACE)).not.toMatch(/id="proof-wall-section"/);

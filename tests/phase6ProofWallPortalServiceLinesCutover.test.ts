@@ -3,7 +3,7 @@
  * (`client-portal-thesis-service-lines`).
  *
  * Omits leftover `renderServiceLinesReadOnly` from ClientPortal
- * `renderClientThesisBody`. ProofWallPanel.ts remains present.
+ * `renderClientThesisBody`. ProofWallPanel.ts is absent.
  * Workspace leftover ProofWall is omitted. Workspace leftover service-lines
  * are omitted (`client-workspace-service-lines`). Closed Dossier React
  * ownership is unchanged. C6 / C7 / T603 are not executed.
@@ -61,8 +61,8 @@ function code(rel: string): string {
 }
 
 describe('Phase 6 ProofWall portal thesis service-lines cutover — C1 served ownership', () => {
-  it('ProofWallPanel.ts remains present and React thesis dossier service-lines stay served', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('ProofWallPanel.ts is absent and React thesis dossier service-lines stay served', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, DOSSIER)).isFile()).toBe(true);
     expect(code(APPSHELL)).toMatch(/'client-thesis':\s*'thesis'/);
     expect(code(PORTAL_PAGE)).toMatch(/tab === 'thesis'[\s\S]*<ThesisReviewPanel/);
@@ -80,8 +80,8 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C1 served ow
     expect(serviceLinesPortalThesisSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover ProofWall and leftover service-lines are omitted; file remains', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('workspace leftover ProofWall and leftover service-lines are omitted; file is absent', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/id="proof-wall-section"/);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
@@ -171,8 +171,8 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C4 / C5 / co
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('file remains present; whole-file C6 / C7 / T603 are not eligible', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('file is absent; whole-file C6 / C7 / T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
