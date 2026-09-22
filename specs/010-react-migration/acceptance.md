@@ -295,6 +295,27 @@ Evidence: `t-010-603-clientprofile-subset-removal.md` · implementation `5b2a5ed
 Nonblocking handler / comment / ProofWall / Onboarding / stale-path / visual debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI subset snapshot rows above are historical and are **not** rewritten.
 
+### Phase-6 T-010-603 ProofWall subset (bounded)
+
+Evidence: `t-010-603-proofwall-subset-removal.md` · implementation `c7f4e3d4b3c6e43929ce5f04d2bf5e4c259cae61`.
+
+| Item | Verdict |
+|------|---------|
+| ProofWall unit C1–C7 / C8 | **PASS / N/A** |
+| `ProofWallPanel.ts` | **ABSENT** (already removed @ `c7f4e3d`; no second delete) |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/ProofWallPanel.ts` only) |
+| C6 / C7 | **VERIFIED_PASS** / **ACCEPTED** |
+| T-010-603 ProofWall unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| PROOFWALL LOCAL A43 | **PASS** |
+| PROOFWALL UNIT A43 | **PASS** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| C3 **global** | **PARTIAL** |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking handler / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity / KPI / ClientProfile subset snapshot rows above are historical and are **not** rewritten.
+
 ### Phase-3 acceptance movement (T-010-301…306)
 
 `ARCH3` = `tests/reactMigrationPhase3Architecture.test.ts` (28/28) ·
