@@ -206,7 +206,7 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
     expect(statSync(join(ROOT, PROOFWALL)).isFile()).toBe(true);
     expect(code(HOST)).not.toMatch(/renderProofWall/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
-    expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
+    expect(code(WORKSPACE)).not.toMatch(/id="proof-wall-section"/);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
     expect(code(HOST)).not.toMatch(/renderClientProfileBody/);

@@ -28,6 +28,11 @@
  * leftover editable ProofWall only). That id does not claim workspace
  * service-lines, portal ProofWall, portal service-lines, Dossier, or
  * ProofWallPanel.ts.
+ * Phase-6 workspace service-lines cutover activates
+ * `client-workspace-service-lines` (ClientWorkspace `ws-positioning`
+ * leftover service-lines only). That id does not claim workspace
+ * ProofWall, portal ProofWall, portal service-lines, Dossier, or
+ * ProofWallPanel.ts.
  * Neither KPI id means KpiWeeklyChart.ts has been deleted.
  * The profile id does not claim ProofWall or Onboarding.
  * Other slots remain unlisted until their own cutover authorization.
@@ -43,6 +48,7 @@ export const CLIENT_PORTAL_PROFILE_SLOT = 'client-portal-profile';
 export const CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT = 'client-portal-thesis-proof-wall';
 export const CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT = 'client-portal-thesis-service-lines';
 export const CLIENT_WORKSPACE_PROOF_WALL_SLOT = 'client-workspace-proof-wall';
+export const CLIENT_WORKSPACE_SERVICE_LINES_SLOT = 'client-workspace-service-lines';
 
 const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
@@ -53,11 +59,12 @@ const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
   CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
   CLIENT_WORKSPACE_PROOF_WALL_SLOT,
+  CLIENT_WORKSPACE_SERVICE_LINES_SLOT,
 ] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, thesis ProofWall, thesis service-lines, and workspace ProofWall surface cutovers are active. */
+/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, thesis ProofWall, thesis service-lines, workspace ProofWall, and workspace service-lines surface cutovers are active. */
 const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
@@ -67,6 +74,7 @@ const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
   CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
   CLIENT_WORKSPACE_PROOF_WALL_SLOT,
+  CLIENT_WORKSPACE_SERVICE_LINES_SLOT,
 ];
 
 let exclusiveSlotOverride: readonly string[] | null = null;

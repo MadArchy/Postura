@@ -3,8 +3,9 @@
  * (`client-workspace-proof-wall`).
  *
  * Omits leftover `renderProofWall` from ClientWorkspace `renderPositioning`.
- * ProofWallPanel.ts remains present. ClientWorkspace still imports
- * `renderServiceLinesReadOnly`. React workspace ProofWall stays served.
+ * ProofWallPanel.ts remains present. ClientWorkspace ProofWallPanel import
+ * is absent. Leftover workspace service-lines are omitted
+ * (`client-workspace-service-lines`). React workspace ProofWall stays served.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -21,6 +22,7 @@ import {
   CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_WORKSPACE_PROOF_WALL_SLOT,
+  CLIENT_WORKSPACE_SERVICE_LINES_SLOT,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
   listKnownReactExclusiveSlotIds,
@@ -42,6 +44,10 @@ import {
   serviceLinesPortalThesisSlotPresentation,
   shouldRenderLegacyServiceLinesPortalThesisSlot,
 } from '../src/ui/presentation/serviceLinesPortalThesisSlot';
+import {
+  serviceLinesWorkspaceSlotPresentation,
+  shouldRenderLegacyServiceLinesWorkspaceSlot,
+} from '../src/ui/presentation/serviceLinesWorkspaceSlot';
 
 const ROOT = join(__dirname, '..');
 const LEGACY = 'src/components/ProofWallPanel.ts';
@@ -81,22 +87,24 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C1 served ownership'
     expect(code(REACT)).toMatch(/narrowToClient\(sessionScope,\s*requested\)/);
   });
 
-  it('ClientWorkspace omits leftover ProofWall and keeps the ProofWallPanel import', () => {
+  it('ClientWorkspace omits leftover ProofWall and drops the ProofWallPanel import', () => {
     const workspace = code(WORKSPACE);
-    expect(workspace).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
-    expect(workspace).toMatch(/renderServiceLinesReadOnly/);
+    expect(workspace).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(workspace).not.toMatch(/renderServiceLinesReadOnly/);
     expect(workspace).not.toMatch(/\brenderProofWall\b/);
-    expect(workspace).toMatch(/id="proof-wall-section"/);
+    expect(workspace).not.toMatch(/id="proof-wall-section"/);
     expect(shouldRenderLegacyProofWallWorkspaceSlot()).toBe(false);
     expect(proofWallWorkspaceSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover service-lines remain; file stays present', () => {
+  it('workspace leftover service-lines are omitted; React dossier facts stay served; file stays present', () => {
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
-    expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(DOSSIER)).toMatch(/dossier\.serviceLines/);
     expect(code(DOSSIER)).toMatch(/Líneas de servicio/);
+    expect(serviceLinesWorkspaceSlotPresentation()).toBe('omit');
+    expect(shouldRenderLegacyServiceLinesWorkspaceSlot()).toBe(false);
   });
 
   it('exclusive workspace ProofWall id is workspace-ProofWall-only', () => {
@@ -110,8 +118,10 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C1 served ownership'
     expect(CLIENT_WORKSPACE_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
     expect(CLIENT_WORKSPACE_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
     expect(CLIENT_WORKSPACE_PROOF_WALL_SLOT).not.toBe(CLIENT_PORTAL_PROFILE_SLOT);
+    expect(CLIENT_WORKSPACE_PROOF_WALL_SLOT).not.toBe(CLIENT_WORKSPACE_SERVICE_LINES_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-service-lines');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-service-lines');
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_SERVICE_LINES_SLOT)).toBe(true);
     expect(listKnownReactExclusiveSlotIds()).not.toContain('proof-wall');
     expect(listKnownReactExclusiveSlotIds()).not.toContain('proofwall');
   });
@@ -183,10 +193,11 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C4 / C5 / coexistenc
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('file remains present; Dossier stays closed; whole-file C6 / C7 / T603 are not eligible', () => {
+  it('file remains present; Product graph is zero; Dossier stays closed; C6 / C7 / T603 are not executed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
-    expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(HOST)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(shouldRenderLegacyDossierSlot()).toBe(false);
     expect(dossierSlotPresentation()).toBe('omit');
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(true);

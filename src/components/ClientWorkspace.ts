@@ -79,8 +79,9 @@ import { signalsAwaitingOutcome, computeConversionStats } from '../domain/radarF
 // Phase-6 workspace ProofWall cutover (`client-workspace-proof-wall`):
 // leftover `renderProofWall` is omitted from `renderPositioning`.
 // ReactClientWorkspacePage positioning serves ReactProofWallPanel.
-// leftover `renderServiceLinesReadOnly` remains.
-import { renderServiceLinesReadOnly } from './ProofWallPanel';
+// Phase-6 workspace service-lines cutover (`client-workspace-service-lines`):
+// leftover `renderServiceLinesReadOnly` is omitted from `renderPositioning`.
+// ReactClientWorkspacePage positioning serves ReactMasterDossierPanel.
 import { getLatestTopicAgentRun } from '../services/topicAgent';
 import { canActivateThesis } from '../domain/thesisRevisionCore';
 
@@ -1886,13 +1887,6 @@ function renderPositioning(
       : `<section class="card">
            <p class="empty-state">Sin tesis registrada. Créala para activar el radar y el scoring.</p>
          </section>`}
-
-    <details class="card disclosure" id="proof-wall-section">
-      <summary>Pruebas y líneas de servicio</summary>
-      <div class="disclosure-body content-stack">
-        ${renderServiceLinesReadOnly(clientId)}
-      </div>
-    </details>
 
     <details class="card disclosure">
       <summary>Perfil maestro (${client.profileCompleteness || 0}% completo)</summary>

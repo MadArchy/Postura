@@ -5,7 +5,8 @@
  * Omits leftover `renderProofWall` from ClientPortal `renderClientThesisBody`.
  * ProofWallPanel.ts remains present. Portal leftover service-lines are a
  * separate omit (`client-portal-thesis-service-lines`). Workspace leftover
- * ProofWall is omitted (`client-workspace-proof-wall`). Leftover write remains.
+ * ProofWall is omitted (`client-workspace-proof-wall`). Workspace leftover
+ * service-lines are omitted (`client-workspace-service-lines`). Leftover write remains.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -72,13 +73,13 @@ describe('Phase 6 ProofWall portal thesis cutover — C1 served ownership', () =
     expect(proofWallPortalThesisSlotPresentation()).toBe('omit');
   });
 
-  it('workspace leftover ProofWall is omitted; service lines remain product-required', () => {
+  it('workspace leftover ProofWall and leftover service-lines are omitted; file remains', () => {
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
-    expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/id="proof-wall-section"/);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
-    expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
   });
 

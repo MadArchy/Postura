@@ -3,8 +3,9 @@
  *
  * Serves ReactProofWallPanel on ws-positioning with ADMIN workspace
  * narrowing. Client-resolves the already-mounted ReactMasterDossierPanel.
- * Leftover ClientWorkspace ProofWall is omitted. Leftover service-lines remain.
- * Workspace ProofWall slot is omit; exclusive id is active. C6 / C7 / T603 are not executed.
+ * Leftover ClientWorkspace ProofWall is omitted. Leftover service-lines are omitted.
+ * Workspace ProofWall and service-lines slots are omit; exclusive ids are active.
+ * C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -13,6 +14,7 @@ import { join } from 'node:path';
 
 import {
   CLIENT_WORKSPACE_PROOF_WALL_SLOT,
+  CLIENT_WORKSPACE_SERVICE_LINES_SLOT,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
   listKnownReactExclusiveSlotIds,
@@ -26,6 +28,10 @@ import {
   proofWallWorkspaceSlotPresentation,
   shouldRenderLegacyProofWallWorkspaceSlot,
 } from '../src/ui/presentation/proofWallWorkspaceSlot';
+import {
+  serviceLinesWorkspaceSlotPresentation,
+  shouldRenderLegacyServiceLinesWorkspaceSlot,
+} from '../src/ui/presentation/serviceLinesWorkspaceSlot';
 
 const ROOT = join(__dirname, '..');
 const LEGACY = 'src/components/ProofWallPanel.ts';
@@ -134,24 +140,30 @@ describe('Phase 6 ProofWall workspace React owner — defaults and A38', () => {
 });
 
 describe('Phase 6 ProofWall workspace React owner — leftover gate separation', () => {
-  it('ClientWorkspace leftover ProofWall is omitted; service-lines and file remain', () => {
+  it('ClientWorkspace leftover ProofWall and leftover service-lines are omitted; file remains', () => {
     expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/\brenderProofWall\b/);
-    expect(code(WORKSPACE)).toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
+    expect(code(WORKSPACE)).not.toMatch(/id="proof-wall-section"/);
     expect(code(HANDLERS)).toMatch(/dbService\.updateProofWallItem/);
   });
 
-  it('whole-file C6 is not eligible; workspace ProofWall slot is omit and exclusive id is active', () => {
+  it('file remains present; C6 is not executed; workspace ProofWall and service-lines slots/ids are active', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(existsSync(join(ROOT, 'src/ui/presentation/proofWallWorkspaceSlot.ts'))).toBe(true);
+    expect(existsSync(join(ROOT, 'src/ui/presentation/serviceLinesWorkspaceSlot.ts'))).toBe(true);
     expect(proofWallWorkspaceSlotPresentation()).toBe('omit');
     expect(shouldRenderLegacyProofWallWorkspaceSlot()).toBe(false);
+    expect(serviceLinesWorkspaceSlotPresentation()).toBe('omit');
+    expect(shouldRenderLegacyServiceLinesWorkspaceSlot()).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PROOF_WALL_SLOT)).toBe(true);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_SERVICE_LINES_SLOT)).toBe(true);
     expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-service-lines');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-service-lines');
     expect(code(SLOTS)).toMatch(/CLIENT_WORKSPACE_PROOF_WALL_SLOT/);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(code(SLOTS)).toMatch(/CLIENT_WORKSPACE_SERVICE_LINES_SLOT/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
   });
 });
