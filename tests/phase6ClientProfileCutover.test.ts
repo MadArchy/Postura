@@ -202,14 +202,14 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('ProofWall thesis and workspace remain product-served; profile nest is unserved', () => {
+  it('ProofWall workspace remains leftover; thesis leftover ProofWall is omitted; profile nest is unserved', () => {
     expect(statSync(join(ROOT, PROOFWALL)).isFile()).toBe(true);
-    expect(code(HOST)).toMatch(/renderProofWall/);
+    expect(code(HOST)).not.toMatch(/renderProofWall/);
     expect(code(HOST)).toMatch(/renderServiceLinesReadOnly/);
     expect(code(WORKSPACE)).toMatch(/id="proof-wall-section"/);
     expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(HOST)).not.toMatch(/renderClientProfileBody/);
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-portal-thesis-proof-wall');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-portal-thesis-proof-wall');
     expect(listKnownReactExclusiveSlotIds()).not.toContain('client-workspace-proof-wall');
   });
 

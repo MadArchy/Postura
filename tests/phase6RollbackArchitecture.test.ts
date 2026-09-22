@@ -15,6 +15,7 @@ import {
   CLIENT_KPI_RESULTS_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
+  CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
@@ -42,6 +43,10 @@ import {
   clientProfileSlotPresentation,
   shouldRenderLegacyClientProfileSlot,
 } from '../src/ui/presentation/clientProfileSlot';
+import {
+  proofWallPortalThesisSlotPresentation,
+  shouldRenderLegacyProofWallPortalThesisSlot,
+} from '../src/ui/presentation/proofWallPortalThesisSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -191,6 +196,28 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_PORTAL_PROFILE_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the portal thesis ProofWall exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).toBe('client-portal-thesis-proof-wall');
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_PORTAL_PROFILE_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    expect(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+  });
+
+  it('portal thesis ProofWall exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -612,6 +639,60 @@ describe('Phase 6 — ClientProfile cutover pairing', () => {
   });
 });
 
+describe('Phase 6 — ProofWall portal thesis cutover pairing', () => {
+  it('omit-slot, exclusive activation, and ClientPortal thesis ProofWall omit are atomic', () => {
+    const omitted =
+      proofWallPortalThesisSlotPresentation() === 'omit' &&
+      !shouldRenderLegacyProofWallPortalThesisSlot();
+    const exclusive =
+      hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT);
+    const portal = code('src/components/ClientPortal.ts');
+    const workspace = code('src/components/ClientWorkspace.ts');
+    const callOmitted = !/renderProofWall/.test(portal);
+    const serviceLinesRemain = /renderServiceLinesReadOnly/.test(portal);
+    const workspaceRemains = /renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}/.test(workspace);
+    const filePresent = existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'));
+    expect({
+      omitted,
+      exclusive,
+      callOmitted,
+      serviceLinesRemain,
+      workspaceRemains,
+      filePresent,
+    }).toEqual({
+      omitted: true,
+      exclusive: true,
+      callOmitted: true,
+      serviceLinesRemain: true,
+      workspaceRemains: true,
+      filePresent: true,
+    });
+  });
+
+  it('the portal thesis ProofWall boundary introduces no command, persistence, or tenant authority', () => {
+    const source = code('src/ui/presentation/proofWallPortalThesisSlot.ts');
+    expect(source).not.toMatch(/\bdbService\b/);
+    expect(source).not.toMatch(/\w+Consumer\b/);
+    expect(source).not.toMatch(/from\s+['"][^'"]*application\//);
+    expect(source).not.toMatch(/from\s+['"][^'"]*domain\//);
+    expect(source).not.toMatch(/requireTenantScope/);
+    expect(source).not.toMatch(/localStorage/);
+    expect(source).not.toMatch(/firestore/i);
+  });
+
+  it('legacy preference may exist; React thesis ProofWall stays authoritative and the file remains', () => {
+    expect(existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'))).toBe(true);
+    expect(code('src/ui/modules/pages/ReactClientPortalPage.tsx')).toMatch(/<ReactProofWallPanel\s*\/>/);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(true);
+    const legacyRequest = resolveServedUiMode('legacy');
+    expect(legacyRequest.requested).toBe('legacy');
+    expect(legacyRequest.served).toBe('react');
+    expect(legacyRequest.keepReactMounted).toBe(true);
+    expect(legacyRequest.mayActivateLegacyRoot).toBe(false);
+    expect(legacyRequest.mayUnmountReact).toBe(false);
+  });
+});
+
 describe('Phase 6 — security / authority of the rollback boundary', () => {
   const presentationFiles = [
     'src/ui/presentation/reactExclusiveSlots.ts',
@@ -620,6 +701,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/kpiResultsSlot.ts',
     'src/ui/presentation/kpiHomeSlot.ts',
     'src/ui/presentation/clientProfileSlot.ts',
+    'src/ui/presentation/proofWallPortalThesisSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

@@ -14,6 +14,10 @@
  * Phase-6 KPI Home cutover activates `client-kpi-home` (Home only).
  * Phase-6 ClientProfile cutover activates `client-portal-profile`
  * (ClientPortal `client-profile` body only).
+ * Phase-6 portal thesis ProofWall cutover activates
+ * `client-portal-thesis-proof-wall` (ClientPortal `client-thesis`
+ * leftover ProofWall only). That id does not claim workspace ProofWall,
+ * Wave2 profile ProofWall, service lines, or ProofWallPanel.ts.
  * Neither KPI id means KpiWeeklyChart.ts has been deleted.
  * The profile id does not claim ProofWall or Onboarding.
  * Other slots remain unlisted until their own cutover authorization.
@@ -26,6 +30,7 @@ export const CLIENT_PORTAL_OPPORTUNITY_SLOT = 'client-portal-opportunity';
 export const CLIENT_KPI_RESULTS_SLOT = 'client-kpi-results';
 export const CLIENT_KPI_HOME_SLOT = 'client-kpi-home';
 export const CLIENT_PORTAL_PROFILE_SLOT = 'client-portal-profile';
+export const CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT = 'client-portal-thesis-proof-wall';
 
 const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
@@ -33,17 +38,19 @@ const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_KPI_RESULTS_SLOT,
   CLIENT_KPI_HOME_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
+  CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
 ] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Dossier, opportunity, KPI, and profile surface cutovers are active. */
+/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, and thesis ProofWall surface cutovers are active. */
 const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
   CLIENT_KPI_RESULTS_SLOT,
   CLIENT_KPI_HOME_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
+  CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
 ];
 
 let exclusiveSlotOverride: readonly string[] | null = null;

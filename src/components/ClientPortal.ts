@@ -3,7 +3,7 @@ import { esc, safeHref } from '../lib/escape';
 import { renderPage } from './PageHeader';
 import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabels';
 import { icon } from '../lib/icons';
-import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
+import { renderServiceLinesReadOnly } from './ProofWallPanel';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
 import { normalizeThesis, AUDIENCE_TIER_LABELS } from '../domain/thesisModelCore';
@@ -21,6 +21,11 @@ import type { DeliveryPackage } from '../types';
  *
  * Phase-6 ClientProfile cutover (`client-portal-profile`):
  * legacy renderClientProfileBody is omitted. Wave2Surface serves ReactClientProfilePanel.
+ *
+ * Phase-6 portal thesis ProofWall cutover (`client-portal-thesis-proof-wall`):
+ * leftover `renderProofWall` is omitted from `renderClientThesisBody`.
+ * ReactClientPortalPage thesis serves ReactProofWallPanel.
+ * Leftover `renderServiceLinesReadOnly` remains on thesis.
  */
 
 function clientPage(tab: string, body: string): string {
@@ -666,7 +671,6 @@ function renderClientThesisBody(
           : ''}
       </div>
 
-      ${renderProofWall(clientId)}
       ${renderServiceLinesReadOnly(clientId)}
 
       <!-- Evidence Vault (Módulo C / F7-D07 / F8-D08) -->
