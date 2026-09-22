@@ -3,8 +3,9 @@
  * (`client-portal-thesis-proof-wall`).
  *
  * Omits leftover `renderProofWall` from ClientPortal `renderClientThesisBody`.
- * ProofWallPanel.ts remains present. Service lines stay on leftover thesis.
- * Workspace leftover ProofWall and write remain. C6 / C7 / T603 are not executed.
+ * ProofWallPanel.ts remains present. Portal leftover service-lines are a
+ * separate omit (`client-portal-thesis-service-lines`). Workspace leftover
+ * ProofWall and write remain. C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -60,12 +61,11 @@ describe('Phase 6 ProofWall portal thesis cutover — C1 served ownership', () =
     expect(code(PORTAL)).toMatch(/<ReactProofWallPanel\s*\/>/);
   });
 
-  it('ClientPortal omits leftover thesis ProofWall and keeps service lines', () => {
+  it('ClientPortal omits leftover thesis ProofWall and drops the ProofWallPanel import', () => {
     const host = code(HOST);
-    expect(host).toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
-    expect(host).toMatch(/renderServiceLinesReadOnly/);
+    expect(host).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
+    expect(host).not.toMatch(/renderServiceLinesReadOnly/);
     expect(host).not.toMatch(/renderProofWall/);
-    expect(host).toMatch(/import\s+\{\s*renderServiceLinesReadOnly\s*\}\s+from\s+['"]\.\/ProofWallPanel['"]/);
     expect(shouldRenderLegacyProofWallPortalThesisSlot()).toBe(false);
     expect(proofWallPortalThesisSlotPresentation()).toBe('omit');
   });
@@ -159,7 +159,7 @@ describe('Phase 6 ProofWall portal thesis cutover — C4 / C5 / coexistence', ()
   it('file remains present; whole-file C6 / C7 / T603 are not eligible', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(code(WORKSPACE)).toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
-    expect(code(HOST)).toMatch(/renderServiceLinesReadOnly/);
+    expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
   });
 });

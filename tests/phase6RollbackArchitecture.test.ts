@@ -16,6 +16,7 @@ import {
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
+  CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
@@ -47,6 +48,10 @@ import {
   proofWallPortalThesisSlotPresentation,
   shouldRenderLegacyProofWallPortalThesisSlot,
 } from '../src/ui/presentation/proofWallPortalThesisSlot';
+import {
+  serviceLinesPortalThesisSlotPresentation,
+  shouldRenderLegacyServiceLinesPortalThesisSlot,
+} from '../src/ui/presentation/serviceLinesPortalThesisSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -218,6 +223,29 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the portal thesis service-lines exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).toBe('client-portal-thesis-service-lines');
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_PORTAL_PROFILE_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    expect(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+  });
+
+  it('portal thesis service-lines exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -649,22 +677,32 @@ describe('Phase 6 — ProofWall portal thesis cutover pairing', () => {
     const portal = code('src/components/ClientPortal.ts');
     const workspace = code('src/components/ClientWorkspace.ts');
     const callOmitted = !/renderProofWall/.test(portal);
-    const serviceLinesRemain = /renderServiceLinesReadOnly/.test(portal);
+    const serviceLinesOmitted =
+      serviceLinesPortalThesisSlotPresentation() === 'omit' &&
+      !shouldRenderLegacyServiceLinesPortalThesisSlot() &&
+      !/renderServiceLinesReadOnly/.test(portal);
+    const serviceLinesExclusive =
+      hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT);
     const workspaceRemains = /renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}/.test(workspace);
+    const workspaceServiceLinesRemain = /renderServiceLinesReadOnly\(clientId\)/.test(workspace);
     const filePresent = existsSync(join(ROOT, 'src/components/ProofWallPanel.ts'));
     expect({
       omitted,
       exclusive,
       callOmitted,
-      serviceLinesRemain,
+      serviceLinesOmitted,
+      serviceLinesExclusive,
       workspaceRemains,
+      workspaceServiceLinesRemain,
       filePresent,
     }).toEqual({
       omitted: true,
       exclusive: true,
       callOmitted: true,
-      serviceLinesRemain: true,
+      serviceLinesOmitted: true,
+      serviceLinesExclusive: true,
       workspaceRemains: true,
+      workspaceServiceLinesRemain: true,
       filePresent: true,
     });
   });
@@ -702,6 +740,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/kpiHomeSlot.ts',
     'src/ui/presentation/clientProfileSlot.ts',
     'src/ui/presentation/proofWallPortalThesisSlot.ts',
+    'src/ui/presentation/serviceLinesPortalThesisSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

@@ -3,7 +3,6 @@ import { esc, safeHref } from '../lib/escape';
 import { renderPage } from './PageHeader';
 import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabels';
 import { icon } from '../lib/icons';
-import { renderServiceLinesReadOnly } from './ProofWallPanel';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
 import { normalizeThesis, AUDIENCE_TIER_LABELS } from '../domain/thesisModelCore';
@@ -25,7 +24,9 @@ import type { DeliveryPackage } from '../types';
  * Phase-6 portal thesis ProofWall cutover (`client-portal-thesis-proof-wall`):
  * leftover `renderProofWall` is omitted from `renderClientThesisBody`.
  * ReactClientPortalPage thesis serves ReactProofWallPanel.
- * Leftover `renderServiceLinesReadOnly` remains on thesis.
+ * Phase-6 portal thesis service-lines cutover (`client-portal-thesis-service-lines`):
+ * leftover `renderServiceLinesReadOnly` is omitted from `renderClientThesisBody`.
+ * ReactMasterDossierPanel serves service-line facts on thesis.
  */
 
 function clientPage(tab: string, body: string): string {
@@ -670,8 +671,6 @@ function renderClientThesisBody(
           ? '<p class="info-strip">Aprobaste esta tesis. Tu Brand Manager la activará para el radar y el contenido.</p>'
           : ''}
       </div>
-
-      ${renderServiceLinesReadOnly(clientId)}
 
       <!-- Evidence Vault (Módulo C / F7-D07 / F8-D08) -->
       <div class="card">

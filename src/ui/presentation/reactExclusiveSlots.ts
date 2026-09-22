@@ -18,6 +18,11 @@
  * `client-portal-thesis-proof-wall` (ClientPortal `client-thesis`
  * leftover ProofWall only). That id does not claim workspace ProofWall,
  * Wave2 profile ProofWall, service lines, or ProofWallPanel.ts.
+ * Phase-6 portal thesis service-lines cutover activates
+ * `client-portal-thesis-service-lines` (ClientPortal `client-thesis`
+ * leftover service-lines only). That id does not claim workspace
+ * service-lines, workspace ProofWall, portal ProofWall, Dossier, or
+ * ProofWallPanel.ts.
  * Neither KPI id means KpiWeeklyChart.ts has been deleted.
  * The profile id does not claim ProofWall or Onboarding.
  * Other slots remain unlisted until their own cutover authorization.
@@ -31,6 +36,7 @@ export const CLIENT_KPI_RESULTS_SLOT = 'client-kpi-results';
 export const CLIENT_KPI_HOME_SLOT = 'client-kpi-home';
 export const CLIENT_PORTAL_PROFILE_SLOT = 'client-portal-profile';
 export const CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT = 'client-portal-thesis-proof-wall';
+export const CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT = 'client-portal-thesis-service-lines';
 
 const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
@@ -39,11 +45,12 @@ const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_KPI_HOME_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
+  CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
 ] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, and thesis ProofWall surface cutovers are active. */
+/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, thesis ProofWall, and thesis service-lines surface cutovers are active. */
 const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
@@ -51,6 +58,7 @@ const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_KPI_HOME_SLOT,
   CLIENT_PORTAL_PROFILE_SLOT,
   CLIENT_PORTAL_THESIS_PROOF_WALL_SLOT,
+  CLIENT_PORTAL_THESIS_SERVICE_LINES_SLOT,
 ];
 
 let exclusiveSlotOverride: readonly string[] | null = null;
