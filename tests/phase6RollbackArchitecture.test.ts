@@ -14,6 +14,7 @@ import {
   CLIENT_KPI_HOME_SLOT,
   CLIENT_KPI_RESULTS_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
+  CLIENT_PORTAL_PROFILE_SLOT,
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
@@ -37,6 +38,10 @@ import {
   kpiHomeSlotPresentation,
   shouldRenderLegacyKpiHomeSlot,
 } from '../src/ui/presentation/kpiHomeSlot';
+import {
+  clientProfileSlotPresentation,
+  shouldRenderLegacyClientProfileSlot,
+} from '../src/ui/presentation/clientProfileSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -165,6 +170,27 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_KPI_HOME_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_KPI_RESULTS_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the ClientProfile exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_PROFILE_SLOT);
+    expect(CLIENT_PORTAL_PROFILE_SLOT).toBe('client-portal-profile');
+    expect(CLIENT_PORTAL_PROFILE_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
+    expect(CLIENT_PORTAL_PROFILE_SLOT).not.toBe(CLIENT_KPI_RESULTS_SLOT);
+    expect(CLIENT_PORTAL_PROFILE_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    expect(CLIENT_PORTAL_PROFILE_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+  });
+
+  it('ClientProfile exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_PORTAL_PROFILE_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_KPI_HOME_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -544,6 +570,48 @@ describe('Phase 6 — KPI Home cutover pairing', () => {
   });
 });
 
+describe('Phase 6 — ClientProfile cutover pairing', () => {
+  it('omit-slot, exclusive activation, and ClientPortal profile omit are atomic', () => {
+    const omitted =
+      clientProfileSlotPresentation() === 'omit' && !shouldRenderLegacyClientProfileSlot();
+    const exclusive = hasReactExclusiveSlot() && isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT);
+    const portal = code('src/components/ClientPortal.ts');
+    const importRemoved = !/from\s+['"]\.\/ClientProfilePanel['"]/.test(portal);
+    const callOmitted = !/renderClientProfileBody/.test(portal);
+    expect({ omitted, exclusive, importRemoved, callOmitted }).toEqual({
+      omitted: true,
+      exclusive: true,
+      importRemoved: true,
+      callOmitted: true,
+    });
+  });
+
+  it('the ClientProfile boundary introduces no command, persistence, or tenant authority', () => {
+    const source = code('src/ui/presentation/clientProfileSlot.ts');
+    expect(source).not.toMatch(/\bdbService\b/);
+    expect(source).not.toMatch(/\w+Consumer\b/);
+    expect(source).not.toMatch(/from\s+['"][^'"]*application\//);
+    expect(source).not.toMatch(/from\s+['"][^'"]*domain\//);
+    expect(source).not.toMatch(/requireTenantScope/);
+    expect(source).not.toMatch(/localStorage/);
+    expect(source).not.toMatch(/firestore/i);
+  });
+
+  it('legacy preference may exist; React profile stays authoritative and the file remains present', () => {
+    expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(true);
+    expect(code('src/ui/modules/wave2/Wave2Surface.tsx')).toMatch(
+      /group === 'profile'[\s\S]*<ReactClientProfilePanel/
+    );
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PROFILE_SLOT)).toBe(true);
+    const legacyRequest = resolveServedUiMode('legacy');
+    expect(legacyRequest.requested).toBe('legacy');
+    expect(legacyRequest.served).toBe('react');
+    expect(legacyRequest.keepReactMounted).toBe(true);
+    expect(legacyRequest.mayActivateLegacyRoot).toBe(false);
+    expect(legacyRequest.mayUnmountReact).toBe(false);
+  });
+});
+
 describe('Phase 6 — security / authority of the rollback boundary', () => {
   const presentationFiles = [
     'src/ui/presentation/reactExclusiveSlots.ts',
@@ -551,6 +619,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/opportunitySlot.ts',
     'src/ui/presentation/kpiResultsSlot.ts',
     'src/ui/presentation/kpiHomeSlot.ts',
+    'src/ui/presentation/clientProfileSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

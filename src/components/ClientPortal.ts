@@ -3,7 +3,6 @@ import { esc, safeHref } from '../lib/escape';
 import { renderPage } from './PageHeader';
 import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabels';
 import { icon } from '../lib/icons';
-import { renderClientProfileBody } from './ClientProfilePanel';
 import { renderProofWall, renderServiceLinesReadOnly } from './ProofWallPanel';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../domain/deliveryCore';
@@ -19,6 +18,9 @@ import type { DeliveryPackage } from '../types';
  * Phase-6 KPI Results cutover (`client-kpi-results`): Results tiles/chart omitted.
  * Phase-6 KPI Home cutover (`client-kpi-home`): Home dashboard omitted.
  * ReactClientPortalPage and Wave2Surface serve React KPI.
+ *
+ * Phase-6 ClientProfile cutover (`client-portal-profile`):
+ * legacy renderClientProfileBody is omitted. Wave2Surface serves ReactClientProfilePanel.
  */
 
 function clientPage(tab: string, body: string): string {
@@ -127,7 +129,7 @@ export function renderClientPortal(
     case 'client-opps':
       return clientPage('client-opps', '');
     case 'client-profile':
-      return clientPage('client-profile', renderClientProfileBody(client.id));
+      return clientPage('client-profile', '');
     case 'client-thesis':
       return clientPage('client-thesis', renderClientThesisBody(client, theses, profile, selectedThesisId));
     case 'client-results':
