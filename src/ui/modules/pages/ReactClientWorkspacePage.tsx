@@ -85,6 +85,7 @@ import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPane
 import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
 import { ReactContentEditorModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
+import { ReactClaimSafetyBadge, ReactClaimSafetyPanel } from '../ClaimSafety/ReactClaimSafetyPanel';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 import { ReactTaskRecordingBlock } from './ReactTaskRecordingBlock';
 
@@ -1874,7 +1875,9 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
 
       {items.length ? (
         <ul className="content-list" data-testid="react-ws-production-list">
-          {items.map((item) => (
+          {items.map((item) => {
+            const showClaimSafety = Boolean(item.claimSafety && item.claimSafety.verdict !== 'PASS');
+            return (
             <li
               className="content-row"
               key={item.id}
@@ -1882,6 +1885,7 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
             >
               <div>
                 <strong>{item.title}</strong>
+                {showClaimSafety ? <ReactClaimSafetyBadge record={item.claimSafety ?? undefined} /> : null}
                 <p className="muted small">
                   {item.platform} · {item.type} · {item.legacyStatus}
                 </p>
@@ -1894,8 +1898,15 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
               >
                 Editar
               </button>
+              {showClaimSafety && item.claimSafety ? (
+                <details className="claim-safety-disclosure">
+                  <summary>{item.claimSafety.findings.length} afirmación(es) señalada(s)</summary>
+                  <ReactClaimSafetyPanel record={item.claimSafety} />
+                </details>
+              ) : null}
             </li>
-          ))}
+            );
+          })}
         </ul>
       ) : (
         <p className="empty-state" data-testid="react-ws-production-empty">

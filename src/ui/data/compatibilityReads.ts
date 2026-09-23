@@ -49,7 +49,7 @@ import {
   thesesAwaitingClientAction,
   thesisForClientReview,
 } from '../../domain/thesisRevisionCore';
-import type { PositioningThesis, ThesisEditableFields } from '../../types';
+import type { ClaimSafetyVerdictRecord, PositioningThesis, ThesisEditableFields } from '../../types';
 import { computeThesisStrength } from '../../domain/thesisStrengthCore';
 import { deliveryItemKindLabel, deliveryStatusLabel } from '../../domain/deliveryCore';
 import { deriveWorkStage } from '../../domain/workPipeline';
@@ -944,6 +944,7 @@ export interface WorkspaceContentRow {
   readonly type: string;
   readonly platform: string;
   readonly legacyStatus: string;
+  readonly claimSafety: ClaimSafetyVerdictRecord | null;
 }
 
 /** CR-1 #31 — ADMIN production list. Read-only; no create/generate. */
@@ -960,6 +961,7 @@ export function readWorkspaceContent(scope: TrustedTenantScope): {
       type: item.type,
       platform: item.targetPlatform,
       legacyStatus: item.status,
+      claimSafety: item.claimSafety ?? null,
     })),
   };
 }

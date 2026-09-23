@@ -281,12 +281,21 @@ describe('SPEC-006 Phase 5 — UI/display legacy uses are non-authoritative (T-0
     expect(main).toContain('authorizeContentPublicationGate');
     expect(main).not.toMatch(/claimSafety\.verdict\s*===\s*['"]PASS['"]/);
 
-    // Manager/Client use claimSafety for badges/filters — acceptable display.
+    // Workspace Production ClaimSafety display now lives on React ProductionPanel.
+    // Leftover ClientWorkspace metric remains advisory display/filter only.
     const manager = readFileSync(join(COMPONENTS, 'ManagerCockpit.ts'), 'utf8');
+    const workspace = readFileSync(
+      join(ROOT, 'src/ui/modules/pages/ReactClientWorkspacePage.tsx'),
+      'utf8'
+    );
     const client = readFileSync(join(COMPONENTS, 'ClientWorkspace.ts'), 'utf8');
-    expect(manager).toMatch(/claimSafety\.verdict/);
+    expect(workspace).toMatch(/ReactClaimSafetyBadge/);
+    expect(workspace).toMatch(/ReactClaimSafetyPanel/);
+    expect(workspace).toMatch(/item\.claimSafety/);
+    expect(workspace).toMatch(/verdict !== 'PASS'/);
     expect(client).toMatch(/claimSafety\.verdict/);
     expect(manager).not.toContain('authorizeContentPublicationGate');
+    expect(workspace).not.toContain('authorizeContentPublicationGate');
     expect(client).not.toContain('LocalClaimRepository');
   });
 });

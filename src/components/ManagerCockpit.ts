@@ -4,7 +4,6 @@ import { FIREBASE_ENABLED } from '../firebase/config';
 import { Client, ClientPortfolioSummary, ContentItem, PositioningThesis } from '../types';
 import { suggestScientificFoci } from '../domain/scientificFocusCore';
 import { esc } from '../lib/escape';
-import { renderClaimSafetyBadge, renderClaimSafetyPanel } from './ClaimSafetyPanel';
 import { renderPage } from './PageHeader';
 import { aggregatePortfolioRadarMetrics } from '../services/portfolioMetrics';
 import { buildPortfolioDigest } from '../domain/radarDigestCore';
@@ -370,6 +369,11 @@ export function renderScientificFocusPanel(client: Client, thesis?: PositioningT
 
 // ==========================================
 // Pipeline editorial (compartido con el workspace)
+// Phase-6 workspace production ClaimSafety cutover
+// (`client-workspace-production-claim-safety`): leftover badge and
+// disclosure are omitted. React ProductionPanel serves the advisory
+// presentation. This does not claim content preview, content editor,
+// or ClaimSafetyPanel.ts.
 // ==========================================
 
 export function renderContentPipeline(
@@ -441,9 +445,6 @@ export function renderContentPipeline(
                     ${clientEdit?.diffSummary
                       ? `<span class="badge badge-ready">Cliente editó (+${clientEdit.diffSummary.added}/−${clientEdit.diffSummary.removed})</span>`
                       : ''}
-                    ${item.claimSafety && item.claimSafety.verdict !== 'PASS'
-                      ? renderClaimSafetyBadge(item.claimSafety)
-                      : ''}
                   </div>
                   <p class="content-row-meta">
                     ${esc(item.type)} · creado ${new Date(item.createdAt).toLocaleDateString('es')}
@@ -467,13 +468,6 @@ export function renderContentPipeline(
               </div>
 
               <div class="content-preview">${esc(item.body.substring(0, 280))}…</div>
-
-              ${item.claimSafety && item.claimSafety.verdict !== 'PASS'
-                ? `<details class="claim-safety-disclosure">
-                     <summary>${item.claimSafety.findings.length} afirmación(es) señalada(s)</summary>
-                     ${renderClaimSafetyPanel(item.claimSafety)}
-                   </details>`
-                : ''}
 
               <div class="content-row-foot">
                 <span>Notas: ${esc(item.managerNotes || 'sin notas')}</span>

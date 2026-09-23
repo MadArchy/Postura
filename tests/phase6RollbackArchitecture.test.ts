@@ -20,6 +20,7 @@ import {
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_WORKSPACE_PROOF_WALL_SLOT,
   CLIENT_WORKSPACE_SERVICE_LINES_SLOT,
+  CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
@@ -62,6 +63,10 @@ import {
   serviceLinesWorkspaceSlotPresentation,
   shouldRenderLegacyServiceLinesWorkspaceSlot,
 } from '../src/ui/presentation/serviceLinesWorkspaceSlot';
+import {
+  claimSafetyWorkspaceProductionSlotPresentation,
+  shouldRenderLegacyClaimSafetyWorkspaceProductionSlot,
+} from '../src/ui/presentation/claimSafetyWorkspaceProductionSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -298,6 +303,34 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_WORKSPACE_SERVICE_LINES_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PROOF_WALL_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_SERVICE_LINES_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the workspace production ClaimSafety exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT);
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).toBe(
+      'client-workspace-production-claim-safety'
+    );
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_WORKSPACE_PROOF_WALL_SLOT);
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(
+      CLIENT_WORKSPACE_SERVICE_LINES_SLOT
+    );
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_WORKSPACE_DOSSIER_SLOT);
+    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-preview-claim-safety');
+    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-editor-claim-safety');
+    expect(claimSafetyWorkspaceProductionSlotPresentation()).toBe('omit');
+    expect(shouldRenderLegacyClaimSafetyWorkspaceProductionSlot()).toBe(false);
+  });
+
+  it('workspace production ClaimSafety exclusive slot alone keeps React served on a legacy request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_SERVICE_LINES_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -831,6 +864,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/serviceLinesPortalThesisSlot.ts',
     'src/ui/presentation/proofWallWorkspaceSlot.ts',
     'src/ui/presentation/serviceLinesWorkspaceSlot.ts',
+    'src/ui/presentation/claimSafetyWorkspaceProductionSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];
