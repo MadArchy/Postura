@@ -16,6 +16,7 @@ import {
 } from '../application/thesisLifecycle';
 import { composeThesisLifecycle } from '../composition/thesisLifecycle/composeThesisLifecycle';
 import { requireTenantScope } from '../controllers/trustedTenant';
+import { createId } from '../lib/id';
 import { authService } from './auth';
 import { auditService } from './audit';
 import { dbService } from './db';
@@ -57,6 +58,31 @@ export interface SaveThesisIntent {
   claimedClientId?: string;
   claimedStatus?: string;
   claimedClientApprovalStatus?: string;
+}
+
+export interface CreateThesisIntent {
+  requestedClientId: string | null | undefined;
+  intent: ThesisSaveIntent;
+  fields: ThesisEditableFields;
+  claimedOrganizationId?: string;
+  claimedClientId?: string;
+  claimedStatus?: string;
+  claimedClientApprovalStatus?: string;
+}
+
+/** Consumer-owned create — mints thesisId, then Registry #11 SaveThesis. */
+export function createThesis(intent: CreateThesisIntent): SaveThesisResult {
+  gate(intent.requestedClientId);
+  return saveThesis({
+    requestedClientId: intent.requestedClientId,
+    thesisId: createId('thesis'),
+    intent: intent.intent,
+    fields: intent.fields,
+    claimedOrganizationId: intent.claimedOrganizationId,
+    claimedClientId: intent.claimedClientId,
+    claimedStatus: intent.claimedStatus,
+    claimedClientApprovalStatus: intent.claimedClientApprovalStatus,
+  });
 }
 
 /** Registry #11 */

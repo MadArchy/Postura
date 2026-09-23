@@ -41,7 +41,7 @@ import {
   readSignalOutcomes,
   readStrategicBriefs,
 } from '../data/canonicalReads';
-import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
+import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisCreateCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
 import type { ContentStatus, ContentType, CurationDestination, SourceType, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
@@ -687,6 +687,29 @@ export function useDecideThesisClientReview(scope: TrustedTenantScope | null) {
         thesisId: params.thesisId,
         decision: params.decision,
         feedback: params.feedback,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({ queryKey: tenantInvalidationKey(scope, 'compatibility') });
+    },
+  });
+}
+
+/** Consumer-owned create — presentation supplies intent + fields only. */
+export function useCreateThesis(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    ThesisCreateCommandResult,
+    Error,
+    { intent: ThesisSaveIntent; fields: ThesisEditableFields }
+  >({
+    mutationFn: async (params) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return thesisLifecycleCommands.createThesis({
+        requestedClientId: scope.clientId,
+        intent: params.intent,
+        fields: params.fields,
       });
     },
     onSuccess: (result) => {

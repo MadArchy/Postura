@@ -6,12 +6,14 @@
  * READ SOURCE: compatibility (`readThesisOptions`, `readThesisDetail`).
  *
  * COMMAND: #11 SaveThesis + #12 ActivateThesis via `thesisLifecycleCommands`
- * (draft | submit_review | activate). AI proposal and stress-test remain legacy.
+ * (draft | submit_review | activate). Explicit create uses `useCreateThesis`
+ * (consumer mints the id). AI proposal and stress-test remain legacy.
  *
  * MULTI-THESIS — explicit id selection only:
  *   - selector starts unselected; no silent winner;
  *   - mutations always target the selected thesisId;
- *   - unresolved id is an error, never a silent create.
+ *   - unresolved id is an error, never a silent create;
+ *   - "Nueva tesis" is an explicit create mode, never an unresolved-id fallback.
  */
 
 import { useMemo, useState } from 'react';
@@ -20,6 +22,7 @@ import { z } from 'zod';
 import { useSession } from '../../providers/SessionProvider';
 import {
   useActivateThesis,
+  useCreateThesis,
   useSaveThesis,
   useThesisDetail,
   useThesisOptions,
@@ -42,6 +45,17 @@ const thesisReviewSchema = z.object({
 });
 
 type ThesisReviewFields = z.infer<typeof thesisReviewSchema>;
+
+const EMPTY_EDITABLE_FIELDS: ThesisEditableFields = {
+  title: '',
+  expertIdentity: '',
+  targetAudience: '',
+  domain: '',
+  objective: '',
+  proofPoints: [],
+  voiceAndTone: '',
+  complianceRules: '',
+};
 
 function CompletenessBar({ score }: { score: number }) {
   return (
@@ -237,6 +251,7 @@ export function ReactThesisEditorPage({
   }, [tenantScope, workspaceClientId]);
 
   const [thesisId, setThesisId] = useState<string | null>(null);
+  const [createMode, setCreateMode] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     kind: 'success' | 'error' | 'info';
     text: string;
@@ -244,9 +259,10 @@ export function ReactThesisEditorPage({
 
   const options = useThesisOptions(scope);
   const detail = useThesisDetail(scope, thesisId);
+  const createThesis = useCreateThesis(scope);
   const saveThesis = useSaveThesis(scope);
   const activateThesis = useActivateThesis(scope);
-  const busy = saveThesis.isPending || activateThesis.isPending;
+  const busy = createThesis.isPending || saveThesis.isPending || activateThesis.isPending;
 
   if (!tenantScope) {
     return (
@@ -289,6 +305,33 @@ export function ReactThesisEditorPage({
     Boolean(detail.data?.resolved) && (detail.data?.activationBlockers.length ?? 1) === 0;
 
   const handleSave = (intent: ThesisSaveIntent, fields: ThesisEditableFields) => {
+    if (createMode) {
+      setStatusMessage(null);
+      createThesis.mutate(
+        { intent, fields },
+        {
+          onSuccess: (result) => {
+            if (!result.ok) {
+              setStatusMessage({
+                kind: 'error',
+                text: result.message || 'No se pudo guardar la tesis',
+              });
+              return;
+            }
+            setCreateMode(false);
+            setThesisId(result.thesisId);
+            setStatusMessage({
+              kind: result.notifySkipped ? 'info' : 'success',
+              text: result.message,
+            });
+          },
+          onError: () => {
+            setStatusMessage({ kind: 'error', text: 'No se pudo guardar la tesis' });
+          },
+        }
+      );
+      return;
+    }
     if (!thesisId) return;
     setStatusMessage(null);
     saveThesis.mutate(
@@ -351,9 +394,24 @@ export function ReactThesisEditorPage({
             Selecciona explícitamente la tesis que quieres revisar. Ninguna tesis se elige por ti.
           </p>
         </div>
-        <span className="badge badge-progress" data-testid="react-thesis-count">
-          {theses.length} {theses.length === 1 ? 'tesis' : 'tesis'}
-        </span>
+        <div className="form-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            data-testid="react-thesis-create"
+            onClick={() => {
+              setCreateMode(true);
+              setThesisId(null);
+              setStatusMessage(null);
+            }}
+          >
+            Nueva tesis
+          </button>
+          <span className="badge badge-progress" data-testid="react-thesis-count">
+            {theses.length} {theses.length === 1 ? 'tesis' : 'tesis'}
+          </span>
+        </div>
       </div>
 
       {theses.length ? (
@@ -366,6 +424,7 @@ export function ReactThesisEditorPage({
             className="form-select"
             value={thesisId ?? ''}
             onChange={(event) => {
+              setCreateMode(false);
               setThesisId(event.target.value || null);
               setStatusMessage(null);
             }}
@@ -386,7 +445,19 @@ export function ReactThesisEditorPage({
         </p>
       )}
 
-      {thesisId === null ? (
+      {createMode ? (
+        <div data-testid="react-thesis-create-form">
+          <ThesisReviewForm
+            key="create"
+            thesisId=""
+            editableFields={EMPTY_EDITABLE_FIELDS}
+            canActivate={false}
+            busy={busy}
+            onSave={handleSave}
+            onActivate={() => undefined}
+          />
+        </div>
+      ) : thesisId === null ? (
         <p className="muted small" data-testid="react-thesis-unselected">
           Sin tesis seleccionada.
         </p>

@@ -260,10 +260,14 @@ describe('P5 §21 — React surface authority guards', () => {
     expect(page).not.toMatch(/\bactivateThesis\s*\(/);
     expect(page).not.toMatch(/\bdecideThesisClientReview\s*\(/);
     expect(page).toMatch(/useSaveThesis/);
+    expect(page).toMatch(/useCreateThesis/);
     expect(page).toMatch(/useActivateThesis/);
     expect(page).toMatch(/react-thesis-save/);
     expect(page).toMatch(/react-thesis-submit/);
     expect(page).toMatch(/react-thesis-activate/);
+    expect(page).toMatch(/react-thesis-create/);
+    expect(page).toMatch(/Nueva tesis/);
+    expect(page).not.toMatch(/createId/);
     expect(page).not.toMatch(/react-thesis-save-disabled/);
   });
 
@@ -294,7 +298,7 @@ describe('P5 §21 — React surface authority guards', () => {
   it('#13 DecideThesisClientReview remains unchanged on React portal', () => {
     const portal = read('src/ui/modules/pages/ReactClientPortalPage.tsx');
     expect(portal).toMatch(/useDecideThesisClientReview/);
-    expect(portal).not.toMatch(/useSaveThesis|useActivateThesis/);
+    expect(portal).not.toMatch(/useSaveThesis|useActivateThesis|useCreateThesis/);
     const decide = read('src/application/thesisLifecycle/DecideThesisClientReview.ts');
     expect(decide).toMatch(/requireClientRole/);
   });
@@ -320,6 +324,7 @@ describe('P5 §21 — React surface authority guards', () => {
   it('mutation hooks invalidate compatibility queries after success', () => {
     const hooks = read('src/ui/hooks/useWave3Data.ts');
     expect(hooks).toMatch(/useSaveThesis/);
+    expect(hooks).toMatch(/useCreateThesis/);
     expect(hooks).toMatch(/useActivateThesis/);
     expect(hooks).toMatch(/invalidateQueries/);
   });
@@ -329,6 +334,16 @@ describe('P5 §21 — React surface authority guards', () => {
     expect(page).toMatch(/useState<string \| null>\(null\)/);
     expect(page).toMatch(/Selecciona una tesis/);
     expect(page).not.toMatch(/theses\[0\]|primaryThesis|defaultThesis/);
+  });
+
+  it('explicit Nueva tesis create is distinct from unresolved-id anti-create', () => {
+    const page = read('src/ui/modules/pages/ReactThesisEditorPage.tsx');
+    expect(page).toMatch(/useCreateThesis/);
+    expect(page).toMatch(/Nueva tesis/);
+    expect(page).toMatch(/createMode/);
+    expect(page).toMatch(/No se ha creado ninguna tesis nueva/);
+    expect(page).not.toMatch(/createId/);
+    expect(page).toMatch(/useSaveThesis/);
   });
 
   it('ADMIN workspace narrows trusted scope to shell clientId', () => {

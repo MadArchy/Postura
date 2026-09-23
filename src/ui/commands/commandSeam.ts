@@ -60,6 +60,7 @@ import {
 } from '../../services/masterProfileConsumer';
 import {
   activateThesis,
+  createThesis,
   decideThesisClientReview,
   saveThesis,
 } from '../../services/thesisLifecycleConsumer';
@@ -143,6 +144,18 @@ export type ProfileFactImportCommandResult =
 export type ThesisSaveCommandResult =
   | {
       ok: true;
+      toast: string;
+      message: string;
+      notifyClient: boolean;
+      intent: ThesisSaveIntent;
+      notifySkipped?: boolean;
+    }
+  | { ok: false; message: string };
+
+export type ThesisCreateCommandResult =
+  | {
+      ok: true;
+      thesisId: string;
       toast: string;
       message: string;
       notifyClient: boolean;
@@ -687,9 +700,54 @@ export const masterProfileCommands = {
 
 /**
  * CR-1 Thesis Lifecycle (#11 SaveThesis, #12 ActivateThesis, #13 DecideThesisClientReview).
- * Seam authority = 0. Explicit thesisId required — no positional thesis authority.
+ * Seam authority = 0. Save/activate/review require explicit thesisId — no positional thesis.
+ * createThesis never mints; the consumer owns new thesis ids.
  */
 export const thesisLifecycleCommands = {
+  createThesis(intent: {
+    requestedClientId: string | null | undefined;
+    intent: ThesisSaveIntent;
+    fields: ThesisEditableFields;
+  }): ThesisCreateCommandResult {
+    try {
+      const result = createThesis(intent);
+      let message = result.toast;
+      let notifySkipped = false;
+      if (result.notifyClient) {
+        try {
+          const notified = notifyClientThesisManagerSave(
+            result.thesis.clientId,
+            result.thesis.title,
+            result.thesis.status
+          );
+          if (!notified) {
+            notifySkipped = true;
+            message = 'Tesis guardada. El cliente aún no tiene cuenta para recibir aviso.';
+          }
+        } catch {
+          // Best-effort compatibility — save already persisted.
+        }
+      }
+      return {
+        ok: true,
+        thesisId: result.thesis.id,
+        toast: result.toast,
+        message,
+        notifyClient: result.notifyClient,
+        intent: result.intent,
+        ...(notifySkipped ? { notifySkipped: true } : {}),
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err instanceof ThesisLifecycleError || err instanceof Error
+            ? err.message
+            : 'No se pudo guardar la tesis',
+      };
+    }
+  },
+
   saveThesis(intent: {
     requestedClientId: string | null | undefined;
     thesisId: string;
