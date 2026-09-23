@@ -3,8 +3,9 @@
  * (`client-portal-page-header`).
  *
  * Omits leftover `renderPage` from ClientPortal `clientPage`.
- * PageHeader.ts remains PRESENT. ManagerCockpit and ClientWorkspace
- * leftover imports remain. ReactClientPortalPage serves ReactTabHeader.
+ * PageHeader.ts remains PRESENT. ClientWorkspace leftover import remains.
+ * ManagerCockpit leftover import is ABSENT after its own cutover.
+ * ReactClientPortalPage serves ReactTabHeader.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -90,14 +91,14 @@ describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
     expect(pageHeaderPortalSlotPresentation()).toBe('omit');
   });
 
-  it('ManagerCockpit and ClientWorkspace leftover PageHeader imports remain', () => {
-    expect(code(COCKPIT)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    expect(code(COCKPIT)).toMatch(/\brenderPage\b/);
+  it('ClientWorkspace leftover PageHeader import remains; ManagerCockpit no longer imports', () => {
+    expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(COCKPIT)).not.toMatch(/\brenderPage\b/);
     expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(WORKSPACE)).toMatch(/\brenderPage\b/);
   });
 
-  it('Product leftover PageHeader importers are exactly the two remaining hosts', () => {
+  it('Product leftover PageHeader importer is exactly ClientWorkspace', () => {
     const offenders: string[] = [];
     for (const file of collectTs(join(ROOT, 'src'))) {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
@@ -110,7 +111,7 @@ describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
         offenders.push(rel);
       }
     }
-    expect(offenders.sort()).toEqual([COCKPIT, WORKSPACE].sort());
+    expect(offenders).toEqual([WORKSPACE]);
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
   });
 });
@@ -233,7 +234,7 @@ describe('Phase 6 PageHeader ClientPortal cutover — authority / closed subsets
   it('file remains present; C6 / C7 / T603 are not executed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
-    expect(code(COCKPIT)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
   });
 });

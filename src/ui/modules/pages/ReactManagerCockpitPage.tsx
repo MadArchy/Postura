@@ -25,9 +25,16 @@ import {
   usePortfolioOverview,
   useRematerializeLocalSnapshot,
 } from '../../hooks/useWave3Data';
+import { ReactTabHeader } from '../PageHeader/ReactPageHeader';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 
 type CockpitTab = 'portfolio' | 'clients' | 'ai';
+
+const COCKPIT_HEADER_TAB: Record<CockpitTab, string> = {
+  portfolio: 'dashboard',
+  clients: 'clients',
+  ai: 'ai-center',
+};
 
 type CreateClientFields = {
   firstName: string;
@@ -523,6 +530,7 @@ export function ReactManagerCockpitPage({
       data-testid="react-manager-cockpit"
       data-authority="HYBRID"
     >
+      <ReactTabHeader tab={COCKPIT_HEADER_TAB[tab]} />
       <div className="card-header">
         <div>
           <h3>Cartera</h3>

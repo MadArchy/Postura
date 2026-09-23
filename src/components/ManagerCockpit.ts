@@ -1,10 +1,8 @@
 import { dbService } from '../services/db';
 import { aiService } from '../services/ai';
-import { FIREBASE_ENABLED } from '../firebase/config';
 import { Client, ClientPortfolioSummary, ContentItem, PositioningThesis } from '../types';
 import { suggestScientificFoci } from '../domain/scientificFocusCore';
 import { esc } from '../lib/escape';
-import { renderPage } from './PageHeader';
 import { aggregatePortfolioRadarMetrics } from '../services/portfolioMetrics';
 import { buildPortfolioDigest } from '../domain/radarDigestCore';
 import { getEmailStubLog } from '../services/reminders';
@@ -14,23 +12,31 @@ import {
   pipelineStatusLabel,
 } from '../domain/contentPublishCore';
 
+/**
+ * Phase-6 ManagerCockpit PageHeader cutover (`client-portfolio-page-header`):
+ * leftover `renderPage` header is omitted from `renderManagerCockpit`.
+ * ReactManagerCockpitPage serves ReactTabHeader. Body and `.page-content` remain.
+ */
+function managerPage(body: string): string {
+  return `
+    <div class="page-content">
+      ${body}
+    </div>
+  `;
+}
+
 export function renderManagerCockpit(
   activeTab: string,
   filters: { searchQuery?: string; sourceType?: string; contentStatus?: string } = {}
 ): string {
   switch (activeTab) {
     case 'clients':
-      return renderPage(
-        'clients',
-        renderClientsBody(filters),
-        `${FIREBASE_ENABLED ? '<button id="btn-firebase-push-local" class="btn btn-secondary">Subir local → Firestore</button>' : ''}
-         <button id="btn-open-create-client" class="btn btn-primary">+ Nuevo cliente</button>`
-      );
+      return managerPage(renderClientsBody(filters));
     case 'ai-center':
-      return renderPage('ai-center', renderAICenterBody());
+      return managerPage(renderAICenterBody());
     case 'dashboard':
     default:
-      return renderPage('dashboard', renderPortfolioBody(filters));
+      return managerPage(renderPortfolioBody(filters));
   }
 }
 

@@ -53,6 +53,11 @@
  * `renderPage` header only). That id does not claim ManagerCockpit
  * PageHeader, ClientWorkspace PageHeader, Wave2 GROUP_META headers,
  * or PageHeader.ts.
+ * Phase-6 ManagerCockpit PageHeader cutover activates
+ * `client-portfolio-page-header` (leftover ManagerCockpit
+ * `renderManagerCockpit` `renderPage` header only). That id does not
+ * claim ClientPortal PageHeader, ClientWorkspace PageHeader, Wave2
+ * GROUP_META headers, or PageHeader.ts.
  * Neither KPI id means KpiWeeklyChart.ts has been deleted.
  * The profile id does not claim ProofWall or Onboarding.
  * Other slots remain unlisted until their own cutover authorization.
@@ -76,6 +81,7 @@ export const CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT =
 export const CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT =
   'client-content-editor-claim-safety';
 export const CLIENT_PORTAL_PAGE_HEADER_SLOT = 'client-portal-page-header';
+export const CLIENT_PORTFOLIO_PAGE_HEADER_SLOT = 'client-portfolio-page-header';
 
 const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
@@ -91,11 +97,12 @@ const KNOWN_REACT_EXCLUSIVE_SLOT_IDS = [
   CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT,
   CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT,
   CLIENT_PORTAL_PAGE_HEADER_SLOT,
+  CLIENT_PORTFOLIO_PAGE_HEADER_SLOT,
 ] as const;
 
 export type ReactExclusiveSlotId = (typeof KNOWN_REACT_EXCLUSIVE_SLOT_IDS)[number];
 
-/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, thesis ProofWall, thesis service-lines, workspace ProofWall, workspace service-lines, workspace production ClaimSafety, content preview ClaimSafety, content editor ClaimSafety, and ClientPortal PageHeader surface cutovers are active. */
+/** Compile-time exclusive set. Dossier, opportunity, KPI, profile, thesis ProofWall, thesis service-lines, workspace ProofWall, workspace service-lines, workspace production ClaimSafety, content preview ClaimSafety, content editor ClaimSafety, ClientPortal PageHeader, and ManagerCockpit PageHeader surface cutovers are active. */
 const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_WORKSPACE_DOSSIER_SLOT,
   CLIENT_PORTAL_OPPORTUNITY_SLOT,
@@ -110,6 +117,7 @@ const CONFIGURED_REACT_EXCLUSIVE_SLOTS: readonly string[] = [
   CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT,
   CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT,
   CLIENT_PORTAL_PAGE_HEADER_SLOT,
+  CLIENT_PORTFOLIO_PAGE_HEADER_SLOT,
 ];
 
 let exclusiveSlotOverride: readonly string[] | null = null;

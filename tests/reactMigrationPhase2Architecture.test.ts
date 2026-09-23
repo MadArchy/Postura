@@ -497,11 +497,11 @@ describe('SPEC-010 Phase 6 — PageHeader shared presentation refactor', () => {
 
   it('remaining leftover renderPage consumers still import the leftover renderer', () => {
     const portal = read(join(ROOT, 'src/components/ClientPortal.ts'));
+    const cockpit = read(join(ROOT, 'src/components/ManagerCockpit.ts'));
     expect(portal).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    for (const path of ['src/components/ManagerCockpit.ts', 'src/components/ClientWorkspace.ts']) {
-      const source = read(join(ROOT, path));
-      expect(source).toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    }
+    expect(cockpit).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    const workspace = read(join(ROOT, 'src/components/ClientWorkspace.ts'));
+    expect(workspace).toMatch(/from\s+['"]\.\/PageHeader['"]/);
   });
 
   it('the shared module carries no business authority imports', () => {

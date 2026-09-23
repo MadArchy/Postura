@@ -52,11 +52,12 @@ describe('React rematerialize action ownership', () => {
     expect(hooks).not.toMatch(/from ['"].*localSnapshotConsumer['"]/);
   });
 
-  it('React action stays in the cockpit admin area and is not a PageHeader host', () => {
+  it('React rematerialize action stays in the cockpit admin area outside header actions', () => {
     const cockpit = read(COCKPIT);
     expect(cockpit).toMatch(/<CreateClientPanel \/>/);
     expect(cockpit).toMatch(/<RematerializeLocalSnapshotPanel \/>/);
-    expect(cockpit).not.toMatch(/ReactTabHeader|ReactPageHeader|renderPageHeader|PageHeader/);
+    expect(cockpit).toMatch(/<ReactTabHeader\s+tab=\{COCKPIT_HEADER_TAB\[tab\]\}/);
+    expect(cockpit).not.toMatch(/<ReactTabHeader[^>]*actions=/);
     expect(read(PAGE_HEADER)).toMatch(/export function renderPage/);
   });
 
@@ -82,9 +83,9 @@ describe('React rematerialize action ownership', () => {
 });
 
 describe('Leftover rematerialize retarget', () => {
-  it('leftover button remains and leftover handler uses the canonical consumer', () => {
-    expect(read(LEGACY_COCKPIT)).toMatch(/btn-firebase-push-local/);
-    expect(read(LEGACY_COCKPIT)).toMatch(/Subir local → Firestore/);
+  it('leftover header button is gone as presentation; leftover handler still uses the canonical consumer', () => {
+    expect(read(LEGACY_COCKPIT)).not.toMatch(/btn-firebase-push-local/);
+    expect(read(LEGACY_COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     const handler = code(LEGACY_HANDLER);
     expect(handler).toMatch(/btn-firebase-push-local/);
     expect(handler).toMatch(/rematerializeLocalSnapshot\(/);
