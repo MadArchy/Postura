@@ -316,6 +316,31 @@ Evidence: `t-010-603-proofwall-subset-removal.md` · implementation `c7f4e3d4b3c
 Nonblocking handler / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI / ClientProfile subset snapshot rows above are historical and are **not** rewritten.
 
+### Phase-6 T-010-603 ClaimSafety subset (bounded)
+
+Evidence: `t-010-603-claimsafety-subset-removal.md` · implementation `824e13b5e6b60fe18344b871dede048f37041de1`.
+
+| Item | Verdict |
+|------|---------|
+| ClaimSafety unit C1–C7 / C8 | **PASS / N/A** |
+| `ClaimSafetyPanel.ts` | **ABSENT** (already removed @ `824e13b`; no second delete) |
+| PRODUCT GRAPH | **ZERO** |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/ClaimSafetyPanel.ts` only) |
+| C6 / C7 | **VERIFIED_PASS** / **ACCEPTED** |
+| T603 SAFE SUBSET REVIEW | `PHASE6_CLAIMSAFETY_T603_SAFE_SUBSET_VERIFIED` |
+| T-010-603 ClaimSafety unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| CLAIMSAFETY LOCAL A43 | **PASS** |
+| CLAIMSAFETY UNIT A43 | **PASS** |
+| BLOCKING DEBT | **NONE** |
+| NONBLOCKING DEBT | leftover `.claim-review-ack` CSS; comments; historical oracle titles; historical SPEC refs — **SEPARATED** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| C3 **global** | **PARTIAL** |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking CSS / comment / historical-title / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall subset snapshot rows above are historical and are **not** rewritten.
+
 ### Phase-3 acceptance movement (T-010-301…306)
 
 `ARCH3` = `tests/reactMigrationPhase3Architecture.test.ts` (28/28) ·
