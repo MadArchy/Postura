@@ -3,9 +3,9 @@
  * (`client-workspace-production-claim-safety`).
  *
  * Omits leftover `renderClaimSafetyBadge` / `renderClaimSafetyPanel` from
- * `renderContentPipeline`. ClaimSafetyPanel.ts remains PRESENT. Content
- * preview, content editor, and LegacyApp live refresh stay leftover.
- * C6 / C7 / T603 are not executed.
+ * `renderContentPipeline`. ClaimSafetyPanel.ts remains PRESENT. Later
+ * Preview and Editor hosts are independently cut over. Product graph is
+ * zero. C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -96,9 +96,9 @@ describe('Phase 6 ClaimSafety workspace production cutover — C1 served ownersh
     expect(host).toMatch(/btn-open-content-editor/);
     expect(host).toMatch(/btn-preview-content/);
     expect(host).toMatch(/btn-content-pipeline-action/);
-    expect(code(MODALS)).toMatch(/renderClaimSafetyPanel\(content\.claimSafety\)/);
-    expect(code(LEGACY_APP)).toMatch(/renderClaimSafetyPanel\(record\)/);
-    expect(code(LEGACY_APP)).toMatch(/refreshClaimSafetyLive/);
+    expect(code(MODALS)).not.toMatch(/renderClaimSafetyPanel/);
+    expect(code(LEGACY_APP)).not.toMatch(/renderClaimSafetyPanel/);
+    expect(code(LEGACY_APP)).not.toMatch(/refreshClaimSafetyLive/);
   });
 
   it('Workspace Production exclusive id is production-only and distinct', () => {
@@ -115,7 +115,10 @@ describe('Phase 6 ClaimSafety workspace production cutover — C1 served ownersh
     expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(
       'client-content-preview-claim-safety'
     );
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-editor-claim-safety');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-content-editor-claim-safety');
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(
+      'client-content-editor-claim-safety'
+    );
     expect(existsSync(join(ROOT, SLOT))).toBe(true);
   });
 });
@@ -130,7 +133,7 @@ describe('Phase 6 ClaimSafety workspace production cutover — C2 / C3 seams', (
     expect(code(PAGE)).not.toMatch(/onLocateClaim/);
   });
 
-  it('remaining ClaimSafetyPanel Product importers are Modals and LegacyApp only', () => {
+  it('ClaimSafetyPanel Product importer graph is zero after final host cutover', () => {
     const offenders: string[] = [];
     for (const file of collectTs(join(ROOT, 'src'))) {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
@@ -143,7 +146,7 @@ describe('Phase 6 ClaimSafety workspace production cutover — C2 / C3 seams', (
         offenders.push(rel);
       }
     }
-    expect(offenders.sort()).toEqual([MODALS, LEGACY_APP].sort());
+    expect(offenders).toEqual([]);
   });
 
   it('closed subsets remain closed and not reopened', () => {

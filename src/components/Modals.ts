@@ -3,7 +3,6 @@ import { listStrategicBriefs } from '../services/strategicBriefConsumer';
 import { authService } from '../services/auth';
 import { esc, escAttr, nl2br } from '../lib/escape';
 import { renderDeliveryBriefingCard } from './ClientPortal';
-import { renderClaimSafetyPanel } from './ClaimSafetyPanel';
 import { hasArticleSectionMarkers } from '../domain/articleReviewCore';
 import { mapLegacyContentStatus } from '../domain/contentPipeline';
 import {
@@ -471,6 +470,9 @@ export function renderContentDiffModal(contentId: string): string {
   `;
 }
 
+// Phase-6 content editor ClaimSafety cutover
+// (`client-content-editor-claim-safety`): leftover live panel and
+// review-ack are omitted. P16 React editor accepted omission remains.
 export function renderContentEditorModal(contentId: string): string {
   const content = dbService.getContentById(contentId);
   if (!content) return '';
@@ -533,17 +535,6 @@ export function renderContentEditorModal(contentId: string): string {
           <div class="form-group">
             <label class="form-label">Notas del Brand Manager / Indicaciones de Grabación</label>
             <input type="text" id="edit-content-notes" class="form-input" value="${escAttr(content.managerNotes || '')}" placeholder="Ej. Grabar con energía en los primeros 8 segundos..." />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Afirmaciones (proyección advisory)</label>
-            <div id="claim-safety-live">
-              ${renderClaimSafetyPanel(content.claimSafety)}
-            </div>
-            <label id="claim-review-ack-row" class="claim-review-ack${content.claimSafety?.verdict === 'REVIEW' ? '' : ' hidden'}">
-              <input type="checkbox" id="claim-review-ack" />
-              Confirmé la revisión advisory (la publicación usa el Claim gate canónico)
-            </label>
           </div>
 
           <div class="modal-footer">

@@ -44,8 +44,6 @@ export type SourceAutomationPort = Pick<
 
 /** Host surface shared by content and client-portal handler binders. */
 export interface LegacyHandlerHost extends AppHost, LegacyScopeHost, LegacyModalHost {
-  bindClaimLocate(root?: ParentNode): void;
-  bindClaimSafetyLive(): void;
   gateStrategicDownstream(
     clientId: string,
     briefId: string | undefined,

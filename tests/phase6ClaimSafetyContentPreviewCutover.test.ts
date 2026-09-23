@@ -3,8 +3,8 @@
  * (`client-content-preview-claim-safety`).
  *
  * Omits leftover `renderClaimSafetyPanel` from `renderContentPreviewModal`.
- * ClaimSafetyPanel.ts remains PRESENT. Content editor and LegacyApp live
- * refresh stay leftover. Workspace Production remains observed.
+ * ClaimSafetyPanel.ts remains PRESENT. Workspace Production remains
+ * observed. Later Editor + LegacyApp cutover produces Product graph zero.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -100,13 +100,13 @@ describe('Phase 6 ClaimSafety content preview cutover — C1 served ownership', 
     expect(preview).not.toMatch(/onLocateClaim/);
   });
 
-  it('leftover preview omits ClaimSafety while editor still renders it', () => {
+  it('leftover preview omits ClaimSafety and later editor omit is complete', () => {
     const source = code(MODALS);
-    expect(source).toMatch(/from\s+['"]\.\/ClaimSafetyPanel['"]/);
+    expect(source).not.toMatch(/from\s+['"]\.\/ClaimSafetyPanel['"]/);
     expect(previewFunction(source)).not.toMatch(/renderClaimSafetyPanel/);
-    expect(editorFunction(source)).toMatch(/renderClaimSafetyPanel\(content\.claimSafety\)/);
-    expect(editorFunction(source)).toMatch(/claim-safety-live/);
-    expect(editorFunction(source)).toMatch(/claim-review-ack/);
+    expect(editorFunction(source)).not.toMatch(/renderClaimSafetyPanel/);
+    expect(editorFunction(source)).not.toMatch(/claim-safety-live/);
+    expect(editorFunction(source)).not.toMatch(/claim-review-ack/);
     expect(shouldRenderLegacyClaimSafetyContentPreviewSlot()).toBe(false);
     expect(claimSafetyContentPreviewSlotPresentation()).toBe('omit');
   });
@@ -133,7 +133,8 @@ describe('Phase 6 ClaimSafety content preview cutover — C1 served ownership', 
     expect(CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_WORKSPACE_PROOF_WALL_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT);
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-editor-claim-safety');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-content-editor-claim-safety');
+    expect(CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT).not.toBe('client-content-editor-claim-safety');
     expect(existsSync(join(ROOT, SLOT))).toBe(true);
   });
 });
@@ -149,7 +150,7 @@ describe('Phase 6 ClaimSafety content preview cutover — C2 / C3 seams', () => 
     expect(code(MODALS_REACT)).not.toMatch(/verdict !== 'PASS'/);
   });
 
-  it('remaining ClaimSafetyPanel Product importers are Modals and LegacyApp only', () => {
+  it('ClaimSafetyPanel Product importer graph is zero after final host cutover', () => {
     const offenders: string[] = [];
     for (const file of collectTs(join(ROOT, 'src'))) {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
@@ -162,10 +163,10 @@ describe('Phase 6 ClaimSafety content preview cutover — C2 / C3 seams', () => 
         offenders.push(rel);
       }
     }
-    expect(offenders.sort()).toEqual([MODALS, LEGACY_APP].sort());
-    expect(code(LEGACY_APP)).toMatch(/refreshClaimSafetyLive/);
-    expect(code(LEGACY_APP)).toMatch(/bindClaimSafetyLive/);
-    expect(code(LEGACY_APP)).toMatch(/bindClaimLocate/);
+    expect(offenders).toEqual([]);
+    expect(code(LEGACY_APP)).not.toMatch(/refreshClaimSafetyLive/);
+    expect(code(LEGACY_APP)).not.toMatch(/bindClaimSafetyLive/);
+    expect(code(LEGACY_APP)).not.toMatch(/bindClaimLocate/);
   });
 
   it('closed subsets remain closed and not reopened', () => {

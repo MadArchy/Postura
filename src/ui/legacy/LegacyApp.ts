@@ -1,6 +1,5 @@
 ﻿import { authService } from '../../services/auth';
 import { dbService } from '../../services/db';
-import { aiService } from '../../services/ai';
 import { auditService } from '../../services/audit';
 import { processDeadlineReminders } from '../../services/reminders';
 import { createStrategicSignalRoutingUseCases } from '../../composition/strategicSignalRouting/composeStrategicSignalRouting';
@@ -9,7 +8,6 @@ import { renderManagerCockpit } from '../../components/ManagerCockpit';
 import { renderClientWorkspace } from '../../components/ClientWorkspace';
 import { renderClientPortal } from '../../components/ClientPortal';
 import { renderLogin } from '../../components/Login';
-import { renderClaimSafetyPanel } from '../../components/ClaimSafetyPanel';
 import {
   PORTFOLIO_TAB_IDS,
   WORKSPACE_TAB_IDS,
@@ -108,7 +106,6 @@ export class LegacyApp {
   private set loginError(value: string) { this.ui.loginError = value; }
 
   readonly strategicRouting = createStrategicSignalRoutingUseCases(dbService);
-  private claimLiveTimer: number | null = null;
   private readonly renderScheduler = createRenderScheduler(() => this.render());
   /** Stage-B legacy island host supplied by React shell (T-010-403). */
   private islandHostEl: HTMLElement | null = null;
@@ -520,60 +517,8 @@ export class LegacyApp {
     bindProfileHandlers(host);
   }
 
-  bindClaimLocate(root: ParentNode = document) {
-    root.querySelectorAll('[data-claim-locate]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        const claim = (e.currentTarget as HTMLElement).getAttribute('data-claim-locate') || '';
-        const body = document.getElementById('edit-content-body') as HTMLTextAreaElement | null;
-        if (!body || !claim) return;
-        const idx = body.value.indexOf(claim);
-        if (idx < 0) {
-          this.showToast('No se encontró la frase en el borrador actual', 'info');
-          return;
-        }
-        body.focus();
-        body.setSelectionRange(idx, idx + claim.length);
-      });
-    });
-  }
-
   get teleprompter(): TeleprompterHandlerHost['teleprompter'] {
     return this.teleprompterController;
-  }
-
-  private refreshClaimSafetyLive() {
-    const form = document.getElementById('form-edit-content');
-    const host = document.getElementById('claim-safety-live');
-    const body = document.getElementById('edit-content-body') as HTMLTextAreaElement | null;
-    if (!form || !host || !body) return;
-
-    const clientId = form.getAttribute('data-client-id') || this.resolveClientId();
-    const thesisId = form.getAttribute('data-thesis-id') || '';
-    const thesis = dbService.resolveThesisFor({
-      clientId,
-      selectedThesisId: thesisId || this.filterState.thesisId,
-    });
-    if (!thesis) return;
-
-    const record = aiService.reviewDraftClaims(body.value, thesis);
-    host.innerHTML = renderClaimSafetyPanel(record);
-    this.bindClaimLocate(host);
-
-    const ackRow = document.getElementById('claim-review-ack-row');
-    ackRow?.classList.toggle('hidden', record.verdict !== 'REVIEW');
-    if (record.verdict !== 'REVIEW') {
-      const ack = document.getElementById('claim-review-ack') as HTMLInputElement | null;
-      if (ack) ack.checked = false;
-    }
-  }
-
-  bindClaimSafetyLive() {
-    const body = document.getElementById('edit-content-body') as HTMLTextAreaElement | null;
-    if (!body) return;
-    body.addEventListener('input', () => {
-      if (this.claimLiveTimer) window.clearTimeout(this.claimLiveTimer);
-      this.claimLiveTimer = window.setTimeout(() => this.refreshClaimSafetyLive(), 500);
-    });
   }
 
   gateStrategicDownstream(

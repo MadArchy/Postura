@@ -417,9 +417,6 @@ export function bindContentHandlers(host: LegacyHandlerHost): void {
       host.showToast('Evidencia registrada', 'success');
       host.closeModal();
     });
-
-    host.bindClaimLocate();
-    host.bindClaimSafetyLive();
   }
 
   // ==========================================
