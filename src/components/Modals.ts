@@ -596,6 +596,9 @@ export function renderFeedbackModal(targetId: string, itemType: 'TASK' | 'OPPORT
   `;
 }
 
+// Phase-6 content preview ClaimSafety cutover
+// (`client-content-preview-claim-safety`): leftover panel is omitted.
+// ReactContentPreviewModal serves the advisory presentation.
 export function renderContentPreviewModal(contentId: string): string {
   const content = dbService.getContentById(contentId);
   if (!content) return '';
@@ -638,10 +641,6 @@ export function renderContentPreviewModal(contentId: string): string {
         ${content.managerNotes
           ? `<div class="field-block"><label class="form-label">Notas del manager</label><p class="muted small">${esc(content.managerNotes)}</p></div>`
           : ''}
-        <div class="field-block">
-          <label class="form-label">Claim safety</label>
-          ${renderClaimSafetyPanel(content.claimSafety)}
-        </div>
 
         <div class="modal-footer">
           <button type="button" id="btn-close-content-preview-bottom" class="btn btn-primary">Cerrar</button>

@@ -111,7 +111,10 @@ describe('Phase 6 ClaimSafety workspace production cutover — C1 served ownersh
     expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_WORKSPACE_PROOF_WALL_SLOT);
     expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_KPI_HOME_SLOT);
     expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
-    expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-preview-claim-safety');
+    expect(listKnownReactExclusiveSlotIds()).toContain('client-content-preview-claim-safety');
+    expect(CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT).not.toBe(
+      'client-content-preview-claim-safety'
+    );
     expect(listKnownReactExclusiveSlotIds()).not.toContain('client-content-editor-claim-safety');
     expect(existsSync(join(ROOT, SLOT))).toBe(true);
   });

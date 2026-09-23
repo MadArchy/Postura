@@ -84,7 +84,7 @@ import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactMasterDossierPanel } from '../MasterDossier/ReactMasterDossierPanel';
 import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
-import { ReactContentEditorModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
+import { ReactContentEditorModal, ReactContentPreviewModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
 import { ReactClaimSafetyBadge, ReactClaimSafetyPanel } from '../ClaimSafety/ReactClaimSafetyPanel';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 import { ReactTaskRecordingBlock } from './ReactTaskRecordingBlock';
@@ -1807,6 +1807,7 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
 
   const { data, isLoading, isError } = useWorkspaceContent(scope);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<{
     kind: 'success' | 'error';
     text: string;
@@ -1846,6 +1847,15 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
         workspaceClientId={workspaceClientId}
         onClose={() => setEditingId(null)}
         onSaved={() => setStatusMessage({ kind: 'success', text: 'Cambios guardados' })}
+      />
+    );
+  }
+
+  if (previewingId) {
+    return (
+      <ReactContentPreviewModal
+        contentId={previewingId}
+        onClose={() => setPreviewingId(null)}
       />
     );
   }
@@ -1897,6 +1907,14 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
                 onClick={() => setEditingId(item.id)}
               >
                 Editar
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                data-testid={`react-ws-production-preview-${item.id}`}
+                onClick={() => setPreviewingId(item.id)}
+              >
+                Ver
               </button>
               {showClaimSafety && item.claimSafety ? (
                 <details className="claim-safety-disclosure">

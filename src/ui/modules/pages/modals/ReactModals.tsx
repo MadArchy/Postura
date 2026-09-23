@@ -41,6 +41,7 @@ import {
   useWorkspaceDeliver,
 } from '../../../hooks/useWave3Data';
 import { useOpportunityCommands } from '../../../hooks/useWave2Data';
+import { ReactClaimSafetyPanel } from '../../ClaimSafety/ReactClaimSafetyPanel';
 import { LegacyHandoff, PanelState } from '../LegacyHandoff';
 
 function ModalShell({
@@ -272,12 +273,10 @@ export function ReactContentPreviewModal({
       testId="react-content-preview-modal"
       authority="READ_ONLY"
     >
-      {data.claimVerdict ? (
-        <p className="muted small" data-testid="react-content-preview-claim">
-          Claim-safety: {data.claimVerdict}
-          {data.claimFlags.length ? ` · ${data.claimFlags.length} hallazgos` : ''}
-        </p>
-      ) : null}
+      <div className="field-block" data-testid="react-content-preview-claim">
+        <label className="form-label">Claim safety</label>
+        <ReactClaimSafetyPanel record={data.claimSafety ?? undefined} />
+      </div>
       {/* Rendered as a text node: no HTML from the data layer is interpreted. */}
       <div className="content-preview-body small" data-testid="react-content-preview-body">
         {data.body.split('\n\n').map((paragraph, index) => (

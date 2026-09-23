@@ -1006,6 +1006,7 @@ export interface ContentDetailRead {
   readonly hasSectionMarkers: boolean;
   readonly claimVerdict: string | null;
   readonly claimFlags: readonly string[];
+  readonly claimSafety: ClaimSafetyVerdictRecord | null;
   readonly feedbackEvents: readonly {
     readonly id: string;
     readonly role: string;
@@ -1040,6 +1041,7 @@ export function readContentDetail(
     hasSectionMarkers: false,
     claimVerdict: null,
     claimFlags: [],
+    claimSafety: null,
     feedbackEvents: [],
   };
   if (!requireClient(scope) || !contentId) return empty;
@@ -1063,6 +1065,7 @@ export function readContentDetail(
     hasSectionMarkers: hasArticleSectionMarkers(content.body ?? ''),
     claimVerdict: content.claimSafety?.verdict ?? null,
     claimFlags: (content.claimSafety?.findings ?? []).map((finding) => finding.detail),
+    claimSafety: content.claimSafety ?? null,
     feedbackEvents: dbService.getFeedbackEventsForContent(contentId).map((event) => ({
       id: event.id,
       role: event.actorRole,
