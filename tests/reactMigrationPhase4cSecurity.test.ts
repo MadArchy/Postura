@@ -271,7 +271,7 @@ describe('AUDIT010-10 — every remediated effect path gates before the effect',
   const lines = source.split(/\r?\n/);
 
   const EFFECTS = [
-    'pushCurrentLocalToFirestore(',
+    'rematerializeLocalSnapshot(',
     'applyOnboardingStep(',
     'aiService.generateThesisProposal(',
     'runResearchSignalsAgent(',
@@ -304,6 +304,26 @@ describe('AUDIT010-10 — every remediated effect path gates before the effect',
       }
     });
   }
+
+  it('leftover rematerialize UI no longer calls the leftover mutator', () => {
+    const handler = readFileSync(
+      resolve(__dirname, '../src/ui/legacy/handlers/clientAdminHandlers.ts'),
+      'utf8'
+    );
+    expect(handler).not.toMatch(/pushCurrentLocalToFirestore/);
+    expect(handler).toMatch(/rematerializeLocalSnapshot/);
+    expect(handler).toMatch(/requireAdmin\(\)/);
+  });
+
+  it('canonical rematerialize consumer gates ADMIN from the trusted session', () => {
+    const consumer = readFileSync(
+      resolve(__dirname, '../src/services/localSnapshotConsumer.ts'),
+      'utf8'
+    );
+    expect(consumer).toMatch(/requireAdminActor/);
+    expect(consumer).toMatch(/FIREBASE_ENABLED/);
+    expect(consumer).not.toMatch(/pushCurrentLocalToFirestore/);
+  });
 
   it('does not treat a disabled or hidden button as authorization', () => {
     // A gate must be a refusal, not a UI state change. Assert that no

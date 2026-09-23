@@ -45,6 +45,11 @@ import {
   createClientWithInvite,
 } from '../../services/clientLifecycleConsumer';
 import {
+  isLocalSnapshotRematerializeAvailable,
+  rematerializeLocalSnapshot,
+} from '../../services/localSnapshotConsumer';
+import { LocalSnapshotError } from '../../application/localSnapshot';
+import {
   addProfileFact,
   applyOnboardingStep,
   confirmProfileFact,
@@ -196,6 +201,10 @@ export type CreateClientWithInviteCommandResult =
       displayName: string;
       invitationToken: string;
     }
+  | { ok: false; message: string };
+
+export type RematerializeLocalSnapshotCommandResult =
+  | { ok: true; message: string; written: number }
   | { ok: false; message: string };
 
 /**
@@ -444,6 +453,35 @@ export const briefCommands = {
  * gates create via `requireAdminActor` and loads invitation state for accept.
  * React and legacy (`main.ts`) must converge on these identical use cases.
  */
+/**
+ * Local snapshot rematerialization. Seam authority = 0.
+ * React and leftover (`#btn-firebase-push-local`) converge on localSnapshotConsumer.
+ */
+export const localSnapshotCommands = {
+  isRematerializeAvailable(): boolean {
+    return isLocalSnapshotRematerializeAvailable();
+  },
+
+  async rematerializeLocalSnapshot(): Promise<RematerializeLocalSnapshotCommandResult> {
+    try {
+      const result = await rematerializeLocalSnapshot();
+      return {
+        ok: result.ok,
+        message: result.message,
+        written: result.written,
+      };
+    } catch (err) {
+      if (err instanceof LocalSnapshotError) {
+        return { ok: false, message: err.message };
+      }
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : 'No se pudo subir el snapshot.',
+      };
+    }
+  },
+} as const;
+
 export const clientLifecycleCommands = {
   createClientWithInvite(intent: {
     firstName: string;

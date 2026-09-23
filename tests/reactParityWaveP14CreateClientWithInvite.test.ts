@@ -243,7 +243,7 @@ describe('P14 §15–§21 — hook, form, refresh, boundaries', () => {
     expect(cockpit).not.toMatch(/crear un cliente/);
     expect(cockpit).not.toMatch(/invitarlo/);
     expect(cockpit).toMatch(/ver la app como cliente/);
-    expect(cockpit).toMatch(/subir datos a Firestore/);
+    expect(cockpit).not.toMatch(/subir datos a Firestore/);
     expect(cockpit).toMatch(/generar contenido y mover el pipeline/);
   });
 

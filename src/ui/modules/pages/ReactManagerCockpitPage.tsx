@@ -8,7 +8,7 @@
  * COMMAND: #34 CreateClientWithInvite (P14) via `clientLifecycleCommands`.
  * Remaining mutating cockpit actions stay legacy:
  *   - "Ver como cliente"           → `authService.impersonateClient` (SPEC-009)
- *   - "Subir local → Firestore"    → bulk Firestore write
+ * COMMAND: RematerializeLocalSnapshotToFirestore via `localSnapshotCommands`.
  *   - "Redactar paper" / pipeline  → canonical gate + legacy writes
  *
  * Two legacy behaviours are deliberately not reproduced:
@@ -19,7 +19,12 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useSession } from '../../providers/SessionProvider';
-import { useAiCenter, useCreateClientWithInvite, usePortfolioOverview } from '../../hooks/useWave3Data';
+import {
+  useAiCenter,
+  useCreateClientWithInvite,
+  usePortfolioOverview,
+  useRematerializeLocalSnapshot,
+} from '../../hooks/useWave3Data';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 
 type CockpitTab = 'portfolio' | 'clients' | 'ai';
@@ -243,6 +248,52 @@ function CreateClientPanel() {
       ) : null}
       {error ? (
         <p className="form-error" role="alert" data-testid="react-cockpit-create-error">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RematerializeLocalSnapshotPanel() {
+  const { tenantScope } = useSession();
+  const rematerialize = useRematerializeLocalSnapshot(tenantScope);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!rematerialize.available) return null;
+
+  const busy = rematerialize.isPending;
+
+  const submit = async () => {
+    setError(null);
+    setMessage(null);
+    const result = await rematerialize.mutateAsync();
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setMessage(result.message);
+  };
+
+  return (
+    <div className="cockpit-rematerialize" data-testid="react-cockpit-rematerialize">
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        disabled={busy}
+        onClick={() => void submit()}
+        data-testid="react-cockpit-rematerialize-submit"
+      >
+        {busy ? 'Subiendo…' : 'Subir local → Firestore'}
+      </button>
+      {message ? (
+        <p className="muted small" role="status" data-testid="react-cockpit-rematerialize-success">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="form-error" role="alert" data-testid="react-cockpit-rematerialize-error">
           {error}
         </p>
       ) : null}
@@ -500,6 +551,7 @@ export function ReactManagerCockpitPage({
       </div>
 
       <CreateClientPanel />
+      <RematerializeLocalSnapshotPanel />
 
       {tab === 'ai' ? (
         <AiCenterPanel />
@@ -510,7 +562,6 @@ export function ReactManagerCockpitPage({
       <LegacyHandoff
         actions={[
           'ver la app como cliente',
-          'subir datos a Firestore',
           'generar contenido y mover el pipeline',
         ]}
         testId="react-cockpit-handoff"

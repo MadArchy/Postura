@@ -1,4 +1,4 @@
-import { pushCurrentLocalToFirestore } from '../../../services/firebase/importLocalV5';
+import { rematerializeLocalSnapshot } from '../../../services/localSnapshotConsumer';
 import { createClientWithInvite } from '../../../services/clientLifecycleConsumer';
 import type { ClientAdminHandlerHost } from '../legacyAppHost';
 
@@ -9,8 +9,15 @@ export function bindClientAdminHandlers(host: ClientAdminHandlerHost): void  {
       host.showToast(grant.message, 'warning');
       return;
     }
-    const result = await pushCurrentLocalToFirestore();
-    host.showToast(result.message, result.ok ? 'success' : 'warning');
+    try {
+      const result = await rematerializeLocalSnapshot();
+      host.showToast(result.message, result.ok ? 'success' : 'warning');
+    } catch (error) {
+      host.showToast(
+        error instanceof Error ? error.message : 'No se pudo subir el snapshot.',
+        'warning'
+      );
+    }
   });
 
   document.getElementById('btn-open-create-client')?.addEventListener('click', () => {

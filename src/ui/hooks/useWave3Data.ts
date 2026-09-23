@@ -41,7 +41,7 @@ import {
   readSignalOutcomes,
   readStrategicBriefs,
 } from '../data/canonicalReads';
-import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
+import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
 import type { ContentStatus, ContentType, CurationDestination, SourceType, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
@@ -803,6 +803,24 @@ export function useCreateClientWithInvite(scope: TrustedTenantScope | null) {
       });
     },
   });
+}
+
+/** ADMIN rematerialize of the current local v5 snapshot into Firestore. */
+export function useRematerializeLocalSnapshot(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  const mutation = useMutation<RematerializeLocalSnapshotCommandResult, Error, void>({
+    mutationFn: async () => {
+      if (!scope) return { ok: false, message: 'Sesión sin contexto de organización.' };
+      return localSnapshotCommands.rematerializeLocalSnapshot();
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantInvalidationKey(scope, 'compatibility'),
+      });
+    },
+  });
+  return { ...mutation, available: localSnapshotCommands.isRematerializeAvailable() };
 }
 
 /** CR-2 createBriefFromCurationEntry — P12 React deliver brief-create parity. */
