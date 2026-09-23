@@ -3,8 +3,8 @@
  * (`client-content-preview-claim-safety`).
  *
  * Omits leftover `renderClaimSafetyPanel` from `renderContentPreviewModal`.
- * ClaimSafetyPanel.ts remains PRESENT. Workspace Production remains
- * observed. Later Editor + LegacyApp cutover produces Product graph zero.
+ * ClaimSafetyPanel.ts is absent. Workspace Production remains
+ * observed. Editor + LegacyApp cutover produces Product graph zero.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -89,8 +89,8 @@ function editorFunction(source: string): string {
 }
 
 describe('Phase 6 ClaimSafety content preview cutover — C1 served ownership', () => {
-  it('ClaimSafetyPanel.ts is present and React preview serves ClaimSafety', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('ClaimSafetyPanel.ts is absent and React preview serves ClaimSafety', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     expect(statSync(join(ROOT, MODALS_REACT)).isFile()).toBe(true);
     const preview = code(MODALS_REACT);
@@ -203,8 +203,8 @@ describe('Phase 6 ClaimSafety content preview cutover — C4 / C5 / no T603', ()
     expect(code(REACT)).toMatch(/data-authority="ADVISORY_PROJECTION"/);
   });
 
-  it('physical leftover file remains; C7 and T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('physical absence is intentional; C6 is not yet verified; C7 and T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyBadge/);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyPanel/);

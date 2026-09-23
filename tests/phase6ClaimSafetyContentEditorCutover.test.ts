@@ -3,7 +3,7 @@
  * (`client-content-editor-claim-safety`).
  *
  * Omits leftover editor ClaimSafety panel, live refresh, locate, and
- * review-ack. ClaimSafetyPanel.ts remains PRESENT with Product graph zero.
+ * review-ack. ClaimSafetyPanel.ts is absent with Product graph zero.
  * Workspace Production and Content Preview remain observed.
  * P16 React editor accepted omission remains. C6 / C7 / T603 are not executed.
  */
@@ -92,8 +92,8 @@ function reactEditorFunction(source: string): string {
 }
 
 describe('Phase 6 ClaimSafety content editor cutover — C1 served ownership', () => {
-  it('ClaimSafetyPanel.ts is present and leftover editor ClaimSafety is omitted', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('ClaimSafetyPanel.ts is absent and leftover editor ClaimSafety is omitted', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(statSync(join(ROOT, REACT)).isFile()).toBe(true);
     const source = code(MODALS);
     expect(source).not.toMatch(/from\s+['"]\.\/ClaimSafetyPanel['"]/);
@@ -209,8 +209,8 @@ describe('Phase 6 ClaimSafety content editor cutover — C4 / C5 / no T603', () 
     expect(code(REACT)).toMatch(/data-authority="ADVISORY_PROJECTION"/);
   });
 
-  it('physical leftover file remains; C7 and T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('physical absence is intentional; C6 is not yet verified; C7 and T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyBadge/);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyPanel/);
