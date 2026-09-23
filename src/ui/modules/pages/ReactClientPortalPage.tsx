@@ -47,10 +47,20 @@ import { ReactOpportunityPanel } from '../Opportunity/ReactOpportunityPanel';
 import { ReactKpiWeeklyChart } from '../Kpi/ReactKpiWeeklyChart';
 import { ReactClientProfilePanel } from '../ClientProfile/ReactClientProfilePanel';
 import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
+import { ReactTabHeader } from '../PageHeader/ReactPageHeader';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 import { ReactTeleprompterModal } from './ReactTeleprompterModal';
 
 export type ClientPortalTab = 'home' | 'tasks' | 'content' | 'opportunities' | 'thesis' | 'results';
+
+const PORTAL_HEADER_TAB: Record<ClientPortalTab, string> = {
+  home: 'client-home',
+  tasks: 'client-feed',
+  content: 'client-content',
+  opportunities: 'client-opps',
+  thesis: 'client-thesis',
+  results: 'client-results',
+};
 
 function isGenericClientTaskType(type: string): boolean {
   return type !== 'RECORD_VIDEO' && type !== 'REVIEW_ARTICLE';
@@ -1236,6 +1246,7 @@ export function ReactClientPortalPage({ tab = 'home' }: { tab?: ClientPortalTab 
 
   return (
     <div className="page-content" data-testid="react-client-portal" data-portal-tab={tab}>
+      <ReactTabHeader tab={PORTAL_HEADER_TAB[tab]} />
       {articleReview ? (
         <ArticleReviewPanel
           contentId={articleReview.contentId}

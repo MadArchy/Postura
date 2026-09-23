@@ -1,6 +1,5 @@
 import { dbService } from '../services/db';
 import { esc, safeHref } from '../lib/escape';
-import { renderPage } from './PageHeader';
 import { renderTaskMetaBadges, KPI_LABELS, kpiLabel } from '../lib/campaignLabels';
 import { icon } from '../lib/icons';
 import { CAMP_ADOPTION } from '../data/juanCampaignSeed';
@@ -27,10 +26,18 @@ import type { DeliveryPackage } from '../types';
  * Phase-6 portal thesis service-lines cutover (`client-portal-thesis-service-lines`):
  * leftover `renderServiceLinesReadOnly` is omitted from `renderClientThesisBody`.
  * ReactMasterDossierPanel serves service-line facts on thesis.
+ *
+ * Phase-6 ClientPortal PageHeader cutover (`client-portal-page-header`):
+ * leftover `renderPage` header is omitted from `clientPage`.
+ * ReactClientPortalPage serves ReactTabHeader. Body and `.page-content` remain.
  */
 
-function clientPage(tab: string, body: string): string {
-  return renderPage(tab, body);
+function clientPage(_tab: string, body: string): string {
+  return `
+    <div class="page-content">
+      ${body}
+    </div>
+  `;
 }
 
 /** Tarjeta de briefing (cliente y preview del manager). */

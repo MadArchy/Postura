@@ -23,6 +23,7 @@ import {
   CLIENT_WORKSPACE_PRODUCTION_CLAIM_SAFETY_SLOT,
   CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT,
   CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT,
+  CLIENT_PORTAL_PAGE_HEADER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
@@ -77,6 +78,10 @@ import {
   claimSafetyContentEditorSlotPresentation,
   shouldRenderLegacyClaimSafetyContentEditorSlot,
 } from '../src/ui/presentation/claimSafetyContentEditorSlot';
+import {
+  pageHeaderPortalSlotPresentation,
+  shouldRenderLegacyPageHeaderPortalSlot,
+} from '../src/ui/presentation/pageHeaderPortalSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -399,6 +404,27 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_CONTENT_PREVIEW_CLAIM_SAFETY_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the ClientPortal PageHeader exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PAGE_HEADER_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_PAGE_HEADER_SLOT);
+    expect(CLIENT_PORTAL_PAGE_HEADER_SLOT).toBe('client-portal-page-header');
+    expect(CLIENT_PORTAL_PAGE_HEADER_SLOT).not.toBe(CLIENT_PORTAL_OPPORTUNITY_SLOT);
+    expect(CLIENT_PORTAL_PAGE_HEADER_SLOT).not.toBe(CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT);
+    expect(pageHeaderPortalSlotPresentation()).toBe('omit');
+    expect(shouldRenderLegacyPageHeaderPortalSlot()).toBe(false);
+  });
+
+  it('ClientPortal PageHeader exclusive slot alone keeps React served on a leftover request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_PORTAL_PAGE_HEADER_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_PORTAL_PAGE_HEADER_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -935,6 +961,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/claimSafetyWorkspaceProductionSlot.ts',
     'src/ui/presentation/claimSafetyContentPreviewSlot.ts',
     'src/ui/presentation/claimSafetyContentEditorSlot.ts',
+    'src/ui/presentation/pageHeaderPortalSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

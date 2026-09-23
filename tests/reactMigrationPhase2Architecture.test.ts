@@ -495,12 +495,10 @@ describe('SPEC-010 Phase 6 — PageHeader shared presentation refactor', () => {
     }
   });
 
-  it('legacy renderPage consumers may still import the legacy renderer', () => {
-    for (const path of [
-      'src/components/ClientPortal.ts',
-      'src/components/ManagerCockpit.ts',
-      'src/components/ClientWorkspace.ts',
-    ]) {
+  it('remaining leftover renderPage consumers still import the leftover renderer', () => {
+    const portal = read(join(ROOT, 'src/components/ClientPortal.ts'));
+    expect(portal).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    for (const path of ['src/components/ManagerCockpit.ts', 'src/components/ClientWorkspace.ts']) {
       const source = read(join(ROOT, path));
       expect(source).toMatch(/from\s+['"]\.\/PageHeader['"]/);
     }
