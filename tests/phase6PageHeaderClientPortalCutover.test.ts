@@ -216,7 +216,7 @@ describe('Phase 6 PageHeader ClientPortal cutover — authority / closed subsets
 
   it('SourceRegistry, Onboarding, and closed leftover files stay outside this host', () => {
     expect(existsSync(join(ROOT, SOURCE_REGISTRY))).toBe(false);
-    expect(statSync(join(ROOT, ONBOARDING)).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, ONBOARDING))).toBe(false);
     expect(code(HOST)).not.toMatch(/SourceRegistryModal|OnboardingWizard/);
     expect(code(PAGE)).not.toMatch(/SourceRegistryModal|OnboardingWizard/);
     expect(existsSync(join(ROOT, 'src/components/MasterDossierPanel.ts'))).toBe(false);

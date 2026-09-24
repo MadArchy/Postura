@@ -214,8 +214,8 @@ describe('Phase 6 ClientProfile cutover — C4 / C5 / coexistence', () => {
     expect(listKnownReactExclusiveSlotIds()).toContain('client-workspace-proof-wall');
   });
 
-  it('Onboarding leftover file remains PRESENT; legacy modal omitted; React Onboarding served', () => {
-    expect(statSync(join(ROOT, ONBOARDING_LEGACY)).isFile()).toBe(true);
+  it('Onboarding leftover file is ABSENT; legacy modal omitted; React Onboarding served', () => {
+    expect(existsSync(join(ROOT, ONBOARDING_LEGACY))).toBe(false);
     expect(code(MODAL)).not.toMatch(/modal === 'onboarding'/);
     expect(code(MODAL)).not.toMatch(/renderOnboardingWizard/);
     expect(code(WORKSPACE)).toMatch(/id="btn-open-onboarding"/);

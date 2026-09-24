@@ -5,7 +5,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   MasterProfileError,
@@ -365,10 +365,9 @@ describe('P6 §6–§7 / §21 — React surface authority guards', () => {
     );
   });
 
-  it('legacy onboarding retained for rollback', () => {
-    const legacy = read('src/components/OnboardingWizard.ts');
+  it('legacy onboarding file is absent; leftover handlers remain as debt', () => {
+    expect(existsSync(join(process.cwd(), 'src/components/OnboardingWizard.ts'))).toBe(false);
     const handlers = read('src/ui/legacy/handlers/onboardingHandlers.ts');
-    expect(legacy).toMatch(/form-onboarding-step|onboarding/);
     expect(handlers).toMatch(/applyOnboardingStep\(/);
     expect(handlers).toMatch(/generateProposal:\s*true/);
   });

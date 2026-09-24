@@ -54,12 +54,9 @@ function collectTs(dir: string): string[] {
   return out;
 }
 
-describe('Phase 6 Onboarding cutover — leftover file remains, Product graph is zero', () => {
-  it('OnboardingWizard.ts remains physically present and is not a stub/alias', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
-    const source = read(LEGACY);
-    expect(source).toMatch(/export function renderOnboardingWizard/);
-    expect(source).not.toMatch(/export\s+\*\s+from|export\s+\{\s*renderOnboardingWizard\s*\}\s+from/);
+describe('Phase 6 Onboarding cutover — leftover file is absent, Product graph is zero', () => {
+  it('OnboardingWizard.ts is physically absent with no stub/alias', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, 'src/components/PageHeader.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/components/SourceRegistryModal.ts'))).toBe(false);
   });
@@ -188,8 +185,8 @@ describe('Phase 6 Onboarding cutover — Option-E / A38 / closed subsets', () =>
     expect(existsSync(join(ROOT, 'src/ui/presentation/onboardingSlot.ts'))).toBe(false);
   });
 
-  it('closed subsets stay closed while Onboarding leftover file remains', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('closed subsets stay closed and Onboarding leftover is absent', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, 'src/components/MasterDossierPanel.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/components/OpportunityPanel.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/components/KpiWeeklyChart.ts'))).toBe(false);

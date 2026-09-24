@@ -86,13 +86,8 @@ describe('T-010-201…205 — the claimed wave-2 components exist', () => {
     expect(present).toEqual(WAVE2_COMPONENTS);
   });
 
-  it('no legacy counterpart was deleted — Phase 2 is extraction, not removal', () => {
-    const legacy = [
-      'src/components/OnboardingWizard.ts',
-    ];
-    for (const path of legacy) {
-      expect(statSync(join(ROOT, path)).isFile()).toBe(true);
-    }
+  it('wave-2 leftover OnboardingWizard is absent after Phase 6 physical removal', () => {
+    expect(existsSync(join(ROOT, 'src/components/OnboardingWizard.ts'))).toBe(false);
   });
 });
 
@@ -392,15 +387,15 @@ describe('§13 / §14 — blocked actions are delegated, not silently dropped', 
 /*
   T-010-205 / P6 — onboarding presentation writes only through the frozen
   ApplyOnboardingStep seam (via useApplyOnboardingStep). Schemas stay shape-only.
-  Legacy wizard remains for postura_ui_mode=legacy rollback.
+  Legacy OnboardingWizard.ts is physically absent after Phase 6 removal.
 */
 describe('T-010-205 / A13 / A18 / P6 — onboarding write via frozen seam', () => {
   const wizard = 'src/ui/modules/Onboarding/ReactOnboardingWizard.tsx';
   const schemas = 'src/ui/modules/Onboarding/onboardingStepSchemas.ts';
 
-  it('the React onboarding presentation exists and the legacy wizard is retained', () => {
+  it('the React onboarding presentation exists and the legacy wizard is absent', () => {
     expect(statSync(join(ROOT, wizard)).isFile()).toBe(true);
-    expect(statSync(join(ROOT, 'src/components/OnboardingWizard.ts')).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, 'src/components/OnboardingWizard.ts'))).toBe(false);
   });
 
   it('writes via useApplyOnboardingStep only — no direct consumer or dbService', () => {

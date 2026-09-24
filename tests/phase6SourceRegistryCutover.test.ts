@@ -106,8 +106,8 @@ describe('Phase 6 SourceRegistry cutover — leftover file is absent, Product gr
 });
 
 describe('Phase 6 SourceRegistry cutover — Onboarding isolation', () => {
-  it('Onboarding leftover file remains PRESENT; legacy presentation is omitted; React is served', () => {
-    expect(statSync(join(ROOT, ONBOARDING)).isFile()).toBe(true);
+  it('Onboarding leftover file is ABSENT; legacy presentation is omitted; React is served', () => {
+    expect(existsSync(join(ROOT, ONBOARDING))).toBe(false);
     const presenter = code(MODAL);
     expect(presenter).not.toMatch(/OnboardingWizard/);
     expect(presenter).not.toMatch(/renderOnboardingWizard/);
@@ -217,7 +217,7 @@ describe('Phase 6 SourceRegistry cutover — Option-E / A38 / closed subsets', (
 
   it('closed PageHeader subset and Onboarding remain isolated', () => {
     expect(existsSync(join(ROOT, PAGE_HEADER))).toBe(false);
-    expect(statSync(join(ROOT, ONBOARDING)).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, ONBOARDING))).toBe(false);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTAL_PAGE_HEADER_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_PORTFOLIO_PAGE_HEADER_SLOT);
     expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_PAGE_HEADER_SLOT);
