@@ -28,7 +28,6 @@ import {
 } from '../components/Modals';
 import { renderOnboardingWizard } from '../components/OnboardingWizard';
 import { renderThesisEditorModal } from '../components/ThesisEditorModal';
-import { renderSourceRegistryModal } from '../components/SourceRegistryModal';
 
 export interface ModalPresentationContext {
   activeModal: string | null;
@@ -70,9 +69,6 @@ export function presentActiveModal(ctx: ModalPresentationContext): ModalPresenta
         topic: data?.topic,
       }),
     );
-  }
-  if (modal === 'source-registry') {
-    return html(renderSourceRegistryModal(data?.clientId || ctx.currentClientId || undefined));
   }
   if (modal === 'add-task' && data?.clientId) return html(renderAddTaskModal(data.clientId));
   if (modal === 'comparative' && data?.result) return html(renderComparativeModal(data.result));
