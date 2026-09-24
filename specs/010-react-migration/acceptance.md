@@ -366,6 +366,31 @@ Evidence: `t-010-603-pageheader-subset-removal.md` · implementation `1a606a7a4c
 Nonblocking handler / CSS / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety subset snapshot rows above are historical and are **not** rewritten.
 
+### Phase-6 T-010-603 SourceRegistry subset (bounded)
+
+Evidence: `t-010-603-sourceregistry-subset-removal.md` · implementation `1441fe1e642c952950d08137d1c36ee57bc35a3a`.
+
+| Item | Verdict |
+|------|---------|
+| SourceRegistry unit C1–C7 / C8 | **PASS / N/A** |
+| `SourceRegistryModal.ts` | **ABSENT** (already removed @ `1441fe1`; no second delete) |
+| PRODUCT GRAPH | **ZERO** |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/SourceRegistryModal.ts` only) |
+| C6 / C7 | **VERIFIED_PASS** / **ACCEPTED** |
+| T603 SAFE SUBSET REVIEW | `PHASE6_SOURCEREGISTRY_T603_SAFE_SUBSET_VERIFIED` |
+| T-010-603 SourceRegistry unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| SOURCEREGISTRY LOCAL A43 | **PASS** |
+| SOURCEREGISTRY UNIT A43 | **PASS** |
+| BLOCKING DEBT | **NONE** |
+| NONBLOCKING DEBT | unreachable `#btn-open-source-registry`; `.btn-open-agent-sources` with no live Product emitter; orphan `.source-suggestion-*` CSS; comments; negative-test text; Onboarding remains open — **SEPARATED** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| C3 **global** | **PARTIAL** |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking handler / CSS / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety / PageHeader subset snapshot rows above are historical and are **not** rewritten.
+
 ### Phase-3 acceptance movement (T-010-301…306)
 
 `ARCH3` = `tests/reactMigrationPhase3Architecture.test.ts` (28/28) ·
