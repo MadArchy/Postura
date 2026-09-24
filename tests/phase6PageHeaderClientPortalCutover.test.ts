@@ -3,7 +3,7 @@
  * (`client-portal-page-header`).
  *
  * Omits leftover `renderPage` from ClientPortal `clientPage`.
- * PageHeader.ts remains PRESENT. ClientWorkspace leftover import is ABSENT
+ * PageHeader.ts is ABSENT. ClientWorkspace leftover import is ABSENT
  * after its own cutover. ManagerCockpit leftover import stays ABSENT.
  * ReactClientPortalPage serves ReactTabHeader.
  * C6 / C7 / T603 are not executed.
@@ -76,8 +76,8 @@ function collectTs(dir: string): string[] {
 }
 
 describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
-  it('PageHeader.ts remains present; ClientPortal drops the leftover import', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+  it('PageHeader.ts is absent; ClientPortal drops the leftover import', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     const host = code(HOST);
     expect(host).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(host).not.toMatch(/\brenderPage\b/);
@@ -112,7 +112,7 @@ describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
       }
     }
     expect(offenders).toEqual([]);
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
   });
 });
 
@@ -231,8 +231,8 @@ describe('Phase 6 PageHeader ClientPortal cutover — authority / closed subsets
     expect(opportunitySlotPresentation()).toBe('omit');
   });
 
-  it('file remains present; C6 / C7 / T603 are not executed', () => {
-    expect(existsSync(join(ROOT, LEGACY))).toBe(true);
+  it('physical absence is intentional; C6 / C7 / T603 are not executed', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
     expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);

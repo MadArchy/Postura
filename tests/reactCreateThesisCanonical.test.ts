@@ -2,7 +2,7 @@
  * SPEC-010 Phase 6 — canonical React create-thesis (Nueva tesis).
  *
  * Consumer owns createId('thesis'). SaveThesis #11 remains the write authority.
- * React / hook / seam must not mint. PageHeader.ts remains present with zero
+ * React / hook / seam must not mint. PageHeader.ts is absent with zero
  * leftover importers.
  */
 
@@ -351,8 +351,8 @@ describe('canonical create-thesis — consumer runtime', () => {
 });
 
 describe('canonical create-thesis — PageHeader graph', () => {
-  it('PageHeader.ts remains present with zero leftover importers', () => {
-    expect(existsSync(join(ROOT, PAGE_HEADER))).toBe(true);
+  it('PageHeader.ts is absent with zero leftover importers', () => {
+    expect(existsSync(join(ROOT, PAGE_HEADER))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     if (existsSync(join(ROOT, PORTAL))) {

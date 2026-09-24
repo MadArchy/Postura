@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = join(__dirname, '..');
@@ -88,7 +88,6 @@ describe('T-010-201…205 — the claimed wave-2 components exist', () => {
 
   it('no legacy counterpart was deleted — Phase 2 is extraction, not removal', () => {
     const legacy = [
-      'src/components/PageHeader.ts',
       'src/components/SourceRegistryModal.ts',
       'src/components/OnboardingWizard.ts',
     ];
@@ -477,9 +476,9 @@ describe('SPEC-010 Phase 6 — PageHeader shared presentation refactor', () => {
     'src/components/ClientWorkspace.ts',
   ];
 
-  it('the shared presentation module exists and the legacy renderer remains', () => {
+  it('the shared presentation module exists and the leftover renderer is absent', () => {
     expect(statSync(join(ROOT, SHARED_META)).isFile()).toBe(true);
-    expect(statSync(join(ROOT, LEGACY_RENDERER)).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, LEGACY_RENDERER))).toBe(false);
   });
 
   it('ReactPageHeader imports tab metadata from the shared module only', () => {

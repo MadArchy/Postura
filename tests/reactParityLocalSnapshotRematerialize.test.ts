@@ -2,7 +2,7 @@
  * SPEC-010 · React parity — canonical local snapshot rematerialization.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -58,7 +58,7 @@ describe('React rematerialize action ownership', () => {
     expect(cockpit).toMatch(/<RematerializeLocalSnapshotPanel \/>/);
     expect(cockpit).toMatch(/<ReactTabHeader\s+tab=\{COCKPIT_HEADER_TAB\[tab\]\}/);
     expect(cockpit).not.toMatch(/<ReactTabHeader[^>]*actions=/);
-    expect(read(PAGE_HEADER)).toMatch(/export function renderPage/);
+    expect(existsSync(join(process.cwd(), PAGE_HEADER))).toBe(false);
   });
 
   it('ADMIN and Firebase availability remain presentation gates', () => {
