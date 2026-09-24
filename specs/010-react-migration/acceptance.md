@@ -341,6 +341,31 @@ Evidence: `t-010-603-claimsafety-subset-removal.md` · implementation `824e13b5e
 Nonblocking CSS / comment / historical-title / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall subset snapshot rows above are historical and are **not** rewritten.
 
+### Phase-6 T-010-603 PageHeader subset (bounded)
+
+Evidence: `t-010-603-pageheader-subset-removal.md` · implementation `1a606a7a4c7d7de818d9818bd683ed20493b42ae`.
+
+| Item | Verdict |
+|------|---------|
+| PageHeader unit C1–C7 / C8 | **PASS / N/A** |
+| `PageHeader.ts` | **ABSENT** (already removed @ `1a606a7`; no second delete) |
+| PRODUCT GRAPH | **ZERO** |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/PageHeader.ts` only) |
+| C6 / C7 | **VERIFIED_PASS** / **ACCEPTED** |
+| T603 SAFE SUBSET REVIEW | `PHASE6_PAGEHEADER_T603_SAFE_SUBSET_VERIFIED` |
+| T-010-603 PageHeader unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| PAGEHEADER LOCAL A43 | **PASS** |
+| PAGEHEADER UNIT A43 | **PASS** |
+| BLOCKING DEBT | **NONE** |
+| NONBLOCKING DEBT | unreachable leftover header-id binds; shared `.page-header*` CSS retained for React; comments; historical SPEC refs; remaining leftover families — **SEPARATED** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| C3 **global** | **PARTIAL** |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking handler / CSS / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety subset snapshot rows above are historical and are **not** rewritten.
+
 ### Phase-3 acceptance movement (T-010-301…306)
 
 `ARCH3` = `tests/reactMigrationPhase3Architecture.test.ts` (28/28) ·
