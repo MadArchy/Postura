@@ -106,15 +106,14 @@ describe('Phase 6 SourceRegistry cutover — leftover file is absent, Product gr
 });
 
 describe('Phase 6 SourceRegistry cutover — Onboarding isolation', () => {
-  it('Onboarding import, branch, and leftover file remain untouched', () => {
+  it('Onboarding leftover file remains PRESENT; legacy presentation is omitted; React is served', () => {
     expect(statSync(join(ROOT, ONBOARDING)).isFile()).toBe(true);
     const presenter = code(MODAL);
-    expect(presenter).toMatch(/from\s+['"]\.\.\/components\/OnboardingWizard['"]/);
-    expect(presenter).toMatch(/renderOnboardingWizard/);
-    expect(presenter).toMatch(/modal === 'onboarding'/);
-    expect(presenter).toMatch(
-      /renderOnboardingWizard\(data\?\.clientId \|\| fallbackClientId, data\?\.step \|\| 1\)/,
-    );
+    expect(presenter).not.toMatch(/OnboardingWizard/);
+    expect(presenter).not.toMatch(/renderOnboardingWizard/);
+    expect(presenter).not.toMatch(/modal === 'onboarding'/);
+    expect(code(WAVE2)).toMatch(/group === 'profile'[\s\S]*<ReactOnboardingWizard/);
+    expect(code(APPSHELL)).toMatch(/'client-profile':\s*'profile'/);
   });
 });
 

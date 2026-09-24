@@ -26,7 +26,6 @@ import {
   renderDeliveryPreviewModal,
   renderGenerateContentModal,
 } from '../components/Modals';
-import { renderOnboardingWizard } from '../components/OnboardingWizard';
 import { renderThesisEditorModal } from '../components/ThesisEditorModal';
 
 export interface ModalPresentationContext {
@@ -54,9 +53,6 @@ export function presentActiveModal(ctx: ModalPresentationContext): ModalPresenta
 
   if (modal === 'teleprompter' && data?.taskId) return html(renderTeleprompterModal(data.taskId));
   if (modal === 'create-client') return html(renderCreateClientModal());
-  if (modal === 'onboarding') {
-    return html(renderOnboardingWizard(data?.clientId || fallbackClientId, data?.step || 1));
-  }
   if (modal === 'thesis-editor') {
     return html(
       renderThesisEditorModal(data?.clientId || fallbackClientId, data?.thesisId, data?.focusBlock),

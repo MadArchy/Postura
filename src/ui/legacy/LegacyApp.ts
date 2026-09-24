@@ -183,10 +183,9 @@ export class LegacyApp {
         this.sourceAutomation.startSourceAutomation();
       } else {
         this.sourceAutomation.stopSourceAutomation();
-        if (user.mustCompleteOnboarding) {
-          this.activeModal = 'onboarding';
-          this.modalData = { clientId: user.clientId, step: 1 };
-        }
+        // Phase-6 Onboarding cutover (1A+3B): do not convert mustCompleteOnboarding
+        // into leftover modal presentation. Canonical onboarding is React
+        // client-profile / ReactOnboardingWizard. Flag itself is preserved.
         if (!CLIENT_TAB_IDS.includes(this.activeTab)) this.activeTab = 'client-home';
         this.activeCampaignId = this.resolveCampaignId(user.clientId || undefined);
       }
