@@ -6,8 +6,8 @@
 **Phase 3:** **COMPLETE** — 5 pages migrated (all HYBRID), 34 blocked writes registered
 **Phase 4:** **FORMALLY_ACCEPTED** (T-010-401…405 · A39 reconciled · `t-010-phase4-formal-closure.md`)
 **Phase 5:** **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** (T-010-501…510 · `t-010-phase5-formal-closure.md`)
-**Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603/T-604 **NOT AUTHORIZED**
-**A1-A44:** **8 PASS** · **33 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · no false promotion)
+**Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603 **FORMALLY_CLOSED** (`t-010-603-global-closure.md`) · T-604 **NOT AUTHORIZED**
+**A1-A44:** **9 PASS** · **32 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 advanced on global T-603 closure · no false promotion)
 **CODE_COMPLETE:** **NO**
 **DEPLOYED:** **NO** · **DONE:** **NO** · **DEPLOYMENT:** **NOT_STARTED**
 
@@ -82,7 +82,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A40 | Component migration matrix complete — a row per UI file, dispositioned | 0 | ✅ PASS | `migration-matrix.md` (17 files) |
 | A41 | Behavioral parity proven per migrated module across all applicable dimensions | 5 | ⚠️ PARTIAL | Page-level evidence for 12 of 18 dimensions per migrated page; dimensions whose legacy command stays outside React are classified, not claimed. **0** modules cut over — cutover parity is Phase 5 |
 | A42 | E2E/parity harness (Playwright) implemented; legacy-vs-React journeys pass | 5 | ⚠️ PARTIAL | T-508 + Stage-B: **21/21 PASS**; governed MVP journey (Planner excluded). Full cutover parity remains Phase 6 |
-| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ⚠️ PARTIAL | Option E + T-508 rollback; **3** leaves removed (`MasterDossierPanel.ts` @ `564aa1f`; `OpportunityPanel.ts` @ `7b19454`; `KpiWeeklyChart.ts` @ `1ca331f`, `t-010-603-kpiweeklychart-subset-removal.md`); remaining candidates keep T-603 **OPEN** |
+| A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ✅ PASS | Global T-010-603 formally closed under scope decision **A** (`t-010-603-global-closure.md`): **9/9** bounded legacy leaves removed and formally accepted (DOSSIER · OPPORTUNITY · KPI · CLIENTPROFILE · PROOFWALL · CLAIMSAFETY · PAGEHEADER · SOURCEREGISTRY · ONBOARDING); governed Product graph **ZERO**; C6/C7/safe-subset complete; family A38 **PASS**; blocking debt **NONE**; Option E + T-508 rollback retained; broader non-leaf hosts remain outside T-603 |
 | A44 | Full check + rules regression at CODE_COMPLETE; no unintended regression | 6 | ⏳ PENDING | **T602 REGRESSION_GATE_PASS** @ 1965/1965 · 91/91 · BUILD · 73/73 · 21/21. **A44 formal PASS** requires CODE_COMPLETE Required A* + T-604 |
 
 **Acceptance count:** **44** (A1–A44) — unchanged.
@@ -408,13 +408,37 @@ Evidence: `t-010-603-onboarding-subset-removal.md` · implementation `8ba24a5ef4
 | ONBOARDING UNIT A43 | **PASS** |
 | BLOCKING DEBT | **NONE** |
 | NONBLOCKING DEBT | unreachable `#btn-open-onboarding`; leftover `activeModal='onboarding'` handler; historical docs/comments; absence-oracle path strings — **SEPARATED** |
-| T-010-603 **global** | **OPEN** — not DONE |
+| T-010-603 **global** | **DONE — FORMALLY_CLOSED** (see global closure section below) |
 | C3 **global** | **PARTIAL** |
-| A43 **global** | **PARTIAL** |
+| A43 **global** | **PASS** (on global T-603 closure) |
 | T-010-604 | **NOT_AUTHORIZED** |
 
 Nonblocking handler / comment / absence-oracle debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety / PageHeader / SourceRegistry subset snapshot rows above are historical and are **not** rewritten.
+
+### Phase-6 T-010-603 global closure (bounded nine-family program)
+
+Evidence: `t-010-603-global-closure.md` · authorization `AUTHORIZE_PHASE6_GLOBAL_T603_CLOSURE_REVIEW` · scope decision **A** · human freeze `GLOBAL_T603_HUMAN_SCOPE_AND_AUTHORIZATION_FROZEN`.
+
+| Item | Verdict |
+|------|---------|
+| AUTHORITATIVE FAMILY SET | DOSSIER · OPPORTUNITY · KPI · CLIENTPROFILE · PROOFWALL · CLAIMSAFETY · PAGEHEADER · SOURCEREGISTRY · ONBOARDING |
+| FAMILY COUNT / ACCEPTED / OPEN | **9 / 9 / 0** |
+| GOVERNED LEGACY FILES | **ALL ABSENT** (PRESENT **0** · STUBS **0** · ALIASES **0**) |
+| GOVERNED PRODUCT GRAPH | **ZERO** |
+| C6 / C7 / SAFE-SUBSET / FORMAL ACCEPTANCE | **PASS** / **VERIFIED** / **VERIFIED** / **COMPLETE** |
+| GLOBAL BLOCKING DEBT | **NONE** |
+| GLOBAL NONBLOCKING DEBT | aggregate `OUTSIDE_T603_NONBLOCKING_DEBT` — **PRESERVED** |
+| GLOBAL AUTHORITY | **PASS** |
+| FAMILY A38 | **PASS** |
+| T-010-603 **global** | **DONE — FORMALLY_CLOSED** (`PHASE6_GLOBAL_T603_FORMALLY_CLOSED`) |
+| C3 **global** | **PARTIAL** (not required for T-603; not modified) |
+| A43 **global** | **PASS** |
+| T-010-604 | **NOT_AUTHORIZED** |
+| PHASE 6 COMPLETE | **NO** |
+
+Broader legacy hosts (`ClientWorkspace`, `LegacyApp`, `Login`, `AppShell`, …) are **not** part of this T-603 completion scope.  
+Prior family subset snapshot rows above remain historical local acceptances and are **not** rewritten except the Onboarding global status lines reconciled here.
 
 ### Phase-3 acceptance movement (T-010-301…306)
 

@@ -653,12 +653,12 @@ the original scripts · `npm run check` **1679/1679** · rules **91/91** · buil
 |----|-------|-------|-----------|------------|--------|
 | **T-010-601** | Run full acceptance matrix A1–A44 | TECHNICAL | Phase 5 | A1–A44 | **[x] DONE** |
 | **T-010-602** | Full check + rules regression | TECHNICAL | T-010-601 | A44 | **[x] DONE** (`REGRESSION_GATE_PASS`; A44 formal **PENDING**) |
-| **T-010-603** | Remove legacy implementations that passed the parity gate | TECHNICAL | T-010-601, T-010-602 | A43 | **[ ] TODO · NOT AUTHORIZED** |
+| **T-010-603** | Remove legacy implementations that passed the parity gate | TECHNICAL | T-010-601, T-010-602 | A43 | **[x] DONE — FORMALLY_CLOSED** (`t-010-603-global-closure.md`; scope **A**; nine-family leaf program) |
 | **T-010-604** | **Human CODE_COMPLETE approval** | **HUMAN** | T-010-601…603 | CODE_COMPLETE gate | **[ ] TODO · NOT AUTHORIZED** |
 
-**Evidence:** `t-010-phase6-pre-removal-gates.md` · `t-010-phase6-a1-a44-reconciliation.md` · A1–A44 **8/33/0/3** · T602 **1965/1965 · 91/91 · BUILD · 73/73 · 21/21** · product changes **0** · legacy deletions **0**
+**Evidence:** `t-010-phase6-pre-removal-gates.md` · `t-010-phase6-a1-a44-reconciliation.md` · `t-010-603-global-closure.md` · A1–A44 **9/32/0/3** (A43 **PASS**) · T602 **1965/1965 · 91/91 · BUILD · 73/73 · 21/21** · T-603 nine governed leaves **ABSENT** · product changes at global closure **0**
 
-**Exit:** Phase 6 pre-removal gates **COMPLETE** · T-603/T-604 **NOT AUTHORIZED** · next **`SPEC010_T603_SUBSET_REMOVAL_AUTHORIZATION_REVIEW`**
+**Exit:** Phase 6 pre-removal gates **COMPLETE** · T-603 **FORMALLY_CLOSED** · T-604 **NOT AUTHORIZED** · Phase 6 **NOT COMPLETE** · next human CODE_COMPLETE gate **T-010-604** (separate authorization required)
 
 **Required human CODE_COMPLETE statement (T-010-604) — future:**
 
