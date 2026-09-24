@@ -25,6 +25,7 @@ import {
   CLIENT_CONTENT_EDITOR_CLAIM_SAFETY_SLOT,
   CLIENT_PORTAL_PAGE_HEADER_SLOT,
   CLIENT_PORTFOLIO_PAGE_HEADER_SLOT,
+  CLIENT_WORKSPACE_PAGE_HEADER_SLOT,
   __setReactExclusiveSlotsForTests,
   hasReactExclusiveSlot,
   isReactExclusiveSlot,
@@ -87,6 +88,10 @@ import {
   pageHeaderPortfolioSlotPresentation,
   shouldRenderLegacyPageHeaderPortfolioSlot,
 } from '../src/ui/presentation/pageHeaderPortfolioSlot';
+import {
+  pageHeaderWorkspaceSlotPresentation,
+  shouldRenderLegacyPageHeaderWorkspaceSlot,
+} from '../src/ui/presentation/pageHeaderWorkspaceSlot';
 import { UI_MODE_ATTRIBUTE, UI_MODE_STORAGE_KEY, readUiMode } from '../src/ui/strangler/toggle';
 
 const ROOT = join(__dirname, '..');
@@ -451,6 +456,27 @@ describe('Phase 6 — exclusive-slot presentation guard', () => {
     __setReactExclusiveSlotsForTests([CLIENT_PORTFOLIO_PAGE_HEADER_SLOT]);
     expect(isReactExclusiveSlot(CLIENT_PORTAL_PAGE_HEADER_SLOT)).toBe(false);
     expect(isReactExclusiveSlot(CLIENT_PORTFOLIO_PAGE_HEADER_SLOT)).toBe(true);
+    const decision = resolveServedUiMode('legacy');
+    expect(decision.served).toBe('react');
+    expect(decision.keepReactMounted).toBe(true);
+    expect(decision.mayActivateLegacyRoot).toBe(false);
+    expect(decision.mayUnmountReact).toBe(false);
+  });
+
+  it('compile-time default activates the ClientWorkspace PageHeader exclusive slot independently', () => {
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PAGE_HEADER_SLOT)).toBe(true);
+    expect(listKnownReactExclusiveSlotIds()).toContain(CLIENT_WORKSPACE_PAGE_HEADER_SLOT);
+    expect(CLIENT_WORKSPACE_PAGE_HEADER_SLOT).toBe('client-workspace-page-header');
+    expect(CLIENT_WORKSPACE_PAGE_HEADER_SLOT).not.toBe(CLIENT_PORTAL_PAGE_HEADER_SLOT);
+    expect(CLIENT_WORKSPACE_PAGE_HEADER_SLOT).not.toBe(CLIENT_PORTFOLIO_PAGE_HEADER_SLOT);
+    expect(pageHeaderWorkspaceSlotPresentation()).toBe('omit');
+    expect(shouldRenderLegacyPageHeaderWorkspaceSlot()).toBe(false);
+  });
+
+  it('ClientWorkspace PageHeader exclusive slot alone keeps React served on a leftover request', () => {
+    __setReactExclusiveSlotsForTests([CLIENT_WORKSPACE_PAGE_HEADER_SLOT]);
+    expect(isReactExclusiveSlot(CLIENT_PORTFOLIO_PAGE_HEADER_SLOT)).toBe(false);
+    expect(isReactExclusiveSlot(CLIENT_WORKSPACE_PAGE_HEADER_SLOT)).toBe(true);
     const decision = resolveServedUiMode('legacy');
     expect(decision.served).toBe('react');
     expect(decision.keepReactMounted).toBe(true);
@@ -989,6 +1015,7 @@ describe('Phase 6 — security / authority of the rollback boundary', () => {
     'src/ui/presentation/claimSafetyContentEditorSlot.ts',
     'src/ui/presentation/pageHeaderPortalSlot.ts',
     'src/ui/presentation/pageHeaderPortfolioSlot.ts',
+    'src/ui/presentation/pageHeaderWorkspaceSlot.ts',
     'src/ui/mount.ts',
     'src/ui/strangler/toggle.ts',
   ];

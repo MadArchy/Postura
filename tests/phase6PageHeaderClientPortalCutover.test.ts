@@ -3,8 +3,8 @@
  * (`client-portal-page-header`).
  *
  * Omits leftover `renderPage` from ClientPortal `clientPage`.
- * PageHeader.ts remains PRESENT. ClientWorkspace leftover import remains.
- * ManagerCockpit leftover import is ABSENT after its own cutover.
+ * PageHeader.ts remains PRESENT. ClientWorkspace leftover import is ABSENT
+ * after its own cutover. ManagerCockpit leftover import stays ABSENT.
  * ReactClientPortalPage serves ReactTabHeader.
  * C6 / C7 / T603 are not executed.
  */
@@ -91,14 +91,14 @@ describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
     expect(pageHeaderPortalSlotPresentation()).toBe('omit');
   });
 
-  it('ClientWorkspace leftover PageHeader import remains; ManagerCockpit no longer imports', () => {
+  it('ClientWorkspace leftover PageHeader import is omitted; ManagerCockpit stays omitted', () => {
     expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(COCKPIT)).not.toMatch(/\brenderPage\b/);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    expect(code(WORKSPACE)).toMatch(/\brenderPage\b/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/\brenderPage\b/);
   });
 
-  it('Product leftover PageHeader importer is exactly ClientWorkspace', () => {
+  it('Product leftover PageHeader importers are zero', () => {
     const offenders: string[] = [];
     for (const file of collectTs(join(ROOT, 'src'))) {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
@@ -111,7 +111,7 @@ describe('Phase 6 PageHeader ClientPortal cutover — leftover omit', () => {
         offenders.push(rel);
       }
     }
-    expect(offenders).toEqual([WORKSPACE]);
+    expect(offenders).toEqual([]);
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
   });
 });
@@ -235,6 +235,6 @@ describe('Phase 6 PageHeader ClientPortal cutover — authority / closed subsets
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
     expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
   });
 });

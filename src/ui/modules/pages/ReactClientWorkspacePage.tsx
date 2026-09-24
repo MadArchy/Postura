@@ -86,6 +86,7 @@ import { ReactProofWallPanel } from '../ProofWall/ReactProofWallPanel';
 import { ReactThesisEditorPage } from './ReactThesisEditorPage';
 import { ReactContentEditorModal, ReactContentPreviewModal, ReactDeliveryPreviewModal } from './modals/ReactModals';
 import { ReactClaimSafetyBadge, ReactClaimSafetyPanel } from '../ClaimSafety/ReactClaimSafetyPanel';
+import { ReactPageHeader, ReactTabHeader } from '../PageHeader/ReactPageHeader';
 import { LegacyHandoff, PanelState } from './LegacyHandoff';
 import { ReactTaskRecordingBlock } from './ReactTaskRecordingBlock';
 
@@ -98,6 +99,16 @@ export type WorkspaceTab =
   | 'results'
   | 'briefs'
   | 'production';
+
+const WORKSPACE_HEADER_TAB: Record<Exclude<WorkspaceTab, 'briefs'>, string> = {
+  radar: 'ws-radar',
+  deliver: 'ws-deliver',
+  sources: 'ws-sources',
+  tasks: 'ws-tasks',
+  results: 'ws-results',
+  positioning: 'ws-positioning',
+  production: 'ws-production',
+};
 
 const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
   { value: 'RECORD_VIDEO', label: 'Grabar video' },
@@ -2104,6 +2115,11 @@ export function ReactClientWorkspacePage({
 
   return (
     <div className="page-content" data-testid="react-client-workspace" data-workspace-tab={tab}>
+      {tab === 'briefs' ? (
+        <ReactPageHeader title="Strategic Briefs" />
+      ) : (
+        <ReactTabHeader tab={WORKSPACE_HEADER_TAB[tab]} />
+      )}
       {tab === 'radar' ? <RadarPanel workspaceClientId={clientId} /> : null}
       {tab === 'deliver' ? <DeliverPanel workspaceClientId={clientId} /> : null}
       {tab === 'briefs' ? <BriefsPanel /> : null}

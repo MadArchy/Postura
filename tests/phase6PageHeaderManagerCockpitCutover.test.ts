@@ -3,9 +3,10 @@
  * (`client-portfolio-page-header`).
  *
  * Omits leftover `renderPage` from ManagerCockpit `renderManagerCockpit`.
- * PageHeader.ts remains PRESENT. ClientWorkspace leftover import remains.
- * ClientPortal leftover import stays ABSENT. ReactManagerCockpitPage serves
- * ReactTabHeader. Create-client and canonical rematerialize stay React-served.
+ * PageHeader.ts remains PRESENT. ClientWorkspace leftover import is ABSENT
+ * after its own cutover. ClientPortal leftover import stays ABSENT.
+ * ReactManagerCockpitPage serves ReactTabHeader. Create-client and
+ * canonical rematerialize stay React-served.
  * C6 / C7 / T603 are not executed.
  */
 
@@ -108,16 +109,16 @@ describe('Phase 6 PageHeader ManagerCockpit cutover — leftover omit', () => {
     expect(host).toMatch(/managerPage\(renderPortfolioBody\(filters\)\)/);
   });
 
-  it('ClientWorkspace leftover PageHeader import remains; ClientPortal stays omitted', () => {
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    expect(code(WORKSPACE)).toMatch(/\brenderPage\b/);
+  it('ClientWorkspace leftover PageHeader import is omitted; ClientPortal stays omitted', () => {
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/\brenderPage\b/);
     expect(code(PORTAL)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(PORTAL)).not.toMatch(/\brenderPage\b/);
     expect(shouldRenderLegacyPageHeaderPortalSlot()).toBe(false);
     expect(pageHeaderPortalSlotPresentation()).toBe('omit');
   });
 
-  it('Product leftover PageHeader importer is exactly ClientWorkspace', () => {
+  it('Product leftover PageHeader importers are zero', () => {
     const offenders: string[] = [];
     for (const file of collectTs(join(ROOT, 'src'))) {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
@@ -130,7 +131,7 @@ describe('Phase 6 PageHeader ManagerCockpit cutover — leftover omit', () => {
         offenders.push(rel);
       }
     }
-    expect(offenders).toEqual([WORKSPACE]);
+    expect(offenders).toEqual([]);
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
   });
 });
@@ -274,7 +275,7 @@ describe('Phase 6 PageHeader ManagerCockpit cutover — authority / closed subse
     expect(existsSync(join(ROOT, LEGACY))).toBe(true);
     expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
     expect(code(HOST)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(PORTAL)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
   });
 });

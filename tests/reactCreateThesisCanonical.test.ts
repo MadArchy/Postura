@@ -2,7 +2,8 @@
  * SPEC-010 Phase 6 — canonical React create-thesis (Nueva tesis).
  *
  * Consumer owns createId('thesis'). SaveThesis #11 remains the write authority.
- * React / hook / seam must not mint. PageHeader graph stays unchanged.
+ * React / hook / seam must not mint. PageHeader.ts remains present with zero
+ * leftover importers.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -349,10 +350,10 @@ describe('canonical create-thesis — consumer runtime', () => {
   });
 });
 
-describe('canonical create-thesis — PageHeader graph unchanged', () => {
-  it('PageHeader.ts remains present with ClientWorkspace as the only leftover importer', () => {
+describe('canonical create-thesis — PageHeader graph', () => {
+  it('PageHeader.ts remains present with zero leftover importers', () => {
     expect(existsSync(join(ROOT, PAGE_HEADER))).toBe(true);
-    expect(code(WORKSPACE)).toMatch(/from\s+['"]\.\/PageHeader['"]/);
+    expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(COCKPIT)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     if (existsSync(join(ROOT, PORTAL))) {
       expect(code(PORTAL)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
@@ -368,6 +369,6 @@ describe('canonical create-thesis — PageHeader graph unchanged', () => {
         importers.push(file.replace(/\\/g, '/'));
       }
     }
-    expect(importers).toEqual([join(ROOT, WORKSPACE).replace(/\\/g, '/')]);
+    expect(importers).toEqual([]);
   });
 });

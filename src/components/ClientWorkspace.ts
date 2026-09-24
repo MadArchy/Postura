@@ -27,7 +27,6 @@ import { computeThesisLearningMetrics, type ThesisLearningMetrics } from '../dom
 import { icon } from '../lib/icons';
 import { deriveWorkStage, WORK_STAGE_BADGE, WORK_STAGE_LABELS } from '../domain/workPipeline';
 import { normalizeTab } from '../ui/presentation/pageTabMeta';
-import { renderPage } from './PageHeader';
 import { renderContentPipeline, renderScientificFocusPanel } from './ManagerCockpit';
 import { buildProfileKeywords, normalizeSourceUrl } from '../services/sourceDiscovery';
 import {
@@ -138,6 +137,20 @@ const HORIZON_LABELS: Record<'DAYS_30' | 'DAYS_60' | 'DAYS_90', string> = {
   DAYS_90: '90 días',
 };
 
+/**
+ * Phase-6 ClientWorkspace PageHeader cutover (`client-workspace-page-header`):
+ * leftover `renderPage` header is omitted from `renderClientWorkspace`.
+ * ReactClientWorkspacePage serves ReactTabHeader / briefs ReactPageHeader.
+ * Body and `.page-content` remain.
+ */
+function workspacePage(body: string): string {
+  return `
+    <div class="page-content">
+      ${body}
+    </div>
+  `;
+}
+
 export function renderClientWorkspace(
   activeTab: string,
   clientId: string,
@@ -145,7 +158,7 @@ export function renderClientWorkspace(
 ): string {
   const client = dbService.getClientById(clientId);
   if (!client) {
-    return renderPage('ws-briefing', '<p class="empty-state">Cliente no encontrado. Vuelve a la cartera.</p>');
+    return workspacePage('<p class="empty-state">Cliente no encontrado. Vuelve a la cartera.</p>');
   }
 
   const theses = dbService.getThesesByClient(clientId);
@@ -157,38 +170,17 @@ export function renderClientWorkspace(
 
   switch (normalizeTab(activeTab)) {
     case 'ws-sources':
-      return renderPage(
-        'ws-sources',
-        `${thesisBar}${renderSources(client, thesis)}`,
-        `<button id="btn-poll-all-sources" class="btn btn-secondary">Ingerir todas</button>
-         <button id="btn-open-source-registry" class="btn btn-secondary" data-client-id="${esc(clientId)}">+ Nueva fuente</button>
-         <button id="btn-add-manual-signal" class="btn btn-primary" data-client-id="${esc(clientId)}">+ Señal manual</button>`
-      );
+      return workspacePage(`${thesisBar}${renderSources(client, thesis)}`);
     case 'ws-tasks':
-      return renderPage(
-        'ws-tasks',
-        `${thesisBar}${renderTasks(client, filters)}`,
-        `<button id="btn-open-add-task" class="btn btn-primary" data-client-id="${esc(clientId)}">+ Asignar tarea</button>`
-      );
+      return workspacePage(`${thesisBar}${renderTasks(client, filters)}`);
     case 'ws-radar':
-      return renderPage(
-        'ws-radar',
-        `${thesisBar}${renderRadar(client, thesis, filters)}`,
-        `<button class="btn btn-ghost" data-tab="ws-sources">Gestionar fuentes</button>
-         <button id="btn-add-manual-signal" class="btn btn-secondary" data-client-id="${esc(clientId)}">+ Señal manual</button>
-         <button id="btn-poll-all-sources" class="btn btn-primary">Buscar novedades</button>`
-      );
+      return workspacePage(`${thesisBar}${renderRadar(client, thesis, filters)}`);
     case 'ws-deliver':
-      return renderPage('ws-deliver', `${thesisBar}${renderDeliver(client, thesis)}`);
+      return workspacePage(`${thesisBar}${renderDeliver(client, thesis)}`);
     case 'ws-positioning':
-      return renderPage(
-        'ws-positioning',
-        renderPositioning(client, theses, filters),
-        `<button class="btn btn-primary btn-open-thesis-editor" data-client-id="${esc(clientId)}">Nueva tesis</button>`
-      );
+      return workspacePage(renderPositioning(client, theses, filters));
     case 'ws-production':
-      return renderPage(
-        'ws-production',
+      return workspacePage(
         `<div class="content-stack content-stack-lg">
            ${thesisBar}
            ${renderProductionOverview(client, filters)}
@@ -199,14 +191,13 @@ export function renderClientWorkspace(
            )}
            ${renderScientificFocusPanel(client, thesis)}
            ${renderTasks(client, filters)}
-         </div>`,
-        `<button id="btn-open-add-task" class="btn btn-secondary" data-client-id="${esc(clientId)}">+ Asignar tarea</button>`
+         </div>`
       );
     case 'ws-results':
-      return renderPage('ws-results', renderResults(client));
+      return workspacePage(renderResults(client));
     case 'ws-briefing':
     default:
-      return renderPage('ws-briefing', `${thesisBar}${renderBriefing(client, thesis, filters)}`);
+      return workspacePage(`${thesisBar}${renderBriefing(client, thesis, filters)}`);
   }
 }
 
