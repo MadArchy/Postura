@@ -272,7 +272,7 @@ describe('Phase 6 PageHeader ClientWorkspace cutover — authority / closed subs
   });
 
   it('SourceRegistry, Onboarding, and closed leftover files stay outside this host', () => {
-    expect(statSync(join(ROOT, SOURCE_REGISTRY)).isFile()).toBe(true);
+    expect(existsSync(join(ROOT, SOURCE_REGISTRY))).toBe(false);
     expect(statSync(join(ROOT, ONBOARDING)).isFile()).toBe(true);
     expect(code(HOST)).not.toMatch(/SourceRegistryModal|OnboardingWizard/);
     expect(code(PAGE)).not.toMatch(/SourceRegistryModal|OnboardingWizard/);

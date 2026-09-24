@@ -2,7 +2,7 @@
  * SPEC-010 Phase 6 — SourceRegistry presentation cutover.
  *
  * Omits leftover `SourceRegistryModal` from `modalPresenter`.
- * Physical file remains PRESENT. C6 / C7 / T603 are not executed.
+ * Physical file is ABSENT. C6 / C7 / T603 are not executed.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -60,9 +60,9 @@ function collectTs(dir: string): string[] {
   return out;
 }
 
-describe('Phase 6 SourceRegistry cutover — leftover file remains, Product graph is zero', () => {
-  it('SourceRegistryModal.ts remains physically present', () => {
-    expect(statSync(join(ROOT, LEGACY)).isFile()).toBe(true);
+describe('Phase 6 SourceRegistry cutover — leftover file is absent, Product graph is zero', () => {
+  it('SourceRegistryModal.ts is physically absent', () => {
+    expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, PAGE_HEADER))).toBe(false);
   });
 

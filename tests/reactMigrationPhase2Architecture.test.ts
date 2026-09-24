@@ -88,7 +88,6 @@ describe('T-010-201…205 — the claimed wave-2 components exist', () => {
 
   it('no legacy counterpart was deleted — Phase 2 is extraction, not removal', () => {
     const legacy = [
-      'src/components/SourceRegistryModal.ts',
       'src/components/OnboardingWizard.ts',
     ];
     for (const path of legacy) {

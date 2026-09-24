@@ -41,7 +41,6 @@ const STRATEGIC_MODULES = [
   'src/services/topicAgent.ts',
   'src/services/researchSignalsAgent.ts',
   'src/components/ClientWorkspace.ts',
-  'src/components/SourceRegistryModal.ts',
   'src/ui/legacy/LegacyApp.ts',
   'src/application/strategicSignalRouting',
   'src/domain/thesisRoutingCore.ts',
