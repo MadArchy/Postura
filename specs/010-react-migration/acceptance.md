@@ -391,6 +391,31 @@ Evidence: `t-010-603-sourceregistry-subset-removal.md` · implementation `1441fe
 Nonblocking handler / CSS / comment / remaining leftover-family debt remains **outside** the accepted subset and was **not** cleaned.  
 T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety / PageHeader subset snapshot rows above are historical and are **not** rewritten.
 
+### Phase-6 T-010-603 Onboarding subset (bounded)
+
+Evidence: `t-010-603-onboarding-subset-removal.md` · implementation `8ba24a5ef4e03efe75e9e97e556a5f0f26eb8722`.
+
+| Item | Verdict |
+|------|---------|
+| Onboarding unit C1–C7 / C8 | **PASS / N/A** |
+| `OnboardingWizard.ts` | **ABSENT** (already removed @ `8ba24a5`; no second delete) |
+| PRODUCT GRAPH | **ZERO** |
+| SAFE SUBSET | `SAFE_LEGACY_SUBSET_REMOVED_AND_ACCEPTED` (`src/components/OnboardingWizard.ts` only) |
+| C6 / C7 | **VERIFIED_PASS** / **ACCEPTED** |
+| T603 SAFE SUBSET REVIEW | `PHASE6_ONBOARDING_T603_SAFE_SUBSET_VERIFIED` |
+| T-010-603 Onboarding unit | **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** |
+| ONBOARDING LOCAL A43 | **PASS** |
+| ONBOARDING UNIT A43 | **PASS** |
+| BLOCKING DEBT | **NONE** |
+| NONBLOCKING DEBT | unreachable `#btn-open-onboarding`; leftover `activeModal='onboarding'` handler; historical docs/comments; absence-oracle path strings — **SEPARATED** |
+| T-010-603 **global** | **OPEN** — not DONE |
+| C3 **global** | **PARTIAL** |
+| A43 **global** | **PARTIAL** |
+| T-010-604 | **NOT_AUTHORIZED** |
+
+Nonblocking handler / comment / absence-oracle debt remains **outside** the accepted subset and was **not** cleaned.  
+T-601 / T-602 / dossier / opportunity / KPI / ClientProfile / ProofWall / ClaimSafety / PageHeader / SourceRegistry subset snapshot rows above are historical and are **not** rewritten.
+
 ### Phase-3 acceptance movement (T-010-301…306)
 
 `ARCH3` = `tests/reactMigrationPhase3Architecture.test.ts` (28/28) ·
