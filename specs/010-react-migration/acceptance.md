@@ -7,7 +7,7 @@
 **Phase 4:** **FORMALLY_ACCEPTED** (T-010-401…405 · A39 reconciled · `t-010-phase4-formal-closure.md`)
 **Phase 5:** **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** (T-010-501…510 · `t-010-phase5-formal-closure.md`)
 **Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603 **FORMALLY_CLOSED** (`t-010-603-global-closure.md`) · T-604 **NOT AUTHORIZED**
-**A1-A44:** **39 PASS** · **2 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 W1-verified stale PARTIAL rows · A10/A41 remain PARTIAL · A25/A31/A44 PENDING)
+**A1-A44:** **40 PASS** · **1 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 remains PARTIAL · A25/A31/A44 PENDING)
 **CODE_COMPLETE:** **NO**
 **DEPLOYED:** **NO** · **DONE:** **NO** · **DEPLOYMENT:** **NOT_STARTED**
 
@@ -49,7 +49,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A7 | SPEC-010 owns no business-domain aggregate and adds no business lifecycle | 0–1 | ✅ PASS | No `domain-model.md`; no lifecycle added by Phase 1 |
 | A8 | React modules import `dbService` directly: **0** | 2–6 | ✅ PASS | W1/W2: ARCH/T-010-503 — React UI `dbService` importers = only `compatibilityReads.ts` (legacy handlers excluded from React UI scope by T-010-404) |
 | A9 | Canonical read boundary — every React read goes through a query hook → facade/consumer → Application | 1–6 | ✅ PASS | W1/W2: hooks declare one read source in cache keys; canonicalReads/consumers; Phase-2/3 ARCH + T-010-502 |
-| A10 | Canonical command boundary — React intent → consumer/Application → Domain → Ports → Infrastructure | 1–6 | ⚠️ PARTIAL | `commandSeam.ts` delegates to trusted auth; `ARCH` proves no direct persistence. Strategic commands pending |
+| A10 | Canonical command boundary — React intent → consumer/Application → Domain → Ports → Infrastructure | 1–6 | ✅ PASS | A10-B frozen (`REACT_PHASE6_OWNED_COMMAND_CONVERGENCE`): React/Phase-6-owned strategic intents → `commandSeam` → consumer/Application → Domain → Ports → Infrastructure; T-506/ARCH — React dual-command = 0 · direct persistence = 0 · alternate React strategic writes = 0; legacy-only #22/#23/#25/#29/#30/#33 UI remain outside A10-B (not migrated); post-decision verification SUFFICIENT · governance-only promotion |
 | A11 | TanStack Query cache is non-authoritative; no strategic decision from cached data | 2–6 | ✅ PASS | W1/W2: ARCH staleTime:0/retry:0 + T-010-502 cache adversarial PASS — cache non-authoritative |
 | A12 | React local/presentation state non-authoritative | 2–6 | ✅ PASS | W1/W2: presentation state tab/filter/UI only; no strategic authority from local React state (Phase-1–4 ARCH) |
 | A13 | Form state non-authoritative; Zod UI validation never bypasses Domain gates | 2–6 | ✅ PASS | W1/W2: Zod shape-only on ReactLogin/ReactOnboardingWizard; Domain/trusted auth decide — T-010-501 PASS |
