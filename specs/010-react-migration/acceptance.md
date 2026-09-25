@@ -7,7 +7,7 @@
 **Phase 4:** **FORMALLY_ACCEPTED** (T-010-401…405 · A39 reconciled · `t-010-phase4-formal-closure.md`)
 **Phase 5:** **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** (T-010-501…510 · `t-010-phase5-formal-closure.md`)
 **Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603 **FORMALLY_CLOSED** (`t-010-603-global-closure.md`) · T-604 **NOT AUTHORIZED**
-**A1-A44:** **40 PASS** · **1 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 remains PARTIAL · A25/A31/A44 PENDING)
+**A1-A44:** **41 PASS** · **0 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 PASS under A41-C · A25/A31/A44 PENDING)
 **CODE_COMPLETE:** **NO**
 **DEPLOYED:** **NO** · **DONE:** **NO** · **DEPLOYMENT:** **NOT_STARTED**
 
@@ -80,7 +80,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A38 | No competing DOM/CSS ownership of a subtree | 1–6 | ✅ PASS | `ARCH` + `E2E`: sibling containers, exclusive owners, never both visible, no cross-nesting, CSS scoped to the two ids, clean unmount |
 | A39 | `main.ts` strangler — ceases to be a controller/event bus; shrinks per wave | 1–4 | ✅ PASS | T-010-404: `main.ts` **15-line** bootstrap (4,473 → 15); **0** business imports, **0** shell authority, **0** navigation authority, **0** business orchestration. Feature wiring in **18** handler modules + presentation controllers; `LegacyApp.ts` (**639** lines) is a compatibility host only. `t010404MainBootstrapReduction.test.ts` **9/9**; Stage-B Playwright **11/11**. Deferred CR-1 writes remain in legacy handlers by design |
 | A40 | Component migration matrix complete — a row per UI file, dispositioned | 0 | ✅ PASS | `migration-matrix.md` (17 files) |
-| A41 | Behavioral parity proven per migrated module across all applicable dimensions | 5 | ⚠️ PARTIAL | Page-level evidence for 12 of 18 dimensions per migrated page; dimensions whose legacy command stays outside React are classified, not claimed. **0** modules cut over — cutover parity is Phase 5 |
+| A41 | Behavioral parity proven per migrated module across all applicable dimensions | 5 | ✅ PASS | A41-C frozen (`MIGRATED_MODULE_APPLICABLE_DIMENSION`): `t-010-604-w3-a41-dimension-disposition.md` @ `23619f95` — **16/16** modules · **6/6** dims (1/7/8/10/14/17) formally PARITY or dispositioned · TRUE/blocking-test/code/external gaps **0**; GLOBAL C3 remains **PARTIAL** (nonblocking under T604 policy) |
 | A42 | E2E/parity harness (Playwright) implemented; legacy-vs-React journeys pass | 5 | ✅ PASS | W1/W2: Playwright harness + legacy-vs-React journeys — T-508 + Stage-B **21/21 PASS** (Planner excluded by governed MVP) |
 | A43 | Legacy removed only after parity gate; rollback exercised without data migration | 6 | ✅ PASS | Global T-010-603 formally closed under scope decision **A** (`t-010-603-global-closure.md`): **9/9** bounded legacy leaves removed and formally accepted (DOSSIER · OPPORTUNITY · KPI · CLIENTPROFILE · PROOFWALL · CLAIMSAFETY · PAGEHEADER · SOURCEREGISTRY · ONBOARDING); governed Product graph **ZERO**; C6/C7/safe-subset complete; family A38 **PASS**; blocking debt **NONE**; Option E + T-508 rollback retained; broader non-leaf hosts remain outside T-603 |
 | A44 | Full check + rules regression at CODE_COMPLETE; no unintended regression | 6 | ⏳ PENDING | **T602 REGRESSION_GATE_PASS** @ 1965/1965 · 91/91 · BUILD · 73/73 · 21/21. **A44 formal PASS** requires CODE_COMPLETE Required A* + T-604 |
