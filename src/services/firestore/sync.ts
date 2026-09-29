@@ -393,6 +393,48 @@ export async function listFirestoreClientIds(organizationId?: string): Promise<s
   return snap.docs.map((docSnap) => docSnap.id);
 }
 
+/** Subcollections whose read rule is ADMIN-only; CLIENT sessions must not query them. */
+const ADMIN_ONLY_READ_SUBCOLLECTIONS: ReadonlySet<string> = new Set(['signalOutcomes']);
+
+interface TenantReadScope {
+  organizationId: string;
+  isAdmin: boolean;
+}
+
+async function readTenantReadScope(): Promise<TenantReadScope | null> {
+  const auth = await getFirebaseAuth();
+  const user = auth?.currentUser;
+  if (!user) return null;
+  const token = await user.getIdTokenResult();
+  const organizationId =
+    typeof token.claims.organizationId === 'string' ? token.claims.organizationId.trim() : '';
+  if (!organizationId) return null;
+  return { organizationId, isAdmin: token.claims.role === 'ADMIN' };
+}
+
+export function isClientSubcollectionReadable(sub: string, scope: TenantReadScope | null): boolean {
+  if (!scope) return false;
+  return scope.isAdmin || !ADMIN_ONLY_READ_SUBCOLLECTIONS.has(sub);
+}
+
+/**
+ * Security Rules are not filters: subcollection reads require organizationId AND clientId
+ * equality so every returned doc provably satisfies the envelope rule.
+ */
+async function scopedClientSubcollectionQuery(
+  db: NonNullable<Awaited<ReturnType<typeof getFirebaseFirestore>>>,
+  clientId: string,
+  sub: string,
+  scope: TenantReadScope
+) {
+  const { collection, query, where } = await import('firebase/firestore');
+  return query(
+    collection(db, `${clientDocPath(clientId)}/${sub}`),
+    where('organizationId', '==', scope.organizationId),
+    where('clientId', '==', clientId)
+  );
+}
+
 /** Descarga datos de Firestore para un cliente (o todos si admin). */
 export async function pullClientDataFromFirestore(
   clientIds: string[]
@@ -400,7 +442,8 @@ export async function pullClientDataFromFirestore(
   const db = await getFirebaseFirestore();
   if (!db) return {};
 
-  const { doc, getDoc, collection, getDocs } = await import('firebase/firestore');
+  const { doc, getDoc, getDocs } = await import('firebase/firestore');
+  const scope = await readTenantReadScope();
   const partial: Partial<LocalV5Snapshot> = {
     clients: [],
     signals: [],
@@ -435,7 +478,8 @@ export async function pullClientDataFromFirestore(
     }
 
     for (const sub of CLIENT_SUBCOLLECTIONS) {
-      const snap = await getDocs(collection(db, `${clientDocPath(clientId)}/${sub}`));
+      if (!scope || !isClientSubcollectionReadable(sub, scope)) continue;
+      const snap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, sub, scope));
       const targetKey = Object.entries(COLLECTION_MAP).find(([, v]) => v === sub)?.[0] as CollectionKey | undefined;
       if (!targetKey || !Array.isArray(partial[targetKey])) continue;
       for (const row of snap.docs) {
@@ -445,17 +489,22 @@ export async function pullClientDataFromFirestore(
       }
     }
 
-    const profileSnap = await getDoc(doc(db, `${clientDocPath(clientId)}/profile/data`));
-    if (profileSnap.exists()) {
+    if (!scope) continue;
+
+    // A missing singleton doc is denied (not "absent") by envelope rules; list it scoped instead.
+    const profileSnap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, 'profile', scope));
+    const profileDoc = profileSnap.docs.find((row) => row.id === 'data');
+    if (profileDoc) {
       partial.profiles![clientId] = normalizeFirestorePulledData(
-        profileSnap.data()
+        profileDoc.data()
       ) as unknown as LocalV5Snapshot['profiles'][string];
     }
 
-    const dossierSnap = await getDoc(doc(db, `${clientDocPath(clientId)}/dossier/data`));
-    if (dossierSnap.exists()) {
+    const dossierSnap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, 'dossier', scope));
+    const dossierDoc = dossierSnap.docs.find((row) => row.id === 'data');
+    if (dossierDoc) {
       partial.dossiers![clientId] = normalizeFirestorePulledData(
-        dossierSnap.data()
+        dossierDoc.data()
       ) as unknown as LocalV5Snapshot['dossiers'][string];
     }
   }
@@ -548,11 +597,14 @@ export async function startFirestoreRealtimeSync(
   const db = await getFirebaseFirestore();
   if (!db) return;
 
-  const { collection, onSnapshot } = await import('firebase/firestore');
+  const { onSnapshot } = await import('firebase/firestore');
+  const scope = await readTenantReadScope();
+  if (!scope) return;
 
-  const listen = (clientId: string, sub: string, snapshotKey: CollectionKey) => {
-    const colRef = collection(db, `${clientDocPath(clientId)}/${sub}`);
-    const unsub = onSnapshot(colRef, (snap: import('firebase/firestore').QuerySnapshot) => {
+  const listen = async (clientId: string, sub: string, snapshotKey: CollectionKey) => {
+    if (!isClientSubcollectionReadable(sub, scope)) return;
+    const scopedQuery = await scopedClientSubcollectionQuery(db, clientId, sub, scope);
+    const unsub = onSnapshot(scopedQuery, (snap: import('firebase/firestore').QuerySnapshot) => {
       const rows = snap.docs.map((docSnap) =>
         normalizeFirestorePulledData({
           ...docSnap.data(),
@@ -570,9 +622,9 @@ export async function startFirestoreRealtimeSync(
 
   for (const clientId of clientIds) {
     for (const sub of REALTIME_SUBS) {
-      listen(clientId, sub, (REALTIME_KEY_MAP[sub] || sub) as CollectionKey);
+      await listen(clientId, sub, (REALTIME_KEY_MAP[sub] || sub) as CollectionKey);
     }
     // Evidence usa nombre distinto en el snapshot local.
-    listen(clientId, 'evidence', 'evidenceVault');
+    await listen(clientId, 'evidence', 'evidenceVault');
   }
 }
