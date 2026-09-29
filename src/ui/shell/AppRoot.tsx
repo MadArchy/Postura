@@ -25,7 +25,20 @@ function returnToLegacy(): void {
 
 function ShellSwitch() {
   const { user } = useSession();
-  return user ? <ReactAppShell /> : <ReactLogin />;
+  // `.app-container` is the logged-in shell grid (sidebar | main). Login must
+  // not sit in that grid or it is crushed into the 240px sidebar column.
+  if (user) {
+    return (
+      <div className="app-container" data-testid="react-shell">
+        <ReactAppShell />
+      </div>
+    );
+  }
+  return (
+    <div data-testid="react-shell">
+      <ReactLogin />
+    </div>
+  );
 }
 
 export function AppRoot() {
@@ -33,9 +46,7 @@ export function AppRoot() {
     <UiErrorBoundary onFallbackToLegacy={returnToLegacy}>
       <QueryProvider>
         <SessionProvider>
-          <div className="app-container" data-testid="react-shell">
-            <ShellSwitch />
-          </div>
+          <ShellSwitch />
         </SessionProvider>
       </QueryProvider>
     </UiErrorBoundary>

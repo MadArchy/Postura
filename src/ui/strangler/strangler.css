@@ -20,3 +20,8 @@ html[data-postura-ui='react'] #app {
 html:not([data-postura-ui='react']) #react-root {
   display: none !important;
 }
+
+#react-root {
+  width: 100%;
+  min-height: 100vh;
+}
