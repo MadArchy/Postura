@@ -553,11 +553,13 @@ export async function startFirestoreRealtimeSync(
   const listen = (clientId: string, sub: string, snapshotKey: CollectionKey) => {
     const colRef = collection(db, `${clientDocPath(clientId)}/${sub}`);
     const unsub = onSnapshot(colRef, (snap: import('firebase/firestore').QuerySnapshot) => {
-      const rows = snap.docs.map((docSnap) => ({
-        ...docSnap.data(),
-        id: docSnap.id,
-        clientId,
-      }));
+      const rows = snap.docs.map((docSnap) =>
+        normalizeFirestorePulledData({
+          ...docSnap.data(),
+          id: docSnap.id,
+          clientId,
+        })
+      );
       const partial: Partial<LocalV5Snapshot> = {
         [snapshotKey]: rows,
       } as Partial<LocalV5Snapshot>;

@@ -1413,7 +1413,7 @@ class DataService {
       .sort((a, b) => {
         const byPriority = (b.priority ?? 0) - (a.priority ?? 0);
         if (byPriority !== 0) return byPriority;
-        return (b.updatedAt || '').localeCompare(a.updatedAt || '');
+        return String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? ''));
       });
   }
 
@@ -1689,7 +1689,7 @@ class DataService {
   public getFeedbackEventsForContent(contentId: string): FeedbackEvent[] {
     return this.feedbackEvents
       .filter((event) => event.contentId === contentId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
   }
 
   public getLatestClientEdit(contentId: string): FeedbackEvent | undefined {

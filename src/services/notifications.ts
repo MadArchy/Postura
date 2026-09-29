@@ -116,7 +116,9 @@ class NotificationService {
       const resolved = { ...row, userId: this.resolveUid(row.userId) };
       map.set(row.id, resolved);
     }
-    this.items = Array.from(map.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    this.items = Array.from(map.values()).sort((a, b) =>
+      String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))
+    );
     localStorage.setItem(KEY, JSON.stringify(this.items.slice(0, 200)));
   }
 
