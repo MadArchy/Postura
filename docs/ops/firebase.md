@@ -14,7 +14,7 @@ npm run firebase:prep    # opcional — valida .env.local antes de dev
 npm run dev
 ```
 
-Abrir: **http://127.0.0.1:3000/** (o el puerto que indique Vite)
+Abrir: **http://127.0.0.1:5173/** (o el puerto que indique Vite)
 
 Debes ver en la barra superior: **`Firebase · aurora-postura-app`**
 

@@ -17,13 +17,13 @@ npm run check
 
 DoD original: [product/plan-unificado.md](../product/plan-unificado.md) §7.
 
-Ingesta de fuentes en el piloto: [http://127.0.0.1:3000/](http://127.0.0.1:3000/) (no GitHub Pages).
+Ingesta de fuentes en el piloto: [http://127.0.0.1:5173/](http://127.0.0.1:5173/) (no GitHub Pages).
 
 ### Si no ves cambios nuevos (plan 90 días, CLE en Inicio, etc.)
 
 El navegador puede tener **datos viejos en localStorage**. Opciones:
 
-1. **Recarga forzada:** `Ctrl+Shift+R` en http://127.0.0.1:3000/
+1. **Recarga forzada:** `Ctrl+Shift+R` en http://127.0.0.1:5173/
 2. **Reset demo (dev):** F12 → Consola → `posturaReseedLocal()` → confirma recarga
 3. **Manual:** Application → Local Storage → borrar claves `postura_*` → recargar
 

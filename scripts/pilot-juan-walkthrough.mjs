@@ -41,7 +41,7 @@ for (const c of autoChecks) {
 const allAuto = autoChecks.every((c) => c.ok);
 
 console.log(`
-Manual — ejecutar con npm run dev → http://127.0.0.1:3000/
+Manual — ejecutar con npm run dev → http://127.0.0.1:5173/
 
 Credenciales:
   Manager: manager@postura.internal / Postura2026!

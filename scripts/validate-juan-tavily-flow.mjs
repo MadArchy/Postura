@@ -26,7 +26,7 @@ function loadEnvLocal() {
 loadEnvLocal();
 
 const API_KEY = process.env.TAVILY_API_KEY || '';
-const DEV_BASE = process.env.POSTURA_DEV_URL || 'http://127.0.0.1:3001';
+const DEV_BASE = process.env.POSTURA_DEV_URL || 'http://127.0.0.1:5173';
 
 const JUAN_QUERY =
   'Patentes e IP, adopción de IA AI Posture patent law intellectual property NIST AI RMF industry news regulatory';
@@ -160,7 +160,7 @@ async function main() {
 
   console.log(`\nResumen: ${ok} feeds Tavily OK, ${fail} fallidos de ${domains.size} dominios`);
   console.log('\nSiguiente paso en UI:');
-  console.log('  1. http://127.0.0.1:3001 → manager@postura.internal');
+  console.log('  1. http://127.0.0.1:5173 → manager@postura.internal');
   console.log('  2. Workspace Juan → Fuentes → Buscar con Tavily');
   console.log('  3. Activar todas e ingerir → Radar');
 }

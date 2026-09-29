@@ -2,7 +2,7 @@
  * Prueba todos los tipos de feed del pipeline de fuentes.
  * Uso: node scripts/probe-source-feeds.mjs [baseUrl]
  */
-const base = process.argv[2] || 'http://127.0.0.1:3001';
+const base = process.argv[2] || 'http://127.0.0.1:5173';
 
 const feeds = [
   ['USPTO', 'https://www.uspto.gov/rss.xml'],

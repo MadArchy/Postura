@@ -12,7 +12,7 @@ cp .env.example .env.local   # opcional: Firebase, Tavily, YouTube
 npm run dev
 ```
 
-Abre [http://127.0.0.1:3000/](http://127.0.0.1:3000/).
+Abre [http://127.0.0.1:5173/](http://127.0.0.1:5173/).
 
 Cuentas de piloto: ver [docs/ops/pilot.md](docs/ops/pilot.md).
 
