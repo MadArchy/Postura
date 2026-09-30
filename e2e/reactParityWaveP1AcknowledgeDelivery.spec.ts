@@ -1,44 +1,44 @@
 /**
  * SPEC-010 · T603 React Parity Wave P1 — bounded client delivery acknowledgement E2E.
+ * The SENT briefing is ADMIN-owned and seeded by the emulator owner before CLIENT login.
  */
 import { expect, test } from '@playwright/test';
 import { CLIENT_JUAN_ID, loginAsClientJuan, sidebarTab } from './helpers/spec010Auth';
+import {
+  clientDocPath,
+  ownerSeedDelivery,
+  waitForLocalDoc,
+  waitForServerField,
+  ownerGetField,
+} from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
-
-async function seedSentBriefing(page: import('@playwright/test').Page, clientId: string) {
-  return page.evaluate(async ({ cid }) => {
-    const { dbService } = await import('/src/services/db.ts');
-    for (const pkg of dbService.getDeliveriesByClient(cid)) {
-      if (pkg.status === 'DRAFT') dbService.discardDraftDelivery(pkg.id);
-    }
-    const pkg = dbService.ensureDraftDelivery(cid, 'user_admin_01');
-    dbService.addDeliveryItem(pkg.id, {
-      kind: 'ADVICE',
-      title: 'P1 E2E briefing advice',
-      rationale: 'Deterministic P1 acknowledgement proof.',
-    });
-    dbService.markDeliverySent(pkg.id);
-    const sent = dbService.getDeliveryById(pkg.id);
-    if (sent) {
-      const existing = dbService.getSentDeliveriesByClient(cid);
-      const latestSentAt = existing.reduce((max, row) => {
-        if (!row.sentAt) return max;
-        return row.sentAt > max ? row.sentAt : max;
-      }, sent.sentAt ?? '');
-      sent.sentAt = new Date(Date.parse(latestSentAt || sent.sentAt || Date.now()) + 60_000).toISOString();
-    }
-    return pkg.id;
-  }, { cid: clientId });
-}
 
 test.describe('P1 §25 — React client portal acknowledge delivery', () => {
   test('CLIENT acknowledges latest SENT briefing under React shell', async ({ page }) => {
     test.setTimeout(60_000);
+    const deliveryId = `pkg_p1_e2e_${Date.now()}`;
+    const deliveryPath = clientDocPath(CLIENT_JUAN_ID, 'deliveries', deliveryId);
+    await ownerSeedDelivery({
+      id: deliveryId,
+      clientId: CLIENT_JUAN_ID,
+      title: 'P1 E2E briefing',
+      strategicNote: 'Deterministic P1 acknowledgement proof.',
+      periodLabel: 'P1 E2E',
+      status: 'SENT',
+      sentAt: new Date(Date.now() + 3_600_000).toISOString(),
+      items: [
+        {
+          id: `${deliveryId}_item`,
+          kind: 'ADVICE',
+          title: 'P1 E2E briefing advice',
+          rationale: 'Deterministic P1 acknowledgement proof.',
+        },
+      ],
+    });
+
     await loginAsClientJuan(page);
-    await seedSentBriefing(page, CLIENT_JUAN_ID);
-    await sidebarTab(page, 'client-content').click();
-    await expect(page.locator('[data-testid="react-portal-content"]')).toBeVisible({ timeout: 15_000 });
+    await waitForLocalDoc(page, 'delivery', deliveryId);
     await sidebarTab(page, 'client-home').click();
     await expect(page.locator('[data-testid="react-portal-briefing-card"]')).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-testid="react-portal-briefing-ack"]')).toBeVisible({ timeout: 15_000 });
@@ -50,13 +50,14 @@ test.describe('P1 §25 — React client portal acknowledge delivery', () => {
     await expect(page.locator('[data-testid="react-portal-briefing-ack"]')).toHaveCount(0);
     await expect(page.locator('[data-testid="react-portal-briefing-read"]')).toBeVisible();
 
-    const stored = await page.evaluate(async ({ cid }) => {
+    await waitForServerField(deliveryPath, 'status', 'ACKNOWLEDGED');
+    expect(await ownerGetField(deliveryPath, 'clientAckNote')).toBe('Lo reviso esta semana');
+
+    const stored = await page.evaluate(async ({ id }) => {
       const { dbService } = await import('/src/services/db.ts');
-      const latest = dbService.getSentDeliveriesByClient(cid)[0];
-      return latest
-        ? { status: latest.status, clientAckNote: latest.clientAckNote ?? null }
-        : null;
-    }, { cid: CLIENT_JUAN_ID });
+      const pkg = dbService.getDeliveryById(id);
+      return pkg ? { status: pkg.status, clientAckNote: pkg.clientAckNote ?? null } : null;
+    }, { id: deliveryId });
     expect(stored).toEqual({ status: 'ACKNOWLEDGED', clientAckNote: 'Lo reviso esta semana' });
   });
 });

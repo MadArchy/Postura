@@ -3,6 +3,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { CLIENT_JUAN_ID, loginAsClientJuan, sidebarTab } from './helpers/spec010Auth';
+import { waitForOnboardingHydration } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -12,6 +13,9 @@ test.describe('P6 — React client onboarding write parity', () => {
   }) => {
     test.setTimeout(90_000);
     await loginAsClientJuan(page);
+    await sidebarTab(page, 'client-home').click();
+    // Step form defaults are captured at mount; hydrate before the wizard first renders.
+    await waitForOnboardingHydration(page, CLIENT_JUAN_ID);
 
     await sidebarTab(page, 'client-profile').click();
     await expect(page.locator('[data-testid="react-onboarding-wizard"]')).toBeVisible({

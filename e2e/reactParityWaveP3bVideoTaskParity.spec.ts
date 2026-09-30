@@ -11,10 +11,29 @@ import {
   loginAsManager,
   sidebarTab,
 } from './helpers/spec010Auth';
+import {
+  clientDocPath,
+  ownerGetField,
+  ownerSeedTask,
+  waitForLocalDoc,
+  waitForServerField,
+} from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
 const P3B_TITLE = 'P3B video parity task';
+
+/** CLIENT specs: the video task is ADMIN-owned and seeded by the emulator owner. */
+async function ownerSeedVideoTask(title: string) {
+  return ownerSeedTask({
+    id: `task_p3b_e2e_${Date.now()}`,
+    clientId: CLIENT_JUAN_ID,
+    type: 'RECORD_VIDEO',
+    title,
+    description: 'P3B teleprompter parity.',
+    scriptPayload: 'Guion P3B de prueba.',
+  });
+}
 
 async function installMediaMocks(page: Page, denyCamera = false) {
   await page.addInitScript(
@@ -114,14 +133,14 @@ async function seedVideoTask(page: Page, title: string) {
 test.describe('P3B — React video task and recordings', () => {
   test('CLIENT records and completes via React teleprompter', async ({ page }) => {
     test.setTimeout(90_000);
+    const taskId = await ownerSeedVideoTask(P3B_TITLE);
+    const taskPath = clientDocPath(CLIENT_JUAN_ID, 'tasks', taskId);
     await installMediaMocks(page);
     await loginAsClientJuan(page);
     await installIndexedDbPersist(page);
-    const taskId = await seedVideoTask(page, P3B_TITLE);
+    await waitForLocalDoc(page, 'task', taskId);
     await sidebarTab(page, 'client-home').click();
     await expect(page.locator('[data-testid="react-portal-tasks"]')).toBeVisible({ timeout: 15_000 });
-    await sidebarTab(page, 'client-content').click();
-    await sidebarTab(page, 'client-home').click();
 
     const open = page.locator(`[data-testid="react-portal-task-open-video-${taskId}"]`);
     await expect(open).toBeVisible({ timeout: 15_000 });
@@ -143,6 +162,8 @@ test.describe('P3B — React video task and recordings', () => {
         }, { id: taskId });
       })
       .toBe('IN_PROGRESS');
+    // Server must confirm IN_PROGRESS before send: rapid steps can merge into one push the rules reject.
+    await waitForServerField(taskPath, 'status', 'IN_PROGRESS');
 
     await page.locator('[data-testid="react-teleprompter-stop"]').click();
     await expect(page.locator('[data-testid="react-teleprompter-send"]')).toBeVisible();
@@ -157,6 +178,8 @@ test.describe('P3B — React video task and recordings', () => {
         }, { id: taskId });
       }, { timeout: 15_000 })
       .toEqual({ status: 'COMPLETED', evidence: true });
+    await waitForServerField(taskPath, 'status', 'COMPLETED');
+    expect(await ownerGetField(taskPath, 'evidenceUrl')).toBeTruthy();
   });
 
   test('ADMIN re-uploads recording via attach_evidence', async ({ page }) => {
@@ -205,13 +228,13 @@ test.describe('P3B — React video task and recordings', () => {
 
   test('camera denial does not mutate the task', async ({ page }) => {
     test.setTimeout(90_000);
+    const taskId = await ownerSeedVideoTask(`${P3B_TITLE} denied`);
+    const taskPath = clientDocPath(CLIENT_JUAN_ID, 'tasks', taskId);
     await installMediaMocks(page, true);
     await loginAsClientJuan(page);
-    const taskId = await seedVideoTask(page, `${P3B_TITLE} denied`);
+    await waitForLocalDoc(page, 'task', taskId);
     await sidebarTab(page, 'client-home').click();
     await expect(page.locator('[data-testid="react-portal-tasks"]')).toBeVisible({ timeout: 15_000 });
-    await sidebarTab(page, 'client-content').click();
-    await sidebarTab(page, 'client-home').click();
     await page.locator(`[data-testid="react-portal-task-open-video-${taskId}"]`).click();
     await expect(page.locator('[data-testid="react-teleprompter-modal"]')).toBeVisible();
     await page.locator('[data-testid="react-teleprompter-record"]').click();
@@ -224,6 +247,7 @@ test.describe('P3B — React video task and recordings', () => {
       return dbService.getAllTasks().find((row) => row.id === id)?.status ?? null;
     }, { id: taskId });
     expect(status).toBe('ASSIGNED');
+    expect(await ownerGetField(taskPath, 'status')).toBe('ASSIGNED');
   });
 
   test('legacy teleprompter remains reachable after rollback', async ({ page }) => {

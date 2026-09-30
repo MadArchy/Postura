@@ -5,13 +5,13 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import {
+  CLIENT_ELENA_EMAIL,
   CLIENT_ELENA_ID,
+  CLIENT_JUAN_EMAIL,
   CLIENT_JUAN_ID,
-  UI_MODE_KEY,
-  loginAsClientElena,
-  loginAsClientJuan,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { loginClientWithSettledSession } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -126,7 +126,7 @@ async function seedCandidates(page: Page, clientId: string, text: string) {
 test.describe('Profile fact lifecycle — React write parity', () => {
   test('CLIENT adds a manual fact on Mi perfil and refresh shows it', async ({ page }) => {
     test.setTimeout(90_000);
-    await loginAsClientJuan(page);
+    await loginClientWithSettledSession(page, CLIENT_JUAN_EMAIL);
     await pinLocalDemoData(page);
     await openClientProfile(page);
 
@@ -151,7 +151,7 @@ test.describe('Profile fact lifecycle — React write parity', () => {
     page,
   }) => {
     test.setTimeout(90_000);
-    await loginAsClientJuan(page);
+    await loginClientWithSettledSession(page, CLIENT_JUAN_EMAIL);
     await pinLocalDemoData(page);
     const seeded = await seedCandidates(
       page,
@@ -191,7 +191,7 @@ test.describe('Profile fact lifecycle — React write parity', () => {
 
   test('CLIENT own edit succeeds and foreign client request fails closed', async ({ page }) => {
     test.setTimeout(90_000);
-    await loginAsClientElena(page);
+    await loginClientWithSettledSession(page, CLIENT_ELENA_EMAIL);
     await pinLocalDemoData(page);
     await openClientProfile(page);
 
@@ -243,12 +243,12 @@ test.describe('Profile fact lifecycle — React write parity', () => {
     expect(juanFacts.some((fact) => fact.value === 'should-not-write')).toBe(false);
   });
 
-  test('CV paste imports candidates locally and legacy profile controls remain', async ({
+  test('CV paste imports candidates locally and React profile controls remain', async ({
     page,
   }) => {
     test.setTimeout(90_000);
     const remoteHits: string[] = [];
-    await loginAsClientJuan(page);
+    await loginClientWithSettledSession(page, CLIENT_JUAN_EMAIL);
     await pinLocalDemoData(page);
     page.on('request', (request) => {
       const url = request.url();
@@ -272,33 +272,15 @@ test.describe('Profile fact lifecycle — React write parity', () => {
     expect(imported.every((fact) => fact.status === 'candidate')).toBe(true);
     expect(remoteHits).toEqual([]);
 
-    await page.evaluate(async ({ clientId, key }) => {
-      localStorage.setItem(key, 'legacy');
-      const ui = (
-        window as unknown as {
-          __posturaUi?: {
-            applyUiMode: (mode: 'legacy' | 'react') => Promise<void>;
-            mountLegacyIsland: (el: HTMLElement, config: { tab: string; clientId: string }) => void;
-          };
-        }
-      ).__posturaUi;
-      if (!ui?.applyUiMode || !ui.mountLegacyIsland) {
-        throw new Error('Strangler controls are unavailable');
-      }
-      await ui.applyUiMode('legacy');
-      let host = document.getElementById('pf-legacy-profile');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'pf-legacy-profile';
-        document.body.appendChild(host);
-      }
-      ui.mountLegacyIsland(host, { tab: 'client-profile', clientId });
-    }, { clientId: CLIENT_JUAN_ID, key: UI_MODE_KEY });
-
-    const island = page.locator('[data-legacy-island="true"]');
-    await expect(island).toBeVisible({ timeout: 15_000 });
-    await expect(island.locator('.btn-add-profile-fact').first()).toBeVisible();
-    await expect(island.locator('#btn-extract-cv-facts')).toBeVisible();
-    await expect(island.locator('#input-cv-paste')).toBeVisible();
+    await expect(page.locator('[data-testid="react-profile-panel"]')).toBeVisible();
+    for (const testId of [
+      'react-profile-cv-paste',
+      'react-profile-cv-submit',
+      'react-profile-add-identity',
+      'react-profile-add-career',
+      'react-onboarding-wizard',
+    ]) {
+      await expect(page.locator(`[data-testid="${testId}"]`)).toBeVisible();
+    }
   });
 });
