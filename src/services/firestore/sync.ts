@@ -62,10 +62,16 @@ const knownRemoteDocPaths = new Set<string>();
  * One-shot listings (pull, probes) go stale and never populate this set.
  */
 const liveCollections = new Set<string>();
+/**
+ * Last server-confirmed data per document path (pull, realtime, probes, acknowledged CLIENT writes).
+ * Pending local writes and cache-only snapshots never enter it; CLIENT persistence diffs against it.
+ */
+const remoteBaseline = new Map<string, Record<string, unknown>>();
 
 export function resetKnownRemoteDocPaths() {
   knownRemoteDocPaths.clear();
   liveCollections.clear();
+  remoteBaseline.clear();
 }
 
 function parentCollectionPath(docPath: string): string {
@@ -97,6 +103,28 @@ function confirmedDocIds(docs: ReadonlyArray<{ id: string }>): string[] {
 
 function isFromCache(snap: unknown): boolean {
   return Boolean((snap as SnapshotMetadataCarrier).metadata?.fromCache);
+}
+
+type ServerDocLike = { id: string; data: () => unknown };
+
+/** Callers pass only server-confirmed snapshots; `prune` drops docs absent from a complete listing. */
+function recordRemoteBaseline(
+  collectionPath: string,
+  docs: ReadonlyArray<ServerDocLike>,
+  options: { prune: boolean }
+) {
+  if (options.prune) {
+    for (const path of remoteBaseline.keys()) {
+      if (parentCollectionPath(path) === collectionPath) remoteBaseline.delete(path);
+    }
+  }
+  for (const row of docs) {
+    if (hasPendingWrites(row)) continue;
+    remoteBaseline.set(
+      `${collectionPath}/${row.id}`,
+      normalizeFirestorePulledData((row.data() ?? {}) as Record<string, unknown>)
+    );
+  }
 }
 
 export type PersistenceActor = {
@@ -368,6 +396,7 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
     planned.push({
       path: clientDocPath(client.id),
       envelopeClientId: null,
+      collection: 'root',
       row: client as unknown as Record<string, unknown>,
     });
 
@@ -380,6 +409,7 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
         planned.push({
           path: `${clientDocPath(client.id)}/${subName}/${row.id}`,
           envelopeClientId: client.id,
+          collection: subName,
           row: row as unknown as Record<string, unknown>,
           options: { stripStateHistory: isClientActor && subName === 'contents', client: envelope },
         });
@@ -391,6 +421,7 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
       planned.push({
         path: `${clientDocPath(client.id)}/profile/data`,
         envelopeClientId: client.id,
+        collection: 'profile',
         row: profile as unknown as Record<string, unknown>,
         options: { client: envelope },
       });
@@ -402,6 +433,7 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
         planned.push({
           path: `${clientDocPath(client.id)}/dossier/data`,
           envelopeClientId: client.id,
+          collection: 'dossier',
           row: dossier as unknown as Record<string, unknown>,
           options: { client: envelope },
         });
@@ -416,27 +448,40 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
   });
 
   const { doc, writeBatch, serverTimestamp } = await import('firebase/firestore');
+
+  let writes: PreparedWrite[];
+  if (isClientActor) {
+    await fillMissingClientBaselines(db, planned, existing, actor.organizationId?.trim() || null);
+    writes = projectClientWrites(planned, existing, serverTimestamp);
+  } else {
+    writes = planned.map((write) => ({
+      path: write.path,
+      data: prepareDocForWrite(write.row, serverTimestamp, existing.has(write.path), write.options),
+    }));
+  }
+
   let written = 0;
   let batch = writeBatch(db);
-  let batchPaths: string[] = [];
+  let batchWrites: PreparedWrite[] = [];
 
   const flush = async () => {
-    if (batchPaths.length === 0) return;
+    if (batchWrites.length === 0) return;
     await batch.commit();
-    for (const path of batchPaths) knownRemoteDocPaths.add(path);
+    for (const write of batchWrites) {
+      knownRemoteDocPaths.add(write.path);
+      if (write.confirmed) {
+        remoteBaseline.set(write.path, { ...(remoteBaseline.get(write.path) ?? {}), ...write.confirmed });
+      }
+    }
     batch = writeBatch(db!);
-    batchPaths = [];
+    batchWrites = [];
   };
 
-  for (const write of planned) {
-    batch.set(
-      doc(db, write.path),
-      prepareDocForWrite(write.row, serverTimestamp, existing.has(write.path), write.options),
-      { merge: true }
-    );
-    batchPaths.push(write.path);
+  for (const write of writes) {
+    batch.set(doc(db, write.path), write.data, { merge: true });
+    batchWrites.push(write);
     written += 1;
-    if (batchPaths.length >= 400) await flush();
+    if (batchWrites.length >= 400) await flush();
   }
 
   await flush();
@@ -447,8 +492,225 @@ interface PlannedWrite {
   path: string;
   /** Parent client id for subcollection docs; null for the root client doc. */
   envelopeClientId: string | null;
+  /** `root`, `profile`, `dossier`, or the Firestore subcollection name. */
+  collection: string;
   row: Record<string, unknown>;
   options?: PrepareDocOptions;
+}
+
+interface PreparedWrite {
+  path: string;
+  data: Record<string, unknown>;
+  /** Local values the write makes server state once committed (CLIENT baseline). */
+  confirmed?: Record<string, unknown>;
+}
+
+/**
+ * CLIENT write contract per collection, mirroring firestore.rules. Collections absent here
+ * are ADMIN/SYSTEM-owned and never written by CLIENT persistence.
+ * `create`: whole new docs may be sent. `update`: fields a CLIENT may change on existing docs.
+ * `canUpdate`: rule-level transition shape the local row must already satisfy.
+ */
+interface ClientWritePolicy {
+  create: boolean | ((row: Record<string, unknown>) => boolean);
+  createKeys?: readonly string[];
+  update: readonly string[];
+  canUpdate?: (row: Record<string, unknown>) => boolean;
+}
+
+const CLIENT_PROFILE_KEYS = [
+  'organizationId', 'clientId',
+  'identity', 'goals', 'audience', 'career', 'education', 'careerHistory',
+  'ventures', 'keyPublications', 'socialLinks', 'voicePreferences',
+  'facts', 'cvExtractedText', 'onboardingCompleted', 'onboardingCurrentStep',
+  'updatedAt',
+] as const;
+
+const CLIENT_WRITE_POLICIES: Readonly<Record<string, ClientWritePolicy>> = {
+  root: {
+    create: false,
+    update: [
+      'userId', 'onboardingStatus', 'profileCompleteness', 'status',
+      'displayName', 'firstName', 'lastName', 'profession', 'company',
+      'targetMarket', 'completedTasksCount', 'updatedAt',
+    ],
+  },
+  profile: {
+    create: true,
+    createKeys: CLIENT_PROFILE_KEYS,
+    update: CLIENT_PROFILE_KEYS.filter((key) => key !== 'organizationId' && key !== 'clientId'),
+  },
+  tasks: {
+    create: false,
+    update: ['status', 'clientNotes', 'evidenceUrl', 'completedAt', 'updatedAt'],
+  },
+  deliveries: {
+    create: false,
+    update: ['status', 'acknowledgedAt', 'clientAckNote', 'updatedAt'],
+    canUpdate: (row) => row.status === 'ACKNOWLEDGED',
+  },
+  contents: {
+    create: false,
+    update: [
+      'title', 'body', 'clientFeedback', 'clientReviewBaseline',
+      'pipelineStatus', 'status', 'updatedAt',
+    ],
+  },
+  opportunities: {
+    create: false,
+    update: [
+      'clientDecision', 'clientNotes', 'status', 'lifecycleStage',
+      'submissionChecklist', 'submittedAt', 'updatedAt',
+    ],
+  },
+  theses: {
+    create: false,
+    update: [
+      'clientApprovalStatus', 'clientApprovedAt', 'clientFeedback',
+      'pendingRevision', 'status', 'updatedAt', 'updatedBy',
+      'title', 'expertIdentity', 'targetAudience', 'secondaryAudience',
+      'domain', 'objective', 'proofPoints', 'differentiator', 'voiceAndTone',
+      'complianceRules', 'identityCurrent', 'perceptionTarget', 'audiences',
+      'territories', 'objectives', 'voiceProfile', 'limits', 'priority',
+    ],
+  },
+  results: { create: true, update: [] },
+  evidence: { create: true, update: [] },
+  feedbackEvents: { create: true, update: [] },
+  notifications: {
+    create: (row) => row.read === false,
+    update: ['read', 'updatedAt'],
+    canUpdate: (row) => row.read === true,
+  },
+};
+
+/** Stable structural comparison of pulled (ISO-normalized) and local values. */
+function sameFieldValue(a: unknown, b: unknown): boolean {
+  return stableSerialize(normalizeFirestorePulledData(a)) === stableSerialize(normalizeFirestorePulledData(b));
+}
+
+function stableSerialize(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableSerialize(entry)}`).join(',')}}`;
+}
+
+function pickKeys(row: Record<string, unknown>, keys: readonly string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) {
+    if (key in row) out[key] = row[key];
+  }
+  return out;
+}
+
+/**
+ * Existing docs the CLIENT may update but that have no server-confirmed baseline yet
+ * (e.g. only seen in a cache/pending snapshot) are read once from the server so dirtiness
+ * can be decided. Docs that still lack a baseline are skipped rather than blindly re-sent.
+ */
+async function fillMissingClientBaselines(
+  db: NonNullable<Awaited<ReturnType<typeof getFirebaseFirestore>>>,
+  planned: ReadonlyArray<PlannedWrite>,
+  existing: ReadonlySet<string>,
+  organizationId: string | null
+) {
+  const { collection, doc, getDoc, getDocs, query, where } = await import('firebase/firestore');
+  const collectionsToList = new Map<string, string>();
+  for (const write of planned) {
+    const policy = CLIENT_WRITE_POLICIES[write.collection];
+    if (!policy || policy.update.length === 0) continue;
+    if (!existing.has(write.path) || remoteBaseline.has(write.path)) continue;
+    if (write.envelopeClientId === null) {
+      try {
+        const snap = await getDoc(doc(db, write.path));
+        if (snap.exists() && !isFromCache(snap) && !hasPendingWrites(snap as unknown as { id: string })) {
+          remoteBaseline.set(write.path, normalizeFirestorePulledData((snap.data() ?? {}) as Record<string, unknown>));
+        }
+      } catch {
+        // No baseline: the root doc is skipped this push.
+      }
+    } else if (organizationId) {
+      collectionsToList.set(parentCollectionPath(write.path), write.envelopeClientId);
+    }
+  }
+  if (collectionsToList.size === 0 || !organizationId) return;
+
+  for (const [collectionPath, envelopeClientId] of collectionsToList) {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, collectionPath),
+          where('organizationId', '==', organizationId),
+          where('clientId', '==', envelopeClientId)
+        )
+      );
+      markRemoteDocsKnown(collectionPath, confirmedDocIds(snap.docs));
+      if (!isFromCache(snap)) recordRemoteBaseline(collectionPath, snap.docs, { prune: false });
+    } catch {
+      // No baseline: those docs are skipped this push.
+    }
+  }
+}
+
+/**
+ * W4 CLIENT persistence: only docs whose CLIENT-writable state differs from the server
+ * baseline are sent, projected to the fields the rules let a CLIENT change. Server-stamped
+ * time fields never make a doc dirty; they ride along only with a real change.
+ */
+function projectClientWrites(
+  planned: ReadonlyArray<PlannedWrite>,
+  existing: ReadonlySet<string>,
+  serverTimestamp: () => unknown
+): PreparedWrite[] {
+  const out: PreparedWrite[] = [];
+  for (const write of planned) {
+    const policy = CLIENT_WRITE_POLICIES[write.collection];
+    if (!policy) continue;
+    const row = stripUndefinedForFirestore(write.row) as Record<string, unknown>;
+
+    if (!existing.has(write.path)) {
+      const allowed = typeof policy.create === 'function' ? policy.create(row) : policy.create;
+      if (!allowed) continue;
+      const source = policy.createKeys ? pickKeys(row, policy.createKeys) : row;
+      const createOptions = policy.createKeys
+        ? { client: write.options?.client }
+        : write.options;
+      const createRow =
+        createOptions?.client ? ensureSubcollectionEnvelope(source, createOptions.client) : source;
+      out.push({
+        path: write.path,
+        data: prepareDocForWrite(source, serverTimestamp, false, createOptions),
+        confirmed: createRow,
+      });
+      continue;
+    }
+
+    if (policy.update.length === 0) continue;
+    if (policy.canUpdate && !policy.canUpdate(row)) continue;
+    const baseline = remoteBaseline.get(write.path);
+    if (!baseline) continue;
+
+    const changed = policy.update.filter(
+      (key) => !TRUSTED_SCALAR_TIME_FIELDS.has(key) && key in row && !sameFieldValue(row[key], baseline[key])
+    );
+    if (changed.length === 0) continue;
+
+    const payload = pickKeys(row, changed);
+    for (const key of policy.update) {
+      if (!TRUSTED_SCALAR_TIME_FIELDS.has(key) || typeof row[key] !== 'string') continue;
+      if (key === 'updatedAt' || !sameFieldValue(row[key], baseline[key])) payload[key] = row[key];
+    }
+    out.push({
+      path: write.path,
+      data: prepareDocForWrite(payload, serverTimestamp, true),
+      confirmed: payload,
+    });
+  }
+  return out;
 }
 
 /**
@@ -496,6 +758,7 @@ export async function resolveExistingDocPaths(
     try {
       const snap = await getDocs(scopedQuery);
       markRemoteDocsKnown(collectionPath, confirmedDocIds(snap.docs));
+      if (!isFromCache(snap)) recordRemoteBaseline(collectionPath, snap.docs, { prune: false });
       const pendingPaths = new Set(
         snap.docs.filter(hasPendingWrites).map((row) => `${collectionPath}/${row.id}`)
       );
@@ -632,6 +895,12 @@ export async function pullClientDataFromFirestore(
     const clientSnap = await getDoc(doc(db, clientDocPath(clientId)));
     if (clientSnap.exists()) {
       knownRemoteDocPaths.add(clientDocPath(clientId));
+      if (!isFromCache(clientSnap) && !hasPendingWrites(clientSnap as unknown as { id: string })) {
+        remoteBaseline.set(
+          clientDocPath(clientId),
+          normalizeFirestorePulledData((clientSnap.data() ?? {}) as Record<string, unknown>)
+        );
+      }
       partial.clients!.push(
         normalizeFirestorePulledData(clientSnap.data()) as unknown as LocalV5Snapshot['clients'][number]
       );
@@ -641,6 +910,9 @@ export async function pullClientDataFromFirestore(
       if (!scope || !isClientSubcollectionReadable(sub, scope)) continue;
       const snap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, sub, scope));
       markRemoteDocsKnown(`${clientDocPath(clientId)}/${sub}`, confirmedDocIds(snap.docs));
+      if (!isFromCache(snap)) {
+        recordRemoteBaseline(`${clientDocPath(clientId)}/${sub}`, snap.docs, { prune: true });
+      }
       const targetKey = Object.entries(COLLECTION_MAP).find(([, v]) => v === sub)?.[0] as CollectionKey | undefined;
       if (!targetKey || !Array.isArray(partial[targetKey])) continue;
       for (const row of snap.docs) {
@@ -655,6 +927,9 @@ export async function pullClientDataFromFirestore(
     // A missing singleton doc is denied (not "absent") by envelope rules; list it scoped instead.
     const profileSnap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, 'profile', scope));
     markRemoteDocsKnown(`${clientDocPath(clientId)}/profile`, confirmedDocIds(profileSnap.docs));
+    if (!isFromCache(profileSnap)) {
+      recordRemoteBaseline(`${clientDocPath(clientId)}/profile`, profileSnap.docs, { prune: true });
+    }
     const profileDoc = profileSnap.docs.find((row) => row.id === 'data');
     if (profileDoc) {
       partial.profiles![clientId] = normalizeFirestorePulledData(
@@ -773,8 +1048,10 @@ export async function startFirestoreRealtimeSync(
       if (isFromCache(snap) || snap.docs.some(hasPendingWrites)) {
         liveCollections.delete(collectionPath);
         markRemoteDocsKnown(collectionPath, confirmedDocIds(snap.docs));
+        if (!isFromCache(snap)) recordRemoteBaseline(collectionPath, snap.docs, { prune: false });
       } else {
         applyLiveCollectionSnapshot(collectionPath, snap.docs.map((docSnap) => docSnap.id));
+        recordRemoteBaseline(collectionPath, snap.docs, { prune: true });
       }
       const rows = snap.docs.map((docSnap) =>
         normalizeFirestorePulledData({
