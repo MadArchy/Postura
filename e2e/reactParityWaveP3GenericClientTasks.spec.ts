@@ -33,9 +33,8 @@ test.describe('P3A — React client portal generic task actions', () => {
     await expect(page.locator(`[data-testid="react-portal-task-request-changes-${taskId}"]`)).toBeVisible();
     await expect(page.locator(`[data-testid="react-portal-task-view-${taskId}"]`)).toBeVisible();
 
-    // Server must confirm VIEWED before COMPLETE: rapid steps can merge into one push the rules reject.
+    // View then complete inside one debounce window: persistence must keep VIEWED as its own edge.
     await page.click(`[data-testid="react-portal-task-view-${taskId}"]`);
-    await waitForServerField(taskPath, 'status', 'VIEWED');
     await page.click(`[data-testid="react-portal-task-complete-${taskId}"]`);
     await expect(genericRow).toHaveCount(0, { timeout: 15_000 });
     await waitForServerField(taskPath, 'status', 'COMPLETED');

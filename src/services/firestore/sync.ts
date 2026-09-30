@@ -133,6 +133,9 @@ export type PersistenceActor = {
   organizationId?: string | null;
 };
 
+/** Signed-in actor from the last token read; push scheduling is synchronous and cannot await claims. */
+let sessionPersistenceActor: PersistenceActor | null = null;
+
 function itemsForClient<T extends { clientId?: string | null; id?: string }>(
   rows: T[],
   clientId: string
@@ -358,7 +361,11 @@ let snapshotImportQueue: Promise<unknown> = Promise.resolve();
  * Imports run one at a time so create/update classification never races another push's pending writes.
  */
 export function importSnapshotToFirestore(snapshot: LocalV5Snapshot): Promise<SnapshotImportResult> {
-  const run = snapshotImportQueue.then(() => runSnapshotImport(snapshot));
+  return enqueueSnapshotImport(() => runSnapshotImport(snapshot));
+}
+
+function enqueueSnapshotImport(task: () => Promise<SnapshotImportResult>): Promise<SnapshotImportResult> {
+  const run = snapshotImportQueue.then(task);
   snapshotImportQueue = run.catch(() => undefined);
   return run;
 }
@@ -382,6 +389,7 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
       organizationId:
         typeof token.claims.organizationId === 'string' ? token.claims.organizationId : null,
     };
+    sessionPersistenceActor = actor;
   }
 
   const scoped = filterSnapshotForPersistenceActor(snapshot, actor);
@@ -830,6 +838,13 @@ async function readTenantReadScope(): Promise<TenantReadScope | null> {
   const token = await user.getIdTokenResult();
   const organizationId =
     typeof token.claims.organizationId === 'string' ? token.claims.organizationId.trim() : '';
+  sessionPersistenceActor = organizationId
+    ? {
+        role: typeof token.claims.role === 'string' ? token.claims.role : '',
+        clientId: typeof token.claims.clientId === 'string' ? token.claims.clientId : null,
+        organizationId,
+      }
+    : null;
   if (!organizationId) return null;
   return { organizationId, isAdmin: token.claims.role === 'ADMIN' };
 }
@@ -967,8 +982,85 @@ export function isFirestoreAuthoritative(): boolean {
   return authoritative && Boolean(readFirebaseConfig());
 }
 
+/**
+ * Status fields whose rules reject skipped edges (ASSIGNED→COMPLETED, SENT_TO_CLIENT→COMPLETED).
+ * Other CLIENT state fields accept the direct edge, so their changes may coalesce.
+ */
+const EDGE_SENSITIVE_STATE_FIELDS: ReadonlyArray<readonly [CollectionKey, string]> = [
+  ['tasks', 'status'],
+  ['opportunities', 'status'],
+];
+
+type ClientCapture = { snapshot: LocalV5Snapshot; epoch: number };
+
+let pendingClientCapture: ClientCapture | null = null;
+/** Bumped when a CLIENT push fails: captures taken before then may carry edges that depend on it. */
+let clientPushEpoch = 0;
+
+/** Values as of scheduling time; `exportSnapshot()` shares live rows that later commands mutate. */
+function captureClientSnapshot(snapshot: LocalV5Snapshot, actor: PersistenceActor): LocalV5Snapshot {
+  const scoped = filterSnapshotForPersistenceActor(snapshot, actor);
+  return structuredClone({ ...scoped, subscription: null, invitations: [], files: [], topicPins: [] });
+}
+
+function changesEdgeSensitiveState(pending: LocalV5Snapshot, next: LocalV5Snapshot): boolean {
+  for (const [key, field] of EDGE_SENSITIVE_STATE_FIELDS) {
+    const before = new Map(
+      (pending[key] as unknown as Array<Record<string, unknown>>).map((row) => [row.id, row[field]])
+    );
+    for (const row of next[key] as unknown as Array<Record<string, unknown>>) {
+      if (before.has(row.id) && before.get(row.id) !== row[field]) return true;
+    }
+  }
+  return false;
+}
+
+function dispatchClientCapture(capture: ClientCapture) {
+  void enqueueSnapshotImport(async () => {
+    if (capture.epoch !== clientPushEpoch) {
+      return { ok: true, message: 'Cambios descartados tras un error de sincronización.', written: 0 };
+    }
+    try {
+      const result = await runSnapshotImport(capture.snapshot);
+      if (!result.ok) clientPushEpoch += 1;
+      return result;
+    } catch (err) {
+      clientPushEpoch += 1;
+      throw err;
+    }
+  }).then((result) => {
+    if (!result.ok) pushErrorHandler?.(result.message);
+  }).catch((err) => {
+    const message = err instanceof Error ? err.message : 'Error al sincronizar con Firestore.';
+    pushErrorHandler?.(message);
+  });
+}
+
+/**
+ * CLIENT pushes keep every edge-sensitive transition: a pending capture is persisted, never
+ * dropped, before a capture that moves one of its edge-sensitive states again.
+ */
+function scheduleClientPush(snapshot: LocalV5Snapshot, actor: PersistenceActor) {
+  const capture: ClientCapture = { snapshot: captureClientSnapshot(snapshot, actor), epoch: clientPushEpoch };
+  if (pendingClientCapture && changesEdgeSensitiveState(pendingClientCapture.snapshot, capture.snapshot)) {
+    dispatchClientCapture(pendingClientCapture);
+  }
+  pendingClientCapture = capture;
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    const due = pendingClientCapture;
+    pendingClientCapture = null;
+    if (due) dispatchClientCapture(due);
+  }, 800);
+}
+
 export function scheduleFirestorePush(snapshot: LocalV5Snapshot) {
   if (!isFirestoreAuthoritative()) return;
+  const actor = sessionPersistenceActor;
+  if (actor?.role === 'CLIENT' && actor.clientId) {
+    scheduleClientPush(snapshot, actor);
+    return;
+  }
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
     void importSnapshotToFirestore(snapshot).then((result) => {
@@ -998,6 +1090,7 @@ export function stopFirestoreRealtimeSync() {
   for (const unsub of realtimeUnsubs) unsub();
   realtimeUnsubs = [];
   liveCollections.clear();
+  sessionPersistenceActor = null;
 }
 
 const REALTIME_SUBS = [

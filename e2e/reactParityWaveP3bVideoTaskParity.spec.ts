@@ -162,8 +162,6 @@ test.describe('P3B — React video task and recordings', () => {
         }, { id: taskId });
       })
       .toBe('IN_PROGRESS');
-    // Server must confirm IN_PROGRESS before send: rapid steps can merge into one push the rules reject.
-    await waitForServerField(taskPath, 'status', 'IN_PROGRESS');
 
     await page.locator('[data-testid="react-teleprompter-stop"]').click();
     await expect(page.locator('[data-testid="react-teleprompter-send"]')).toBeVisible();
