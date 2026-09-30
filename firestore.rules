@@ -115,12 +115,16 @@ service cloud.firestore {
       return envelopeMatches(request.resource.data);
     }
 
-    /** Preserve organizationId/clientId when present on the existing resource. */
+    /**
+     * Preserve organizationId/clientId when present on the existing resource,
+     * and keep createdAt write-once (no change, add, or removal on UPDATE).
+     */
     function preservesEnvelope() {
       return (!resource.data.keys().hasAny(['organizationId'])
           || request.resource.data.organizationId == resource.data.organizationId)
         && (!resource.data.keys().hasAny(['clientId'])
-          || request.resource.data.clientId == resource.data.clientId);
+          || request.resource.data.clientId == resource.data.clientId)
+        && !changedKeys().hasAny(['createdAt']);
     }
 
     function changedKeys() {
@@ -394,9 +398,8 @@ service cloud.firestore {
     }
 
     function clientNotificationUpdateOk() {
-      return onlyChanged(['read', 'createdAt', 'updatedAt', 'organizationId', 'clientId'])
+      return onlyChanged(['read', 'updatedAt', 'organizationId', 'clientId'])
         && preservesEnvelope()
-        && trustedTimeOrUnchanged('createdAt')
         && (
           (resource.data.read == false && request.resource.data.read == true)
           || (resource.data.read == true && request.resource.data.read == true)

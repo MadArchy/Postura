@@ -43,15 +43,61 @@ export const CLIENT_PERSIST_COLLECTION_KEYS = [
 
 const CLIENT_PERSIST_KEY_SET = new Set<string>(CLIENT_PERSIST_COLLECTION_KEYS);
 
-/** Workflow fields written as serverTimestamp for SEC-009-017. */
+/**
+ * Workflow fields written as serverTimestamp for SEC-009-017.
+ * `createdAt` is write-once and handled by `applyCreatedAtWriteOnce`.
+ */
 const TRUSTED_SCALAR_TIME_FIELDS = new Set([
   'acknowledgedAt',
   'completedAt',
   'submittedAt',
   'clientApprovedAt',
-  'createdAt',
   'updatedAt',
 ]);
+
+/** Document paths observed to exist in Firestore (pull, realtime snapshots, committed writes). */
+const knownRemoteDocPaths = new Set<string>();
+/**
+ * Collections kept current by a live realtime listener; a path absent there is new.
+ * One-shot listings (pull, probes) go stale and never populate this set.
+ */
+const liveCollections = new Set<string>();
+
+export function resetKnownRemoteDocPaths() {
+  knownRemoteDocPaths.clear();
+  liveCollections.clear();
+}
+
+function parentCollectionPath(docPath: string): string {
+  return docPath.slice(0, docPath.lastIndexOf('/'));
+}
+
+function applyLiveCollectionSnapshot(collectionPath: string, docIds: Iterable<string>) {
+  for (const path of knownRemoteDocPaths) {
+    if (parentCollectionPath(path) === collectionPath) knownRemoteDocPaths.delete(path);
+  }
+  for (const id of docIds) knownRemoteDocPaths.add(`${collectionPath}/${id}`);
+  liveCollections.add(collectionPath);
+}
+
+function markRemoteDocsKnown(collectionPath: string, docIds: Iterable<string>) {
+  for (const id of docIds) knownRemoteDocPaths.add(`${collectionPath}/${id}`);
+}
+
+/** Only server-confirmed docs prove existence; pending local writes may still be rejected. */
+type SnapshotMetadataCarrier = { metadata?: { hasPendingWrites?: boolean; fromCache?: boolean } };
+
+function hasPendingWrites(row: { id: string }): boolean {
+  return Boolean((row as SnapshotMetadataCarrier).metadata?.hasPendingWrites);
+}
+
+function confirmedDocIds(docs: ReadonlyArray<{ id: string }>): string[] {
+  return docs.filter((row) => !hasPendingWrites(row)).map((row) => row.id);
+}
+
+function isFromCache(snap: unknown): boolean {
+  return Boolean((snap as SnapshotMetadataCarrier).metadata?.fromCache);
+}
 
 export type PersistenceActor = {
   role: string;
@@ -216,15 +262,41 @@ export function applyTrustedServerTimestamps(
   return out;
 }
 
-function prepareDocForWrite(
+/**
+ * `createdAt` is write-once: stamped with serverTimestamp only when the document does not
+ * exist remotely, and omitted from updates so a merge never replaces (or nulls) the stored value.
+ */
+export function applyCreatedAtWriteOnce(
+  data: Record<string, unknown>,
+  docExists: boolean,
+  serverTimestamp: () => unknown
+): Record<string, unknown> {
+  if (!('createdAt' in data)) return data;
+  const out: Record<string, unknown> = { ...data };
+  if (docExists) {
+    delete out.createdAt;
+  } else {
+    out.createdAt = serverTimestamp();
+  }
+  return out;
+}
+
+interface PrepareDocOptions {
+  stripStateHistory?: boolean;
+  client?: { id: string; organizationId?: string | null };
+}
+
+export function prepareDocForWrite(
   row: Record<string, unknown>,
   serverTimestamp: () => unknown,
-  options?: { stripStateHistory?: boolean; client?: { id: string; organizationId?: string | null } }
+  docExists: boolean,
+  options?: PrepareDocOptions
 ): Record<string, unknown> {
   let base = stripUndefinedForFirestore(row) as Record<string, unknown>;
   if (options?.client) {
     base = ensureSubcollectionEnvelope(base, options.client);
   }
+  base = applyCreatedAtWriteOnce(base, docExists, serverTimestamp);
   const prepared = applyTrustedServerTimestamps(base, serverTimestamp);
   if (options?.stripStateHistory && 'stateHistory' in prepared) {
     return stripNonAuthoritativeContentHistory(prepared);
@@ -249,10 +321,21 @@ export function ensureSubcollectionEnvelope(
   return out;
 }
 
-/** Importa snapshot v5 a Firestore (Emulator o producción). */
-export async function importSnapshotToFirestore(
-  snapshot: LocalV5Snapshot
-): Promise<{ ok: boolean; message: string; written: number }> {
+type SnapshotImportResult = { ok: boolean; message: string; written: number };
+
+let snapshotImportQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Importa snapshot v5 a Firestore (Emulator o producción).
+ * Imports run one at a time so create/update classification never races another push's pending writes.
+ */
+export function importSnapshotToFirestore(snapshot: LocalV5Snapshot): Promise<SnapshotImportResult> {
+  const run = snapshotImportQueue.then(() => runSnapshotImport(snapshot));
+  snapshotImportQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImportResult> {
   if (!readFirebaseConfig()) {
     return { ok: false, message: 'Configura VITE_FIREBASE_* para importar.', written: 0 };
   }
@@ -276,28 +359,17 @@ export async function importSnapshotToFirestore(
   const scoped = filterSnapshotForPersistenceActor(snapshot, actor);
   const isClientActor = actor.role === 'CLIENT';
 
-  const { doc, writeBatch, serverTimestamp } = await import('firebase/firestore');
-  let written = 0;
-  let batch = writeBatch(db);
-  let ops = 0;
-
-  const flush = async () => {
-    if (ops === 0) return;
-    await batch.commit();
-    batch = writeBatch(db!);
-    ops = 0;
-  };
+  const planned: PlannedWrite[] = [];
 
   for (const client of scoped.clients) {
     if (isClientActor && actor.clientId && client.id !== actor.clientId) continue;
+    const envelope = { id: client.id, organizationId: client.organizationId };
 
-    batch.set(
-      doc(db, clientDocPath(client.id)),
-      prepareDocForWrite(client as unknown as Record<string, unknown>, serverTimestamp),
-      { merge: true }
-    );
-    ops += 1;
-    written += 1;
+    planned.push({
+      path: clientDocPath(client.id),
+      envelopeClientId: null,
+      row: client as unknown as Record<string, unknown>,
+    });
 
     for (const [key, subName] of Object.entries(COLLECTION_MAP)) {
       if (isClientActor && !CLIENT_PERSIST_KEY_SET.has(key)) continue;
@@ -305,51 +377,138 @@ export async function importSnapshotToFirestore(
       if (!Array.isArray(rows)) continue;
       for (const row of itemsForClient(rows as Array<{ clientId?: string | null; id?: string }>, client.id)) {
         if (!row.id) continue;
-        batch.set(
-          doc(db, `${clientDocPath(client.id)}/${subName}/${row.id}`),
-          prepareDocForWrite(row as unknown as Record<string, unknown>, serverTimestamp, {
-            stripStateHistory: isClientActor && subName === 'contents',
-            client: { id: client.id, organizationId: client.organizationId },
-          }),
-          { merge: true }
-        );
-        ops += 1;
-        written += 1;
-        if (ops >= 400) await flush();
+        planned.push({
+          path: `${clientDocPath(client.id)}/${subName}/${row.id}`,
+          envelopeClientId: client.id,
+          row: row as unknown as Record<string, unknown>,
+          options: { stripStateHistory: isClientActor && subName === 'contents', client: envelope },
+        });
       }
     }
 
     const profile = scoped.profiles[client.id];
     if (profile) {
-      batch.set(
-        doc(db, `${clientDocPath(client.id)}/profile/data`),
-        prepareDocForWrite(profile as unknown as Record<string, unknown>, serverTimestamp, {
-          client: { id: client.id, organizationId: client.organizationId },
-        }),
-        { merge: true }
-      );
-      ops += 1;
-      written += 1;
+      planned.push({
+        path: `${clientDocPath(client.id)}/profile/data`,
+        envelopeClientId: client.id,
+        row: profile as unknown as Record<string, unknown>,
+        options: { client: envelope },
+      });
     }
 
     if (!isClientActor) {
       const dossier = scoped.dossiers[client.id];
       if (dossier) {
-        batch.set(
-          doc(db, `${clientDocPath(client.id)}/dossier/data`),
-          prepareDocForWrite(dossier as unknown as Record<string, unknown>, serverTimestamp, {
-            client: { id: client.id, organizationId: client.organizationId },
-          }),
-          { merge: true }
-        );
-        ops += 1;
-        written += 1;
+        planned.push({
+          path: `${clientDocPath(client.id)}/dossier/data`,
+          envelopeClientId: client.id,
+          row: dossier as unknown as Record<string, unknown>,
+          options: { client: envelope },
+        });
       }
     }
   }
 
+  const existing = await resolveExistingDocPaths(db, planned, {
+    organizationId: actor.organizationId?.trim() || null,
+    // Root client create is ADMIN-only, so a CLIENT's own root doc always exists.
+    rootAlwaysExists: isClientActor,
+  });
+
+  const { doc, writeBatch, serverTimestamp } = await import('firebase/firestore');
+  let written = 0;
+  let batch = writeBatch(db);
+  let batchPaths: string[] = [];
+
+  const flush = async () => {
+    if (batchPaths.length === 0) return;
+    await batch.commit();
+    for (const path of batchPaths) knownRemoteDocPaths.add(path);
+    batch = writeBatch(db!);
+    batchPaths = [];
+  };
+
+  for (const write of planned) {
+    batch.set(
+      doc(db, write.path),
+      prepareDocForWrite(write.row, serverTimestamp, existing.has(write.path), write.options),
+      { merge: true }
+    );
+    batchPaths.push(write.path);
+    written += 1;
+    if (batchPaths.length >= 400) await flush();
+  }
+
   await flush();
   return { ok: true, message: `Importados ${written} documentos a Firestore.`, written };
+}
+
+interface PlannedWrite {
+  path: string;
+  /** Parent client id for subcollection docs; null for the root client doc. */
+  envelopeClientId: string | null;
+  row: Record<string, unknown>;
+  options?: PrepareDocOptions;
+}
+
+/**
+ * Create/update signal for `createdAt`: remote existence, never the local field value.
+ * Known paths exist; unknown paths in a live-listened collection are new; otherwise the
+ * collection is listed with the same envelope-scoped query the rules allow for reads.
+ * If existence cannot be established the doc is treated as existing so `createdAt` is never re-stamped.
+ */
+export async function resolveExistingDocPaths(
+  db: NonNullable<Awaited<ReturnType<typeof getFirebaseFirestore>>>,
+  writes: ReadonlyArray<Pick<PlannedWrite, 'path' | 'envelopeClientId'>>,
+  context: { organizationId: string | null; rootAlwaysExists: boolean }
+): Promise<Set<string>> {
+  const existing = new Set<string>();
+  const toProbe = new Map<string, Array<Pick<PlannedWrite, 'path' | 'envelopeClientId'>>>();
+
+  for (const write of writes) {
+    const isRoot = write.envelopeClientId === null;
+    const collectionPath = parentCollectionPath(write.path);
+    if (knownRemoteDocPaths.has(write.path) || (isRoot && context.rootAlwaysExists)) {
+      existing.add(write.path);
+    } else if (liveCollections.has(collectionPath)) {
+      continue;
+    } else if (!context.organizationId) {
+      existing.add(write.path);
+    } else {
+      const group = toProbe.get(collectionPath) ?? [];
+      group.push(write);
+      toProbe.set(collectionPath, group);
+    }
+  }
+  if (toProbe.size === 0) return existing;
+
+  const { collection, getDocs, query, where } = await import('firebase/firestore');
+  for (const [collectionPath, group] of toProbe) {
+    const envelopeClientId = group[0].envelopeClientId;
+    const scopedQuery =
+      envelopeClientId === null
+        ? query(collection(db, collectionPath), where('organizationId', '==', context.organizationId))
+        : query(
+            collection(db, collectionPath),
+            where('organizationId', '==', context.organizationId),
+            where('clientId', '==', envelopeClientId)
+          );
+    try {
+      const snap = await getDocs(scopedQuery);
+      markRemoteDocsKnown(collectionPath, confirmedDocIds(snap.docs));
+      const pendingPaths = new Set(
+        snap.docs.filter(hasPendingWrites).map((row) => `${collectionPath}/${row.id}`)
+      );
+      for (const write of group) {
+        if (isFromCache(snap) || pendingPaths.has(write.path) || knownRemoteDocPaths.has(write.path)) {
+          existing.add(write.path);
+        }
+      }
+    } catch {
+      for (const write of group) existing.add(write.path);
+    }
+  }
+  return existing;
 }
 
 
@@ -472,6 +631,7 @@ export async function pullClientDataFromFirestore(
   for (const clientId of clientIds) {
     const clientSnap = await getDoc(doc(db, clientDocPath(clientId)));
     if (clientSnap.exists()) {
+      knownRemoteDocPaths.add(clientDocPath(clientId));
       partial.clients!.push(
         normalizeFirestorePulledData(clientSnap.data()) as unknown as LocalV5Snapshot['clients'][number]
       );
@@ -480,6 +640,7 @@ export async function pullClientDataFromFirestore(
     for (const sub of CLIENT_SUBCOLLECTIONS) {
       if (!scope || !isClientSubcollectionReadable(sub, scope)) continue;
       const snap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, sub, scope));
+      markRemoteDocsKnown(`${clientDocPath(clientId)}/${sub}`, confirmedDocIds(snap.docs));
       const targetKey = Object.entries(COLLECTION_MAP).find(([, v]) => v === sub)?.[0] as CollectionKey | undefined;
       if (!targetKey || !Array.isArray(partial[targetKey])) continue;
       for (const row of snap.docs) {
@@ -493,6 +654,7 @@ export async function pullClientDataFromFirestore(
 
     // A missing singleton doc is denied (not "absent") by envelope rules; list it scoped instead.
     const profileSnap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, 'profile', scope));
+    markRemoteDocsKnown(`${clientDocPath(clientId)}/profile`, confirmedDocIds(profileSnap.docs));
     const profileDoc = profileSnap.docs.find((row) => row.id === 'data');
     if (profileDoc) {
       partial.profiles![clientId] = normalizeFirestorePulledData(
@@ -501,6 +663,7 @@ export async function pullClientDataFromFirestore(
     }
 
     const dossierSnap = await getDocs(await scopedClientSubcollectionQuery(db, clientId, 'dossier', scope));
+    markRemoteDocsKnown(`${clientDocPath(clientId)}/dossier`, confirmedDocIds(dossierSnap.docs));
     const dossierDoc = dossierSnap.docs.find((row) => row.id === 'data');
     if (dossierDoc) {
       partial.dossiers![clientId] = normalizeFirestorePulledData(
@@ -559,6 +722,7 @@ let realtimeUnsubs: Array<() => void> = [];
 export function stopFirestoreRealtimeSync() {
   for (const unsub of realtimeUnsubs) unsub();
   realtimeUnsubs = [];
+  liveCollections.clear();
 }
 
 const REALTIME_SUBS = [
@@ -605,6 +769,13 @@ export async function startFirestoreRealtimeSync(
     if (!isClientSubcollectionReadable(sub, scope)) return;
     const scopedQuery = await scopedClientSubcollectionQuery(db, clientId, sub, scope);
     const unsub = onSnapshot(scopedQuery, (snap: import('firebase/firestore').QuerySnapshot) => {
+      const collectionPath = `${clientDocPath(clientId)}/${sub}`;
+      if (isFromCache(snap) || snap.docs.some(hasPendingWrites)) {
+        liveCollections.delete(collectionPath);
+        markRemoteDocsKnown(collectionPath, confirmedDocIds(snap.docs));
+      } else {
+        applyLiveCollectionSnapshot(collectionPath, snap.docs.map((docSnap) => docSnap.id));
+      }
       const rows = snap.docs.map((docSnap) =>
         normalizeFirestorePulledData({
           ...docSnap.data(),

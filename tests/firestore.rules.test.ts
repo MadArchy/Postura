@@ -1156,4 +1156,109 @@ describe('firestore.rules (emulator) — SPEC-009 Phase 1', () => {
       );
     });
   });
+
+  describe('createdAt is write-once', () => {
+    function adminDb() {
+      return testEnv
+        .authenticatedContext('admin_uid', { role: 'ADMIN', organizationId: ORG_ID })
+        .firestore();
+    }
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'clients/client_juan_001/tasks/task_created'), {
+          id: 'task_created',
+          organizationId: ORG_ID,
+          clientId: 'client_juan_001',
+          title: 'Con createdAt',
+          status: 'ASSIGNED',
+          createdAt: '2026-08-01T00:00:00Z',
+        });
+        await setDoc(doc(db, 'clients/client_juan_001/tasks/task_null_created'), {
+          id: 'task_null_created',
+          organizationId: ORG_ID,
+          clientId: 'client_juan_001',
+          title: 'createdAt null',
+          status: 'ASSIGNED',
+          createdAt: null,
+        });
+      });
+    });
+
+    it('ADMIN subcollection CREATE with serverTimestamp createdAt ALLOW', async () => {
+      await assertSucceeds(
+        setDoc(doc(adminDb(), 'clients/client_juan_001/tasks/task_new'), {
+          id: 'task_new',
+          organizationId: ORG_ID,
+          clientId: 'client_juan_001',
+          title: 'Nueva',
+          status: 'ASSIGNED',
+          createdAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('ADMIN subcollection UPDATE changing createdAt DENY', async () => {
+      await assertFails(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001/tasks/task_created'), {
+          title: 'Editada',
+          createdAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('ADMIN subcollection UPDATE preserving createdAt ALLOW', async () => {
+      await assertSucceeds(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001/tasks/task_created'), {
+          title: 'Editada',
+          updatedAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('ADMIN UPDATE replacing a null createdAt DENY', async () => {
+      await assertFails(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001/tasks/task_null_created'), {
+          createdAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('ADMIN UPDATE adding createdAt to a doc without it DENY', async () => {
+      await assertFails(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001/tasks/task_1'), {
+          createdAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('ADMIN root client UPDATE changing createdAt DENY; preserving ALLOW', async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(
+          doc(context.firestore(), 'clients/client_juan_001'),
+          { createdAt: '2026-08-01T00:00:00Z' },
+          { merge: true }
+        );
+      });
+      await assertFails(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001'), { createdAt: serverTimestamp() })
+      );
+      await assertSucceeds(
+        updateDoc(doc(adminDb(), 'clients/client_juan_001'), {
+          displayName: 'Juan J.',
+          updatedAt: serverTimestamp(),
+        })
+      );
+    });
+
+    it('CLIENT notification mark-read re-stamping createdAt DENY', async () => {
+      await assertFails(
+        updateDoc(doc(juanDb(), 'clients/client_juan_001/notifications/ntf_unread'), {
+          read: true,
+          createdAt: serverTimestamp(),
+        })
+      );
+    });
+  });
 });
