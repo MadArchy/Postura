@@ -527,6 +527,7 @@ class DataService {
         teleprompterScript: `Si tu empresa ya usa IA pero nadie en Legal puede decirte qué herramientas usan los empleados, tienes un problema de adopción — no de tecnología.\n\nLa adopción de IA casi siempre empieza de forma informal: ChatGPT, Copilot, proveedores con acceso a datos. Antes de hablar de regulación, necesitas tres cosas:\n\n1. People — ¿quién usa qué y con qué formación?\n2. Tools — inventario de herramientas, vendors y acceso a información sensible.\n3. Rules — políticas que realmente se cumplen, no solo en papel.\n\nEso es AI Posture: proteger innovación y adoptar IA de forma defendible. Como abogado de patentes e ingeniero, veo el riesgo desde IP y desde sistemas reales. En mi perfil dejo la checklist para General Counsel.`,
         targetPlatform: 'LinkedIn',
         status: 'CLIENT_REVIEW',
+        pipelineStatus: 'sent_to_client',
         managerNotes: 'Guion adaptado a 60 segundos exactos en tono autoritativo y directo. Listo para grabación en teleprompter.',
         createdAt: '2026-08-18T09:30:00Z',
         updatedAt: '2026-08-18T09:45:00Z'
