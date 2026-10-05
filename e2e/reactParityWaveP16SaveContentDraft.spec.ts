@@ -230,45 +230,4 @@ test.describe('P16 — React SaveContentDraft parity', () => {
     expect(facts.title).toBe(title);
     expect(facts.createdExtras).toBe(0);
   });
-
-  test('legacy content editor remains reachable after UI-mode rollback', async ({ page }) => {
-    test.setTimeout(180_000);
-    await loginAsManager(page);
-    await enterClientWorkspaceFromShell(page);
-    const { id } = await seedExistingDraft(page);
-
-    await page.locator('[data-testid="react-shell-to-legacy"]').click();
-    await expect(page.locator('#app')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('#react-root')).toBeHidden();
-
-    await page.evaluate(async ({ clientId }) => {
-      const ui = (
-        window as unknown as {
-          __posturaUi?: {
-            applyUiMode: (mode: 'legacy' | 'react') => Promise<void>;
-            mountLegacyIsland: (el: HTMLElement, config: { tab: string; clientId: string }) => void;
-          };
-        }
-      ).__posturaUi;
-      if (!ui?.applyUiMode || !ui.mountLegacyIsland) {
-        throw new Error('Strangler controls are unavailable');
-      }
-      await ui.applyUiMode('legacy');
-      let host = document.getElementById('p16-legacy-production');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'p16-legacy-production';
-        document.body.appendChild(host);
-      }
-      ui.mountLegacyIsland(host, { tab: 'ws-production', clientId });
-    }, { clientId: CLIENT_JUAN_ID });
-
-    await expect(page.locator('[data-legacy-island="true"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator(`.btn-open-content-editor[data-content-id="${id}"]`)).toBeVisible({
-      timeout: 15_000,
-    });
-    await page.locator(`.btn-open-content-editor[data-content-id="${id}"]`).click();
-    await expect(page.locator('#form-edit-content')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('#form-edit-content')).toHaveAttribute('data-content-id', id);
-  });
 });

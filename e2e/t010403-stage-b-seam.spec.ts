@@ -152,23 +152,14 @@ test.describe('T-010-403 Stage-B seam inversion', () => {
     expect(await visibleRoots(page)).toEqual(['react-root']);
   });
 
-  test('explicit legacy rollback still boots the legacy shell', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
-    await page.reload();
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
-    await expect(page.locator('#form-login')).toBeVisible();
-    expect(await visibleRoots(page)).toEqual(['app']);
-  });
-
-  test('rollback does not mutate business storage', async ({ page }) => {
+  test('a legacy request round trip does not mutate business storage', async ({ page }) => {
     await page.goto('/');
     const before = await businessSnapshot(page);
 
     await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
     await page.reload();
-    await expect(page.locator('#app')).toBeVisible();
+    await expect(page.locator('#react-root')).toBeVisible();
+    expect(await visibleRoots(page)).toEqual(['react-root']);
 
     await page.evaluate(([key]) => localStorage.setItem(key, 'react'), [UI_MODE_KEY]);
     await page.reload();

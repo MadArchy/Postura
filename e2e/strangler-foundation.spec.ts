@@ -4,7 +4,7 @@
  * Proves the four foundation properties and nothing more:
  *   1. the app boots and the React presentation is the Stage-B default
  *   2. the React island mounts when requested
- *   3. rollback returns to legacy without touching business state
+ *   3. a legacy request (served as React under Option E) does not touch business state
  *   4. the two DOM owners never render simultaneously
  *
  * Product parity for migrated pages is Phase-5 work and is not claimed here.
@@ -56,7 +56,7 @@ test.describe('strangler foundation', () => {
     await expect(page.locator('#app #react-root')).toHaveCount(0);
   });
 
-  test('rollback to legacy works and leaves business state untouched', async ({ page }) => {
+  test('a legacy request keeps React served and leaves business state untouched', async ({ page }) => {
     await page.goto('/');
 
     // Snapshot every persisted business key before switching presentation.
@@ -77,13 +77,17 @@ test.describe('strangler foundation', () => {
     await page.reload();
     await expect(page.locator('#react-root')).toBeVisible();
 
-    // Roll back through the seam's own control, as a user would.
+    // Request legacy through the seam's own control, as a user would. Under Option E
+    // the request is persisted but React stays the served shell.
     await page.locator('[data-testid="react-login-to-legacy"]').click();
+    await expect
+      .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
+      .toBe('legacy');
 
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
-    // The React root is emptied on unmount.
-    await expect(page.locator('[data-testid="react-login"]')).toHaveCount(0);
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('#react-root')).toBeVisible();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
 
     const after = await page.evaluate(() => {
       const snapshot: Record<string, string> = {};
@@ -95,29 +99,7 @@ test.describe('strangler foundation', () => {
       return snapshot;
     });
 
-    // Rollback required no data migration: canonical/business storage is identical.
+    // The legacy request required no data migration: business storage is identical.
     expect(after).toEqual(before);
-  });
-
-  test('the legacy application remains fully operational after a React round trip', async ({
-    page,
-  }) => {
-    await page.goto('/');
-    await page.evaluate(
-      ([key]) => localStorage.setItem(key, 'react'),
-      [UI_MODE_KEY]
-    );
-    await page.reload();
-    await expect(page.locator('#react-root')).toBeVisible();
-
-    await page.evaluate(
-      ([key]) => localStorage.setItem(key, 'legacy'),
-      [UI_MODE_KEY]
-    );
-    await page.reload();
-
-    // Legacy renders its own interactive login form again.
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#form-login')).toBeVisible();
   });
 });

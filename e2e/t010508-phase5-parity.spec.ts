@@ -138,9 +138,14 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
     await expect(page.locator('[data-testid="react-ws-radar"]')).toBeVisible();
     const before = await rollbackStableSnapshot(page);
 
+    // Option E: the mid-journey legacy request is persisted, but React stays served.
     await page.locator('[data-testid="react-shell-to-legacy"]').click();
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
+    await expect
+      .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
+      .toBe('legacy');
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('[data-testid="react-ws-radar"]')).toBeVisible();
+    expect(await visibleRoots(page)).toEqual(['react-root']);
 
     await page.evaluate(([key]) => localStorage.setItem(key, 'react'), [UI_MODE_KEY]);
     await page.reload();
@@ -177,13 +182,14 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
     expect(await rollbackStableSnapshot(page)).toEqual(before);
   });
 
-  test('explicit legacy mode boots legacy shell without data migration', async ({ page }) => {
+  test('explicit legacy request keeps React served without data migration', async ({ page }) => {
     await page.goto('/');
     const before = await businessSnapshot(page);
     await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
     await page.reload();
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('#react-root')).toBeVisible();
+    expect(await visibleRoots(page)).toEqual(['react-root']);
     expect(await businessSnapshot(page)).toEqual(before);
   });
 });

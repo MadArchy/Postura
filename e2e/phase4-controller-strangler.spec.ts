@@ -31,46 +31,46 @@ function businessSnapshot(page: import('@playwright/test').Page) {
 }
 
 test.describe('Phase-4 controller strangler', () => {
-  test('the legacy shell still boots when rollback mode is explicit', async ({ page }) => {
+  test('an explicit legacy request keeps canonical React served (Option E)', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
     await page.reload();
 
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#form-login')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
+    // React-exclusive slots make whole-app legacy rollback illegal: the request is
+    // persisted, but React stays mounted and #app never becomes the served shell.
+    expect(await page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY])).toBe('legacy');
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('#react-root')).toBeVisible();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
   });
 
-  test('a failed sign-in round-trips through the extracted presentation state', async ({ page }) => {
+  test('a failed React sign-in shows the error and keeps the form usable', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
-    await page.reload();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
+    await expect(page.locator('[data-testid="react-login-error"]')).toHaveCount(0);
 
-    // `loginError` is one of the fields that moved to `AppUiState`, and the
-    // legacy path is: set the field, re-render, show it. If the extraction had
-    // broken the round trip, the alert would never appear.
-    await expect(page.locator('.login-error')).toHaveCount(0);
+    await page.fill('#react-login-email', 'nobody@example.invalid');
+    await page.fill('#react-login-password', 'definitely-wrong');
+    await page.click('[data-testid="react-login-submit"]');
 
-    await page.fill('#login-email', 'nobody@example.invalid');
-    await page.fill('#login-password', 'definitely-wrong');
-    await page.click('#form-login button[type="submit"]');
-
-    await expect(page.locator('.login-error')).toHaveCount(1);
-    await expect(page.locator('.login-error')).toHaveAttribute('role', 'alert');
-    // The form is still usable after the re-render, as before.
-    await expect(page.locator('#form-login')).toBeVisible();
+    await expect(page.locator('[data-testid="react-login-error"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-testid="react-login-error"]')).toHaveAttribute('role', 'alert');
+    await expect(page.locator('#react-login-email')).toBeEditable();
+    await expect(page.locator('#react-login-password')).toBeEditable();
+    await expect(page.locator('[data-testid="react-login-submit"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="react-shell-logout"]')).toHaveCount(0);
   });
 
-  test('a failed sign-in reports the failure without writing business state', async ({ page }) => {
+  test('a failed React sign-in reports the failure without writing business state', async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
-    await page.reload();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible();
     const before = await businessSnapshot(page);
 
-    await page.fill('#login-email', 'nobody@example.invalid');
-    await page.fill('#login-password', 'definitely-wrong');
-    await page.click('#form-login button[type="submit"]');
-    await expect(page.locator('.login-error')).toHaveCount(1);
+    await page.fill('#react-login-email', 'nobody@example.invalid');
+    await page.fill('#react-login-password', 'definitely-wrong');
+    await page.click('[data-testid="react-login-submit"]');
+    await expect(page.locator('[data-testid="react-login-error"]')).toBeVisible({ timeout: 15_000 });
 
     expect(await businessSnapshot(page)).toEqual(before);
   });
@@ -94,7 +94,7 @@ test.describe('Phase-4 controller strangler', () => {
     expect(placement.insideReact).toBe(false);
   });
 
-  test('the strangler toggle and rollback still work after the extraction', async ({ page }) => {
+  test('the strangler toggle round trip leaves business state unchanged after the extraction', async ({ page }) => {
     await page.goto('/');
     const before = await businessSnapshot(page);
 
@@ -105,8 +105,13 @@ test.describe('Phase-4 controller strangler', () => {
 
     await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
     await page.reload();
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('#react-root')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
+
+    await page.evaluate(([key]) => localStorage.setItem(key, 'react'), [UI_MODE_KEY]);
+    await page.reload();
+    await expect(page.locator('#react-root')).toBeVisible();
 
     expect(await businessSnapshot(page)).toEqual(before);
   });

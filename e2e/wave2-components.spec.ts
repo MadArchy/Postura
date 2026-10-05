@@ -77,9 +77,14 @@ test.describe('wave-2 component extraction', () => {
     await expect(page.locator('#react-root')).toBeVisible();
 
     await page.locator('[data-testid="react-login-to-legacy"]').click();
+    await expect
+      .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
+      .toBe('legacy');
 
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#react-root')).toBeHidden();
+    // Option E: the legacy request keeps React served; #app is not the replacement shell.
+    await expect(page.locator('html')).toHaveAttribute('data-postura-ui', 'react');
+    await expect(page.locator('#react-root')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
     await expect(page.locator('[data-testid="react-wave2-surface"]')).toHaveCount(0);
 
     expect(await businessSnapshot(page)).toEqual(before);
