@@ -178,42 +178,37 @@ test.describe('Source Management — React write parity', () => {
     expect(elenaTitles).not.toContain('SM E2E stub feed item');
   });
 
-  test('legacy source workflow remains reachable', async ({ page }) => {
+  test('deferred source actions are declared unavailable without a previous-interface path', async ({ page }) => {
     test.setTimeout(90_000);
     await loginAsManager(page);
     await enterClientWorkspaceFromShell(page);
+
+    const sourcesBefore = await sourceNamesForClient(page, CLIENT_JUAN_ID);
+    const signalsBefore = await signalTitlesForClient(page, CLIENT_JUAN_ID);
+    const pausedBefore = await countAuditAction(page, 'SOURCE_PAUSED');
+    const archivedBefore = await countAuditAction(page, 'SOURCE_ARCHIVED');
+
     await openSources(page);
 
-    await page.locator('[data-testid="react-shell-to-legacy"]').click();
-    await expect(page.locator('#app')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('#react-root')).toBeHidden();
+    // R5: pause/archive and discovery are named and stated unavailable here.
+    const handoff = page.locator('[data-testid="react-ws-sources-handoff"]');
+    await expect(handoff).toBeVisible();
+    await expect(handoff).toContainText('pausarlas o archivarlas');
+    await expect(handoff).toContainText('el descubrimiento automático');
+    await expect(handoff).toContainText('todavía no están disponibles en esta interfaz');
+    await expect(handoff).not.toContainText('interfaz anterior');
+    await expect(handoff.locator('button')).toHaveCount(0);
 
-    await page.evaluate(async ({ clientId }) => {
-      const ui = (
-        window as unknown as {
-          __posturaUi?: {
-            applyUiMode: (mode: 'legacy' | 'react') => Promise<void>;
-            mountLegacyIsland: (el: HTMLElement, config: { tab: string; clientId: string }) => void;
-          };
-        }
-      ).__posturaUi;
-      if (!ui?.applyUiMode || !ui.mountLegacyIsland) {
-        throw new Error('Strangler controls are unavailable');
-      }
-      await ui.applyUiMode('legacy');
-      let host = document.getElementById('sm-legacy-sources');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'sm-legacy-sources';
-        document.body.appendChild(host);
-      }
-      ui.mountLegacyIsland(host, { tab: 'ws-sources', clientId });
-    }, { clientId: CLIENT_JUAN_ID });
+    // R3: registration and ingestion stay available on the React Sources surface.
+    await expect(page.locator('[data-testid="react-ws-sources-open-register"]')).toBeVisible();
+    await expect(page.locator('[data-testid="react-ws-sources-poll-all"]')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
 
-    await expect(page.locator('[data-legacy-island="true"]')).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.locator('[data-legacy-island="true"] #btn-add-manual-signal, [data-legacy-island="true"] #btn-poll-all-sources').first()
-    ).toBeVisible();
+    // Rendering the handoff executes no business action.
+    expect(await sourceNamesForClient(page, CLIENT_JUAN_ID)).toEqual(sourcesBefore);
+    expect(await signalTitlesForClient(page, CLIENT_JUAN_ID)).toEqual(signalsBefore);
+    expect(await countAuditAction(page, 'SOURCE_PAUSED')).toBe(pausedBefore);
+    expect(await countAuditAction(page, 'SOURCE_ARCHIVED')).toBe(archivedBefore);
   });
 
   test('React sources surface does not expose #25 or discovery writes', async ({ page }) => {

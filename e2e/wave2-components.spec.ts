@@ -14,6 +14,12 @@
  */
 
 import { expect, test } from '@playwright/test';
+import {
+  enterClientWorkspaceFromShell,
+  loginAsClientJuan,
+  loginAsManager,
+  sidebarTab,
+} from './helpers/spec010Auth';
 
 const UI_MODE_KEY = 'postura_ui_mode';
 
@@ -90,16 +96,45 @@ test.describe('wave-2 component extraction', () => {
     expect(await businessSnapshot(page)).toEqual(before);
   });
 
-  test('the legacy surface that still owns the blocked actions keeps working', async ({ page }) => {
-    await enableReact(page);
-    await expect(page.locator('#react-root')).toBeVisible();
+  test('wave-2 surfaces name their React workflows and never advertise the previous interface', async ({ page }) => {
+    test.setTimeout(120_000);
+    const surface = page.locator('[data-testid="react-wave2-surface"]');
 
-    await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
-    await page.reload();
+    // CLIENT wave-2 surfaces: profile facts, proof wall and onboarding are React-native.
+    await loginAsClientJuan(page);
+    for (const tab of ['client-profile', 'client-opps', 'client-results']) {
+      await sidebarTab(page, tab).click();
+      await expect(surface).toBeVisible({ timeout: 15_000 });
+      await expect(surface).not.toContainText('interfaz anterior');
+      await expect(surface.getByRole('button', { name: /interfaz anterior/ })).toHaveCount(0);
+    }
+    await sidebarTab(page, 'client-profile').click();
+    await expect(page.locator('[data-testid="react-profile-panel"]')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
+    await page.locator('[data-testid="react-shell-logout"]').click();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible({ timeout: 15_000 });
 
-    // The legacy path — which still owns profile facts, proof-wall status, source
-    // registration and onboarding — is intact and interactive.
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#form-login')).toBeVisible();
+    // ADMIN wave-2 Sources inventory, reached from the briefing island, points to
+    // the React Sources tab where registration and ingestion already work.
+    await loginAsManager(page);
+    await enterClientWorkspaceFromShell(page);
+    await sidebarTab(page, 'ws-briefing').click();
+    const island = page.locator('[data-testid="react-legacy-island"]');
+    await expect(island).toBeVisible({ timeout: 15_000 });
+    await island.locator('.briefing-metric[data-tab="ws-sources"]').first().click();
+
+    await expect(page.locator('[data-wave2-group="sources"]')).toBeVisible({ timeout: 15_000 });
+    await expect(surface).toContainText('pestaña Fuentes');
+    await expect(surface).not.toContainText('interfaz anterior');
+    const delegation = page.locator('[data-testid="react-sources-delegation"]');
+    await expect(delegation).toContainText('pestaña Fuentes');
+    await expect(delegation.locator('button')).toHaveCount(0);
+
+    await sidebarTab(page, 'ws-sources-react').click();
+    await expect(page.locator('[data-testid="react-ws-sources-open-register"]')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.locator('[data-testid="react-ws-sources-poll-all"]')).toBeVisible();
+    await expect(page.locator('#app')).toBeHidden();
   });
 });

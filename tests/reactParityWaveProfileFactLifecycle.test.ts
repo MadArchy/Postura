@@ -359,14 +359,15 @@ describe('Q — successful writes invalidate compatibility profile queries', () 
   });
 });
 
-describe('R — leftover panel absent; handlers and UI-mode switch remain', () => {
-  it('handlers and UI-mode switch remain; leftover panel is absent', () => {
+describe('R — leftover panel absent; handlers remain; no previous-interface switch', () => {
+  it('handlers remain; leftover panel is absent; panel offers no previous-interface switch', () => {
     expect(existsSync(join(ROOT, 'src/components/ClientProfilePanel.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/legacy/handlers/profileHandlers.ts'))).toBe(true);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/btn-extract-cv-facts/);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/dbService\.addProfileFact/);
-    expect(code(panel)).toMatch(/applyUiMode\('legacy'\)/);
-    expect(code(panel)).toMatch(/interfaz anterior/);
+    // Option E: a legacy request keeps React served, so the panel offers no previous-interface switch.
+    expect(code(panel)).not.toMatch(/applyUiMode/);
+    expect(code(panel)).not.toMatch(/interfaz anterior/);
   });
 });
 

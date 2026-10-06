@@ -209,12 +209,12 @@ describe('Source Management Q — SourcesPanel uses narrowed client scope', () =
 });
 
 describe('Source Management R — leftover modal is absent; leftover host debt remains', () => {
-  it('leftover modal is absent; handlers, scheduler, and UI-mode switch remain', () => {
+  it('leftover modal is absent; handlers and scheduler remain; handoff has no previous-interface path', () => {
     expect(existsSync(join(ROOT, 'src/components/SourceRegistryModal.ts'))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/legacy/handlers/sourcesHandlers.ts'))).toBe(true);
     expect(existsSync(join(ROOT, 'src/controllers/sourceAutomationScheduler.ts'))).toBe(true);
     expect(read(workspace)).toMatch(/react-ws-sources-handoff/);
-    expect(read('src/ui/modules/pages/LegacyHandoff.tsx')).toMatch(/applyUiMode\('legacy'\)/);
+    expect(read('src/ui/modules/pages/LegacyHandoff.tsx')).not.toMatch(/applyUiMode/);
   });
 });
 

@@ -369,9 +369,14 @@ describe('§17 / A38 — DOM ownership stays exclusive', () => {
     expect(shell).toMatch(/wave3Owns \? undefined : WAVE2_BY_TAB\[activeTab\]/);
   });
 
-  it('rollback to the legacy UI remains reachable from the handoff element', () => {
+  it('the handoff element states unavailability without a previous-interface action (Option E)', () => {
     const handoff = code(join(ROOT, 'src/ui/modules/pages/LegacyHandoff.tsx'));
-    expect(handoff).toMatch(/applyUiMode\('legacy'\)/);
+    expect(handoff).toMatch(/export function LegacyHandoff/);
+    expect(handoff).toMatch(/data-legacy-handoff="true"/);
+    expect(handoff).toMatch(/todavía no está disponible en esta interfaz/);
+    expect(handoff).not.toMatch(/applyUiMode/);
+    expect(handoff).not.toMatch(/interfaz anterior/);
+    expect(handoff).not.toMatch(/<button/);
   });
 });
 

@@ -4,8 +4,10 @@
  * A React failure must stay a presentation failure: it cannot corrupt canonical
  * state, delete the legacy fallback, change authority or trigger a strategic
  * action. The boundary therefore renders a controlled recovery surface and
- * offers a return to the legacy presentation — it never retries a command and
- * never writes anything.
+ * offers a page reload — it never retries a command and never writes anything.
+ *
+ * Under Phase-6 Option E a legacy UI-mode request keeps React served, so the
+ * boundary does not offer a previous-interface switch as recovery.
  *
  * Raw infrastructure internals are not presented as authority: the message is
  * shown as diagnostic text only, with no stack trace and no adapter payload.
@@ -15,7 +17,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 interface Props {
   readonly children: ReactNode;
-  readonly onFallbackToLegacy?: () => void;
+  readonly onReload?: () => void;
 }
 
 interface State {
@@ -42,17 +44,17 @@ export class UiErrorBoundary extends Component<Props, State> {
       <div className="card" role="alert" data-testid="react-error-boundary">
         <h2>La interfaz React no pudo renderizarse</h2>
         <p className="muted">
-          El estado del negocio no se modificó. Puedes volver a la interfaz anterior sin perder datos.
+          El estado del negocio no se modificó. Recarga la página para volver a intentarlo.
         </p>
         <p className="muted small">{error.message}</p>
-        {this.props.onFallbackToLegacy ? (
+        {this.props.onReload ? (
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={this.props.onFallbackToLegacy}
+            onClick={this.props.onReload}
             data-testid="react-error-fallback"
           >
-            Volver a la interfaz anterior
+            Recargar la página
           </button>
         ) : null}
       </div>

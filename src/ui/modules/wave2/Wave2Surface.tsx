@@ -45,7 +45,7 @@ const GROUP_META: Record<Wave2Group, { title: string; subtitle: string }> = {
   },
   sources: {
     title: 'Fuentes',
-    subtitle: 'Inventario en solo lectura. Registro e ingesta siguen en la interfaz anterior.',
+    subtitle: 'Inventario en solo lectura. Registro e ingesta se hacen en la pestaña Fuentes del workspace.',
   },
 };
 

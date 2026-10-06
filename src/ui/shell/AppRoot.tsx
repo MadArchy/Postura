@@ -15,12 +15,11 @@ import { createElement, type ReactElement } from 'react';
 import { QueryProvider } from '../providers/QueryProvider';
 import { SessionProvider, useSession } from '../providers/SessionProvider';
 import { UiErrorBoundary } from '../providers/ErrorBoundary';
-import { applyUiMode } from '../mount';
 import { ReactAppShell } from '../modules/AppShell/ReactAppShell';
 import { ReactLogin } from '../modules/Login/ReactLogin';
 
-function returnToLegacy(): void {
-  void applyUiMode('legacy');
+function reloadPage(): void {
+  window.location.reload();
 }
 
 function ShellSwitch() {
@@ -43,7 +42,7 @@ function ShellSwitch() {
 
 export function AppRoot() {
   return (
-    <UiErrorBoundary onFallbackToLegacy={returnToLegacy}>
+    <UiErrorBoundary onReload={reloadPage}>
       <QueryProvider>
         <SessionProvider>
           <ShellSwitch />

@@ -483,8 +483,8 @@ function AiCenterPanel() {
       )}
 
       <p className="muted small">
-        El estado del gateway se consulta en la interfaz anterior: esta vista no hace llamadas a
-        servicios durante el render.
+        El estado del gateway no se muestra en esta vista: no hace llamadas a servicios durante el
+        render.
       </p>
     </div>
   );

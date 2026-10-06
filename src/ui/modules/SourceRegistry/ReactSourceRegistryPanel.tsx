@@ -6,9 +6,9 @@
  * READ SOURCE: compatibility (`readSources`).
  *
  * COMMANDS: none on this React surface. CR-1 Signal Intake owns
- * `RegisterSource` (#8/#24); legacy modal/workspace invoke
- * `signalIntakeConsumer` via `main.ts`. Ingest-now / polling remains legacy
- * (not this workstream). React does not call the consumer or mutate sources.
+ * `RegisterSource` (#8/#24) and `PollRegisteredSource` (#9); the React workspace
+ * Sources tab invokes them through the command seam. This panel does not call
+ * the consumer or mutate sources.
  *
  * The legacy modal additionally runs the source-discovery agent while rendering.
  * That is deliberately not reproduced: rendering a React view must not launch an
@@ -18,7 +18,6 @@
 
 import { useSession } from '../../providers/SessionProvider';
 import { useSources } from '../../hooks/useWave2Data';
-import { applyUiMode } from '../../mount';
 
 export function ReactSourceRegistryPanel() {
   const { tenantScope } = useSession();
@@ -84,10 +83,8 @@ export function ReactSourceRegistryPanel() {
       )}
 
       <p className="muted small" data-testid="react-sources-delegation">
-        Registrar una fuente nueva e ingerir fuentes se siguen haciendo en la interfaz anterior.{' '}
-        <button type="button" className="link-btn" onClick={() => void applyUiMode('legacy')}>
-          Abrir interfaz anterior
-        </button>
+        Registrar una fuente nueva e ingerir fuentes se hacen en la pestaña Fuentes del workspace
+        del cliente.
       </p>
     </section>
   );

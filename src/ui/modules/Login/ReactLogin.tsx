@@ -155,7 +155,8 @@ function EmailLoginCard({
       </form>
 
       <p className="login-hint">
-        ¿Tienes un token de invitación? Usa el enlace que recibiste o cambia a la interfaz anterior.
+        ¿Tienes un token de invitación? Abre el enlace de invitación que recibiste para crear tu
+        cuenta.
       </p>
       <button
         type="button"

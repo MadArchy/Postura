@@ -246,7 +246,7 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
                     {signal.routingState === 'CLEAR' && signal.thesisId
                       ? `Tesis asignada: ${signal.thesisId}`
                       : signal.routingState === 'CONTESTED'
-                        ? 'Atribución en disputa — decide en la interfaz anterior'
+                        ? 'Atribución en disputa — decidirla todavía no está disponible en esta interfaz'
                         : 'Sin tesis estratégica asignada'}
                   </p>
                   {signal.inCuration ? (
@@ -1876,7 +1876,7 @@ function ProductionPanel({ workspaceClientId = null }: { workspaceClientId?: str
       <div className="card-header">
         <div>
           <h3>Pipeline editorial</h3>
-          <p>Revisa y edita entregables existentes. Generar contenido sigue en la interfaz anterior.</p>
+          <p>Revisa y edita entregables existentes. Generar contenido todavía no está disponible en esta interfaz.</p>
         </div>
       </div>
 

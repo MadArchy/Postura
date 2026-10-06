@@ -205,12 +205,12 @@ describe('P16 §J–§P — #33 separation, rollback, invalidation, #32', () => 
     expect(read('src/ui/legacy/handlers/contentHandlers.ts')).toMatch(/saveContentDraft\(/);
   });
 
-  it('L. legacy UI mode / rollback remains possible', () => {
+  it('L. production handoff stays visible without a previous-interface action', () => {
     const production = read('src/ui/modules/pages/ReactClientWorkspacePage.tsx');
     expect(production).toMatch(/react-ws-production-handoff/);
     expect(production).toMatch(/LegacyHandoff/);
     expect(production).toMatch(/generar contenido/);
-    expect(read('src/ui/modules/pages/LegacyHandoff.tsx')).toMatch(/applyUiMode\('legacy'\)/);
+    expect(read('src/ui/modules/pages/LegacyHandoff.tsx')).not.toMatch(/applyUiMode/);
   });
 
   it('M. success invalidates only the compatibility tenant family', () => {

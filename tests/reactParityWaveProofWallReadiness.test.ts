@@ -230,8 +230,9 @@ describe('K — leftover file is absent and React stays presentation', () => {
     expect(existsSync(join(ROOT, 'src/ui/legacy/handlers/profileHandlers.ts'))).toBe(true);
     expect(read('src/ui/legacy/handlers/profileHandlers.ts')).toMatch(/dbService\.updateProofWallItem/);
     expect(code(panel)).toMatch(/data-authority="PRESENTATION"/);
-    expect(code(panel)).toMatch(/applyUiMode\('legacy'\)/);
-    expect(code(panel)).toMatch(/interfaz anterior/);
+    // Option E: a legacy request keeps React served, so the panel offers no previous-interface switch.
+    expect(code(panel)).not.toMatch(/applyUiMode/);
+    expect(code(panel)).not.toMatch(/interfaz anterior/);
     expect(code(workspace)).not.toMatch(/useSetProofWallItemReadiness/);
     expect(code(wave3)).not.toMatch(/useSetProofWallItemReadiness/);
     expect(code(profile)).not.toMatch(/useSetProofWallItemReadiness/);

@@ -23,7 +23,6 @@ import { useMemo, useState } from 'react';
 import { useSession } from '../../providers/SessionProvider';
 import { narrowToClient } from '../../query/tenantScope';
 import { useProofWall, useSetProofWallItemReadiness } from '../../hooks/useWave2Data';
-import { applyUiMode } from '../../mount';
 
 type StatusMessage = { kind: 'success' | 'error'; text: string };
 
@@ -189,13 +188,6 @@ export function ReactProofWallPanel({
           Sin activos registrados todavía.
         </p>
       )}
-
-      <p className="muted small" data-testid="react-proof-wall-delegation">
-        La interfaz anterior sigue disponible para rollback.{' '}
-        <button type="button" className="link-btn" onClick={() => void applyUiMode('legacy')}>
-          Abrir interfaz anterior
-        </button>
-      </p>
     </section>
   );
 }

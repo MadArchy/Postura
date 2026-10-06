@@ -17,6 +17,12 @@
  */
 
 import { expect, test } from '@playwright/test';
+import {
+  enterClientWorkspaceFromShell,
+  loginAsClientJuan,
+  loginAsManager,
+  sidebarTab,
+} from './helpers/spec010Auth';
 
 const UI_MODE_KEY = 'postura_ui_mode';
 
@@ -122,17 +128,53 @@ test.describe('wave-3 page migration', () => {
     expect(await businessSnapshot(page)).toEqual(before);
   });
 
-  test('the legacy pages that still own the blocked actions keep working', async ({ page }) => {
-    await enableReact(page);
-    await expect(page.locator('#react-root')).toBeVisible();
+  test('every visible wave-3 handoff states unavailability truthfully without a previous-interface action', async ({ page }) => {
+    test.setTimeout(150_000);
 
-    await page.evaluate(([key]) => localStorage.setItem(key, 'legacy'), [UI_MODE_KEY]);
-    await page.reload();
+    const expectTruthfulHandoff = async (testId: string, actionWords: readonly string[]) => {
+      const handoff = page.locator(`[data-testid="${testId}"]`);
+      await expect(handoff).toBeVisible({ timeout: 15_000 });
+      await expect(handoff).toHaveAttribute('data-legacy-handoff', 'true');
+      await expect(handoff).toContainText('todavía no');
+      await expect(handoff).toContainText('disponible');
+      for (const word of actionWords) await expect(handoff).toContainText(word);
+      await expect(handoff).not.toContainText('interfaz anterior');
+      await expect(handoff.locator('button')).toHaveCount(0);
+      await expect(page.locator('[data-legacy-handoff="true"] button')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Abrir interfaz anterior', exact: true })).toHaveCount(0);
+      await expect(page.locator('#app')).toBeHidden();
+    };
 
-    // The legacy path still owns thesis persistence, curation decisions, delivery
-    // assembly and sending, source registration and ingestion, task assignment,
-    // evidence, content saves and client creation. It is intact and interactive.
-    await expect(page.locator('#app')).toBeVisible();
-    await expect(page.locator('#form-login')).toBeVisible();
+    // ADMIN workspace pages.
+    await loginAsManager(page);
+    await enterClientWorkspaceFromShell(page);
+    await expectTruthfulHandoff('react-ws-radar-handoff', ['puntuar señales', 'investigarlas']);
+
+    await sidebarTab(page, 'ws-briefs').click();
+    await expectTruthfulHandoff('react-ws-briefs-handoff', ['crear un Strategic Brief']);
+
+    await sidebarTab(page, 'ws-sources-react').click();
+    await expectTruthfulHandoff('react-ws-sources-handoff', [
+      'pausarlas o archivarlas',
+      'el descubrimiento automático',
+    ]);
+
+    await sidebarTab(page, 'ws-production').click();
+    await expectTruthfulHandoff('react-ws-production-handoff', ['generar contenido', 'mover el pipeline']);
+    await expect(page.locator('[data-testid="react-ws-production"]')).not.toContainText('interfaz anterior');
+
+    await sidebarTab(page, 'ws-positioning').click();
+    await expectTruthfulHandoff('react-thesis-editor-handoff', ['stress-test', 'generar propuesta con IA']);
+
+    // ADMIN cockpit.
+    await sidebarTab(page, 'dashboard').click();
+    await expectTruthfulHandoff('react-cockpit-handoff', ['ver la app como cliente']);
+    await page.locator('[data-testid="react-shell-logout"]').click();
+    await expect(page.locator('[data-testid="react-login"]')).toBeVisible({ timeout: 15_000 });
+
+    // CLIENT portal thesis page.
+    await loginAsClientJuan(page);
+    await sidebarTab(page, 'client-thesis').click();
+    await expectTruthfulHandoff('react-portal-thesis-handoff', ['añadir evidencia al vault']);
   });
 });

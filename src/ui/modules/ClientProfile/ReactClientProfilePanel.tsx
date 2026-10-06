@@ -28,7 +28,6 @@ import {
   useRejectProfileFact,
   useUpdateProfileFact,
 } from '../../hooks/useWave2Data';
-import { applyUiMode } from '../../mount';
 import type { ProfileFactSection } from '../../../types';
 
 type StatusMessage = { kind: 'success' | 'error'; text: string };
@@ -240,12 +239,6 @@ export function ReactClientProfilePanel() {
             {statusMessage.text}
           </p>
         ) : null}
-
-        <p className="muted small" data-testid="react-profile-rollback">
-          <button type="button" className="link-btn" onClick={() => void applyUiMode('legacy')}>
-            Abrir interfaz anterior
-          </button>
-        </p>
       </section>
 
       <section className="card" data-testid="react-profile-cv">

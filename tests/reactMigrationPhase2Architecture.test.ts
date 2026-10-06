@@ -351,11 +351,13 @@ describe('§13 / §14 — blocked actions are delegated, not silently dropped', 
     'src/ui/modules/SourceRegistry/ReactSourceRegistryPanel.tsx',
   ];
 
-  it('each remaining read-only component tells the user where the action still lives', () => {
+  it('each remaining read-only component names the React workflow that owns the action', () => {
+    // Option E: a legacy request keeps React served, so delegation points to the React Sources tab.
     for (const path of delegating) {
       const source = read(join(ROOT, path));
-      expect(source).toContain('interfaz anterior');
-      expect(source).toContain('applyUiMode');
+      expect(source).toContain('pestaña Fuentes');
+      expect(source).not.toContain('interfaz anterior');
+      expect(source).not.toContain('applyUiMode');
     }
   });
 
@@ -366,18 +368,18 @@ describe('§13 / §14 — blocked actions are delegated, not silently dropped', 
     }
   });
 
-  it('profile panel retains rollback without exclusive display-only delegation', () => {
+  it('profile panel offers no previous-interface switch and no display-only delegation', () => {
     const source = read(join(ROOT, 'src/ui/modules/ClientProfile/ReactClientProfilePanel.tsx'));
-    expect(source).toContain('applyUiMode');
-    expect(source).toContain('interfaz anterior');
+    expect(source).not.toContain('applyUiMode');
+    expect(source).not.toContain('interfaz anterior');
     expect(source).toContain('data-authority="PRESENTATION"');
     expect(source).not.toContain('data-authority="DISPLAY_ONLY"');
   });
 
-  it('proof-wall panel retains rollback without exclusive read-only delegation', () => {
+  it('proof-wall panel offers no previous-interface switch and no read-only delegation', () => {
     const source = read(join(ROOT, 'src/ui/modules/ProofWall/ReactProofWallPanel.tsx'));
-    expect(source).toContain('applyUiMode');
-    expect(source).toContain('interfaz anterior');
+    expect(source).not.toContain('applyUiMode');
+    expect(source).not.toContain('interfaz anterior');
     expect(source).toContain('data-authority="PRESENTATION"');
     expect(source).not.toContain('data-authority="DISPLAY_ONLY"');
   });
