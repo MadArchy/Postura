@@ -1792,7 +1792,8 @@ function TasksPanel({ workspaceClientId = null }: { workspaceClientId?: string |
       ) : null}
 
       <p className="muted small" data-testid="react-ws-tasks-handoff">
-        gestionar grabaciones
+        Puedes gestionar grabaciones existentes (reproducir, descargar y volver a subir) desde
+        cada tarea de video.
       </p>
     </div>
   );

@@ -28,7 +28,6 @@ import {
   useWorkspaceBadges,
 } from '../../hooks/useShellData';
 import { sessionCommands } from '../../commands/commandSeam';
-import { applyUiMode } from '../../mount';
 import { subscribeShellNavigation } from '../../legacy/navigationBridge';
 import { LegacyIslandHost } from '../../legacy/LegacyIslandHost';
 import { isLegacyIslandTab, isWorkspaceTab, legacyIslandTabId } from '../../legacy/shellTabs';
@@ -385,14 +384,6 @@ export function ReactAppShell() {
                 Volver al cockpit
               </button>
             ) : null}
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => void applyUiMode('legacy')}
-              data-testid="react-shell-to-legacy"
-            >
-              Interfaz anterior
-            </button>
             <button
               type="button"
               className="icon-btn"

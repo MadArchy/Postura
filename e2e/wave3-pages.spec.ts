@@ -112,7 +112,16 @@ test.describe('wave-3 page migration', () => {
     await enableReact(page);
     await expect(page.locator('#react-root')).toBeVisible();
 
-    await page.locator('[data-testid="react-login-to-legacy"]').click();
+    await expect(page.locator('[data-testid="react-login-to-legacy"]')).toHaveCount(0);
+    await page.evaluate(async () => {
+      const ui = (
+        window as unknown as {
+          __posturaUi?: { applyUiMode?: (mode: 'legacy' | 'react') => Promise<void> };
+        }
+      ).__posturaUi;
+      if (!ui?.applyUiMode) throw new Error('Strangler controls are unavailable');
+      await ui.applyUiMode('legacy');
+    });
     await expect
       .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
       .toBe('legacy');

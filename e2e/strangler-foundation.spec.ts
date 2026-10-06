@@ -77,9 +77,18 @@ test.describe('strangler foundation', () => {
     await page.reload();
     await expect(page.locator('#react-root')).toBeVisible();
 
-    // Request legacy through the seam's own control, as a user would. Under Option E
-    // the request is persisted but React stays the served shell.
-    await page.locator('[data-testid="react-login-to-legacy"]').click();
+    // Request legacy through the strangler seam; no user-facing control exists. Under
+    // Option E the request is persisted but React stays the served shell.
+    await expect(page.locator('[data-testid="react-login-to-legacy"]')).toHaveCount(0);
+    await page.evaluate(async () => {
+      const ui = (
+        window as unknown as {
+          __posturaUi?: { applyUiMode?: (mode: 'legacy' | 'react') => Promise<void> };
+        }
+      ).__posturaUi;
+      if (!ui?.applyUiMode) throw new Error('Strangler controls are unavailable');
+      await ui.applyUiMode('legacy');
+    });
     await expect
       .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
       .toBe('legacy');

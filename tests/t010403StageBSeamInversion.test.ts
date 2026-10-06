@@ -50,9 +50,13 @@ describe('T-010-403 — Stage-B shell ownership', () => {
 });
 
 describe('T-010-403 — rollback and single global shell', () => {
-  it('rollback toggle remains governed', () => {
+  it('rollback seam stays in mount while the shell exposes no legacy navigation control', () => {
     const shell = read('src/ui/modules/AppShell/ReactAppShell.tsx');
-    expect(shell).toMatch(/applyUiMode\('legacy'\)/);
+    expect(shell).not.toMatch(/applyUiMode/);
+    expect(shell).not.toMatch(/react-shell-to-legacy/);
+    const mount = read('src/ui/mount.ts');
+    expect(mount).toMatch(/export async function applyUiMode\(mode: UiMode\)/);
+    expect(mount).toMatch(/__posturaUi = \{\s*applyUiMode,/);
     const css = read('src/ui/strangler/strangler.css');
     expect(css).toContain("html[data-postura-ui='react'] #app");
     expect(css).toContain('html:not([data-postura-ui=\'react\']) #react-root');

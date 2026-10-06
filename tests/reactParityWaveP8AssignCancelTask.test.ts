@@ -199,13 +199,14 @@ describe('P8 §9–§11 — command seam public input', () => {
 });
 
 describe('P8 surface / authority / residual boundaries', () => {
-  it('TasksPanel wires assign/cancel and retains recordings handoff only', () => {
+  it('TasksPanel wires assign/cancel and states recordings are managed per video task', () => {
     const panel = read('src/ui/modules/pages/ReactClientWorkspacePage.tsx');
     expect(panel).toMatch(/react-ws-tasks-assign-form/);
     expect(panel).toMatch(/react-ws-tasks-assign-submit/);
     expect(panel).toMatch(/react-ws-task-cancel-/);
     expect(panel).toMatch(/react-ws-tasks-handoff/);
     expect(panel).toMatch(/gestionar grabaciones/);
+    expect(panel).toMatch(/volver a subir\) desde\s+cada tarea de video/);
     expect(panel).not.toMatch(/asignar tareas/);
     expect(panel).toMatch(/narrowToClient/);
     expect(panel).not.toMatch(/transitionClientTask/);

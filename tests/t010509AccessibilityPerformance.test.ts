@@ -54,10 +54,10 @@ describe('T-010-509 — accessibility evidence', () => {
     expect(source).not.toMatch(/react-thesis-save-disabled/);
   });
 
-  it('shell logout and mode controls are keyboard-operable buttons', () => {
+  it('shell logout is a keyboard-operable button and no legacy mode control remains', () => {
     const source = read(join(ROOT, 'src/ui/modules/AppShell/ReactAppShell.tsx'));
     expect(source).toMatch(/data-testid="react-shell-logout"/);
-    expect(source).toMatch(/data-testid="react-shell-to-legacy"/);
+    expect(source).not.toMatch(/react-shell-to-legacy/);
     expect(source).toMatch(/<button[\s\S]*react-shell-logout/);
   });
 });

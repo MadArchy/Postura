@@ -139,7 +139,16 @@ test.describe('T-010-508 — React ↔ legacy rollback', () => {
     const before = await rollbackStableSnapshot(page);
 
     // Option E: the mid-journey legacy request is persisted, but React stays served.
-    await page.locator('[data-testid="react-shell-to-legacy"]').click();
+    await expect(page.locator('[data-testid="react-shell-to-legacy"]')).toHaveCount(0);
+    await page.evaluate(async () => {
+      const ui = (
+        window as unknown as {
+          __posturaUi?: { applyUiMode?: (mode: 'legacy' | 'react') => Promise<void> };
+        }
+      ).__posturaUi;
+      if (!ui?.applyUiMode) throw new Error('Strangler controls are unavailable');
+      await ui.applyUiMode('legacy');
+    });
     await expect
       .poll(() => page.evaluate(([key]) => localStorage.getItem(key), [UI_MODE_KEY]))
       .toBe('legacy');

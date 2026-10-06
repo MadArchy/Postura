@@ -12,7 +12,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { useEffect, useState, type FormEvent } from 'react';
 import { sessionCommands } from '../../commands/commandSeam';
-import { applyUiMode } from '../../mount';
 import { useAcceptClientInvitation } from '../../hooks/useWave3Data';
 
 const loginSchema = z.object({
@@ -158,14 +157,6 @@ function EmailLoginCard({
         ¿Tienes un token de invitación? Abre el enlace de invitación que recibiste para crear tu
         cuenta.
       </p>
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => void applyUiMode('legacy')}
-        data-testid="react-login-to-legacy"
-      >
-        Volver a la interfaz anterior
-      </button>
     </div>
   );
 }
@@ -299,15 +290,6 @@ function InviteAcceptCard({ inviteToken }: { inviteToken: string }) {
           {busy ? 'Creando cuenta…' : 'Crear cuenta de cliente'}
         </button>
       </form>
-
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        onClick={() => void applyUiMode('legacy')}
-        data-testid="react-login-invite-to-legacy"
-      >
-        Volver a la interfaz anterior
-      </button>
     </div>
   );
 }
