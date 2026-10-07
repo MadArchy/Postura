@@ -1,7 +1,10 @@
 /**
  * SPEC-010 · T603 React Parity Wave P9 — bounded ADMIN radar discard / send-to-curation E2E.
+ *
+ * The fixture registers its own two Juan signals through the React manual-signal form:
+ * earlier specs share the emulator and may leave seeded signals discarded or in curation.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   CLIENT_JUAN_ID,
   openManagerWorkspace,
@@ -9,6 +12,19 @@ import {
 } from './helpers/spec010Auth';
 
 test.use({ channel: 'chrome' });
+
+async function registerManualSignal(page: Page, title: string) {
+  await page.locator('[data-testid="react-ws-sources-open-manual"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeVisible();
+  await page.locator('[data-testid="react-ws-sources-manual-title"]').fill(title);
+  await page.locator('[data-testid="react-ws-sources-manual-submit"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeHidden({
+    timeout: 10_000,
+  });
+  await expect(page.locator('[data-testid="react-ws-sources-success"]')).toContainText(
+    'Señal manual registrada'
+  );
+}
 
 test.describe('P9 — React admin radar discard + send-to-curation parity', () => {
   test('ADMIN discards and sends to curation via RadarPanel without those handoff texts', async ({
@@ -35,26 +51,50 @@ test.describe('P9 — React admin radar discard + send-to-curation parity', () =
       'añadirlas a una entrega'
     );
 
-    const fixture = await page.evaluate(async ({ cid }) => {
-      const { dbService } = await import('/src/services/db.ts');
-      const signals = dbService
-        .getSignalsByClient(cid)
-        .filter((s) => s.status !== 'DISCARDED' && !dbService.isSignalInCuration(cid, s.id));
-      const discardTarget = signals[0];
-      const curationTarget = signals.find((s) => s.id !== discardTarget?.id) ?? signals[1];
-      return {
-        discardId: discardTarget?.id ?? null,
-        curationId: curationTarget?.id ?? null,
-        discardScored: typeof discardTarget?.relevanceScore === 'number',
-        curationScored: typeof curationTarget?.relevanceScore === 'number',
-      };
-    }, { cid: CLIENT_JUAN_ID });
+    const stamp = Date.now();
+    const discardTitle = `P9 DISCARD FIXTURE ${stamp}`;
+    const curationTitle = `P9 CURATION FIXTURE ${stamp}`;
+    await sidebarTab(page, 'ws-sources-react').click();
+    await expect(page.locator('[data-testid="react-ws-sources"]')).toBeVisible({ timeout: 15_000 });
+    await registerManualSignal(page, discardTitle);
+    await registerManualSignal(page, curationTitle);
 
-    expect(fixture.discardId).toBeTruthy();
-    expect(fixture.curationId).toBeTruthy();
-    expect(fixture.discardId).not.toBe(fixture.curationId);
+    await sidebarTab(page, 'ws-radar').click();
+    await expect(page.locator('[data-testid="react-ws-radar"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(discardTitle)).toBeVisible();
+    await expect(page.getByText(curationTitle)).toBeVisible();
 
-    await page.locator(`[data-testid="react-ws-discard-${fixture.discardId}"]`).click();
+    const fixture = await page.evaluate(
+      async ({ cid, discardTitle: dTitle, curationTitle: cTitle }) => {
+        const { dbService } = await import('/src/services/db.ts');
+        const byTitle = (title: string) =>
+          dbService.getSignalsByClient(cid).filter((s) => s.title === title);
+        const describe = (title: string) => {
+          const rows = byTitle(title);
+          const row = rows[0];
+          return {
+            matches: rows.length,
+            id: row?.id ?? null,
+            discarded: row?.status === 'DISCARDED',
+            inCuration: row ? dbService.isSignalInCuration(cid, row.id) : false,
+            scored: typeof row?.relevanceScore === 'number',
+          };
+        };
+        return { discard: describe(dTitle), curation: describe(cTitle) };
+      },
+      { cid: CLIENT_JUAN_ID, discardTitle, curationTitle }
+    );
+
+    const diagnostics = `P9 fixture: discard=${JSON.stringify(fixture.discard)} curation=${JSON.stringify(fixture.curation)}`;
+    expect(fixture.discard.matches, diagnostics).toBe(1);
+    expect(fixture.curation.matches, diagnostics).toBe(1);
+    expect(fixture.discard.id, diagnostics).not.toBe(fixture.curation.id);
+    expect(fixture.discard.discarded, diagnostics).toBe(false);
+    expect(fixture.curation.inCuration, diagnostics).toBe(false);
+    const discardId = fixture.discard.id!;
+    const curationId = fixture.curation.id!;
+
+    await page.locator(`[data-testid="react-ws-discard-${discardId}"]`).click();
     await expect(page.locator('[data-testid="react-ws-radar-success"]')).toContainText(
       'Señal descartada',
       { timeout: 10_000 }
@@ -65,11 +105,11 @@ test.describe('P9 — React admin radar discard + send-to-curation parity', () =
         const { dbService } = await import('/src/services/db.ts');
         return dbService.getSignalById(id)?.status ?? null;
       },
-      { id: fixture.discardId }
+      { id: discardId }
     );
     expect(discardedStatus).toBe('DISCARDED');
 
-    await page.locator(`[data-testid="react-ws-send-curation-${fixture.curationId}"]`).click();
+    await page.locator(`[data-testid="react-ws-send-curation-${curationId}"]`).click();
     await expect(page.locator('[data-testid="react-ws-radar-success"]')).toContainText(
       'Enviada a curación',
       { timeout: 10_000 }
@@ -86,16 +126,16 @@ test.describe('P9 — React admin radar discard + send-to-curation parity', () =
           score: typeof signal?.relevanceScore === 'number' ? signal.relevanceScore : null,
         };
       },
-      { cid: CLIENT_JUAN_ID, id: fixture.curationId }
+      { cid: CLIENT_JUAN_ID, id: curationId }
     );
     expect(curationState.inCuration).toBe(true);
     expect(curationState.managerDecision).toBe('SAVED');
-    if (!fixture.curationScored) {
+    if (!fixture.curation.scored) {
       expect(curationState.score).not.toBeNull();
     }
 
     await expect(
-      page.locator(`[data-testid="react-ws-send-curation-${fixture.curationId}"]`)
+      page.locator(`[data-testid="react-ws-send-curation-${curationId}"]`)
     ).toHaveCount(0);
   });
 });
