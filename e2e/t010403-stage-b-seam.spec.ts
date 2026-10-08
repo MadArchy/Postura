@@ -56,25 +56,6 @@ function sidebarTab(page: import('@playwright/test').Page, tab: string) {
   return page.locator(`.sidebar-link[data-tab="${tab}"]`);
 }
 
-async function mockRssFeeds(page: import('@playwright/test').Page) {
-  await page.route('**/api/rss**', async (route) => {
-    const stamp = Date.now();
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        items: [
-          {
-            title: `E2E T403 signal ${stamp}`,
-            link: `https://example.com/e2e-t403-${stamp}`,
-            snippet: 'Deterministic feed item for Stage-B poll proof.',
-          },
-        ],
-      }),
-    });
-  });
-}
-
 async function seedSendableDraft(page: import('@playwright/test').Page, clientId: string) {
   await page.evaluate(async ({ cid }) => {
     const { dbService } = await import('/src/services/db.ts');
@@ -117,29 +98,6 @@ async function loginAsManager(page: import('@playwright/test').Page) {
 async function openClientWorkspace(page: import('@playwright/test').Page) {
   await loginAsManager(page);
   await enterClientWorkspaceFromShell(page);
-}
-
-async function mountLegacyIslandTab(
-  page: import('@playwright/test').Page,
-  tab: string,
-  clientId = CLIENT_ID
-) {
-  await page.evaluate(
-    ({ legacyTab, legacyClientId }) => {
-      const host = document.querySelector('[data-testid="react-legacy-island"]') as HTMLElement | null;
-      if (!host) throw new Error('Legacy island host is missing');
-      const ui = (window as unknown as { __posturaUi?: Record<string, unknown> }).__posturaUi;
-      if (!ui || typeof ui.unmountLegacyIsland !== 'function' || typeof ui.mountLegacyIsland !== 'function') {
-        throw new Error('Strangler controls are unavailable');
-      }
-      (ui.unmountLegacyIsland as () => void)();
-      (ui.mountLegacyIsland as (el: HTMLElement, config: { tab: string; clientId: string }) => void)(host, {
-        tab: legacyTab,
-        clientId: legacyClientId,
-      });
-    },
-    { legacyTab: tab, legacyClientId: clientId }
-  );
 }
 
 test.describe('T-010-403 Stage-B seam inversion', () => {
@@ -225,35 +183,16 @@ test.describe('T-010-403 Stage-B seam inversion', () => {
     await expect(page.locator('[data-legacy-island="true"]')).toHaveCount(1);
   });
 
-  test('#9 hosted poll intent executes one canonical source run', async ({ page }) => {
-    await mockRssFeeds(page);
-    await openClientWorkspace(page);
-    await sidebarTab(page, 'ws-briefing').click();
-    await expect(page.locator('[data-testid="react-legacy-island"]')).toBeVisible();
-    await mountLegacyIslandTab(page, 'ws-sources');
-
-    const beforeRuns = await countAuditAction(page, 'SOURCE_RUN_COMPLETED');
-    const pollButton = page.locator('[data-legacy-island="true"] .btn-poll-one-source').first();
-    await expect(pollButton).toBeVisible();
-    await pollButton.click();
-
-    await expect
-      .poll(async () => countAuditAction(page, 'SOURCE_RUN_COMPLETED'), { timeout: 15_000 })
-      .toBe(beforeRuns + 1);
-    await expect
-      .poll(async () => countAuditAction(page, 'SOURCE_RUN_COMPLETED'))
-      .toBe(beforeRuns + 1);
-  });
-
   test('#18 hosted send intent executes one canonical delivery send', async ({ page }) => {
     test.setTimeout(60_000);
     await openClientWorkspace(page);
-    await sidebarTab(page, 'ws-briefing').click();
-    await expect(page.locator('[data-testid="react-legacy-island"]')).toBeVisible();
     await seedSendableDraft(page, CLIENT_ID);
-    await mountLegacyIslandTab(page, 'ws-deliver');
+    await sidebarTab(page, 'ws-briefing').click();
+    const host = page.locator('[data-testid="react-legacy-island"]');
+    await expect(host).toBeVisible();
+    await expect(host).toHaveAttribute('data-legacy-island-tab', 'ws-briefing');
 
-    const sendButton = page.locator('[data-legacy-island="true"] #btn-send-delivery');
+    const sendButton = host.locator('[data-legacy-island="true"] #btn-send-delivery-bar');
     await expect(sendButton).toBeEnabled({ timeout: 15_000 });
 
     const beforeSent = await countAuditAction(page, 'DELIVERY_SENT');

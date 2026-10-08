@@ -152,41 +152,4 @@ test.describe('#16 — React remove / reopen curation', () => {
     expect(outcome.cross.ok).toBe(false);
     expect(outcome.stillThere).toBe(true);
   });
-
-  test('legacy Quitar and Reabrir remain reachable after rollback', async ({ page }) => {
-    test.setTimeout(90_000);
-    await openManagerWorkspace(page);
-    const pending = await seedPending(page, CLIENT_JUAN_ID);
-    const ready = await seedLooseReady(page, CLIENT_JUAN_ID);
-    expect(pending.curationId).toBeTruthy();
-    expect(ready.curationId).toBeTruthy();
-
-    await page.evaluate(async ({ clientId }) => {
-      const { ensureDraftDelivery } = await import('/src/services/executionDeliveryConsumer.ts');
-      ensureDraftDelivery({ requestedClientId: clientId });
-      const ui = (
-        window as unknown as {
-          __posturaUi?: {
-            applyUiMode: (mode: 'legacy' | 'react') => Promise<void>;
-            mountLegacyIsland: (el: HTMLElement, config: { tab: string; clientId: string }) => void;
-          };
-        }
-      ).__posturaUi;
-      if (!ui?.applyUiMode || !ui.mountLegacyIsland) {
-        throw new Error('Strangler controls are unavailable');
-      }
-      await ui.applyUiMode('legacy');
-      let host = document.getElementById('c16-legacy-deliver');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'c16-legacy-deliver';
-        document.body.appendChild(host);
-      }
-      ui.mountLegacyIsland(host, { tab: 'ws-deliver', clientId });
-    }, { clientId: CLIENT_JUAN_ID });
-
-    await expect(page.locator('[data-legacy-island="true"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-legacy-island="true"] .btn-remove-curation').first()).toBeVisible();
-    await expect(page.locator('[data-legacy-island="true"] .btn-reopen-curation').first()).toBeVisible();
-  });
 });

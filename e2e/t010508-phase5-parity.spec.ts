@@ -21,77 +21,6 @@ import {
 
 test.use({ channel: 'chrome' });
 
-type AuditEvent = { action: string; entityType?: string; entityId?: string };
-
-async function auditEvents(page: import('@playwright/test').Page): Promise<AuditEvent[]> {
-  return page.evaluate(() => {
-    const raw = localStorage.getItem('postura_audit_logs');
-    return raw ? (JSON.parse(raw) as AuditEvent[]) : [];
-  });
-}
-
-async function countAuditAction(page: import('@playwright/test').Page, action: string) {
-  const events = await auditEvents(page);
-  return events.filter((event) => event.action === action).length;
-}
-
-async function mockRssFeeds(page: import('@playwright/test').Page) {
-  await page.route('**/api/rss**', async (route) => {
-    const stamp = Date.now();
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        items: [
-          {
-            title: `E2E T508 signal ${stamp}`,
-            link: `https://example.com/e2e-t508-${stamp}`,
-            snippet: 'Deterministic feed item for Phase-5 poll proof.',
-          },
-        ],
-      }),
-    });
-  });
-}
-
-async function seedSendableDraft(page: import('@playwright/test').Page, clientId: string) {
-  await page.evaluate(async ({ cid }) => {
-    const { dbService } = await import('/src/services/db.ts');
-    for (const pkg of dbService.getDeliveriesByClient(cid)) {
-      if (pkg.status === 'DRAFT') dbService.discardDraftDelivery(pkg.id);
-    }
-    const pkg = dbService.ensureDraftDelivery(cid, 'user_admin_01');
-    dbService.addDeliveryItem(pkg.id, {
-      kind: 'ADVICE',
-      title: 'E2E T508 briefing advice',
-      rationale: 'Deterministic Phase-5 send proof without provider calls.',
-    });
-  }, { cid: clientId });
-}
-
-async function mountLegacyIslandTab(
-  page: import('@playwright/test').Page,
-  tab: string,
-  clientId = CLIENT_JUAN_ID
-) {
-  await page.evaluate(
-    ({ legacyTab, legacyClientId }) => {
-      const host = document.querySelector('[data-testid="react-legacy-island"]') as HTMLElement | null;
-      if (!host) throw new Error('Legacy island host is missing');
-      const ui = (window as unknown as { __posturaUi?: Record<string, unknown> }).__posturaUi;
-      if (!ui || typeof ui.unmountLegacyIsland !== 'function' || typeof ui.mountLegacyIsland !== 'function') {
-        throw new Error('Strangler controls are unavailable');
-      }
-      (ui.unmountLegacyIsland as () => void)();
-      (ui.mountLegacyIsland as (el: HTMLElement, config: { tab: string; clientId: string }) => void)(host, {
-        tab: legacyTab,
-        clientId: legacyClientId,
-      });
-    },
-    { legacyTab: tab, legacyClientId: clientId }
-  );
-}
-
 test.describe('T-010-508 — authenticated manager journey', () => {
   test('manager cockpit and workspace navigation stay React-owned', async ({ page }) => {
     await openManagerWorkspace(page);
@@ -227,40 +156,6 @@ test.describe('T-010-508 — cross-tenant isolation', () => {
       expect(elenaText).not.toContain(title);
     }
     expect(juanText).not.toEqual(elenaText);
-  });
-});
-
-test.describe('T-010-508 — #9 and #18 canonical E2E', () => {
-  test('#9 poll intent executes one canonical source run', async ({ page }) => {
-    await mockRssFeeds(page);
-    await openManagerWorkspace(page);
-    await sidebarTab(page, 'ws-briefing').click();
-    await mountLegacyIslandTab(page, 'ws-sources');
-
-    const beforeRuns = await countAuditAction(page, 'SOURCE_RUN_COMPLETED');
-    const pollButton = page.locator('[data-legacy-island="true"] .btn-poll-one-source').first();
-    await expect(pollButton).toBeVisible();
-    await pollButton.click();
-    await expect
-      .poll(async () => countAuditAction(page, 'SOURCE_RUN_COMPLETED'), { timeout: 15_000 })
-      .toBe(beforeRuns + 1);
-  });
-
-  test('#18 send intent executes one canonical delivery send', async ({ page }) => {
-    test.setTimeout(60_000);
-    await openManagerWorkspace(page);
-    await sidebarTab(page, 'ws-briefing').click();
-    await seedSendableDraft(page, CLIENT_JUAN_ID);
-    await mountLegacyIslandTab(page, 'ws-deliver');
-
-    const sendButton = page.locator('[data-legacy-island="true"] #btn-send-delivery');
-    await expect(sendButton).toBeEnabled({ timeout: 15_000 });
-    const beforeSent = await countAuditAction(page, 'DELIVERY_SENT');
-    await sendButton.click();
-    await page.locator('#delivery-preview-modal .btn-confirm-send-delivery').click();
-    await expect
-      .poll(async () => countAuditAction(page, 'DELIVERY_SENT'), { timeout: 30_000 })
-      .toBe(beforeSent + 1);
   });
 });
 

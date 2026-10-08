@@ -9,7 +9,6 @@ import {
   CLIENT_JUAN_ID,
   openManagerWorkspace,
   sidebarTab,
-  UI_MODE_KEY,
 } from './helpers/spec010Auth';
 
 test.use({ channel: 'chrome' });
@@ -166,38 +165,26 @@ test.describe('#21 — React advisor click-only curation', () => {
     expect(remoteHits).toEqual([]);
   });
 
-  test('ROLLBACK — legacy briefing Preparar entrega remains reachable', async ({ page }) => {
+  test('SUPPORTED ISLAND — Resumen briefing Preparar entrega reaches curation', async ({ page }) => {
     test.setTimeout(90_000);
     await openManagerWorkspace(page);
-    await seedAdvice(page, CLIENT_JUAN_ID);
+    const fixture = await seedAdvice(page, CLIENT_JUAN_ID, `${ACTION_ID}_briefing_${Date.now()}`);
+    const before = await pendingTitles(page, CLIENT_JUAN_ID);
 
-    await page.evaluate(async ({ clientId, key }) => {
-      localStorage.setItem(key, 'legacy');
-      const ui = (
-        window as unknown as {
-          __posturaUi?: {
-            applyUiMode: (mode: 'legacy' | 'react') => Promise<void>;
-            mountLegacyIsland: (el: HTMLElement, config: { tab: string; clientId: string }) => void;
-          };
-        }
-      ).__posturaUi;
-      if (!ui?.applyUiMode || !ui.mountLegacyIsland) {
-        throw new Error('Strangler controls are unavailable');
-      }
-      await ui.applyUiMode('legacy');
-      let host = document.getElementById('c21-legacy-briefing');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'c21-legacy-briefing';
-        document.body.appendChild(host);
-      }
-      ui.mountLegacyIsland(host, { tab: 'ws-briefing', clientId });
-    }, { clientId: CLIENT_JUAN_ID, key: UI_MODE_KEY });
-
-    const island = page.locator('[data-legacy-island="true"]');
-    await expect(island).toBeVisible({ timeout: 15_000 });
+    await sidebarTab(page, 'ws-briefing').click();
+    const host = page.locator('[data-testid="react-legacy-island"]');
+    await expect(host).toBeVisible({ timeout: 15_000 });
+    await expect(host).toHaveAttribute('data-legacy-island-tab', 'ws-briefing');
+    const island = host.locator('[data-legacy-island="true"]');
     await island.getByText('Ver diagnóstico completo').click();
-    await expect(island.locator('.btn-advice-to-curation').first()).toBeVisible();
-    await expect(island.locator('.btn-advice-to-curation').first()).toHaveText('Preparar entrega');
+    const prepare = island.locator(`.btn-advice-to-curation[data-action-id="${fixture.actionId}"]`);
+    await expect(prepare).toHaveText('Preparar entrega');
+    await prepare.click();
+
+    await expect
+      .poll(async () => (await pendingTitles(page, CLIENT_JUAN_ID)).filter((t) => t === ACTION_TITLE).length, {
+        timeout: 10_000,
+      })
+      .toBe(before.filter((title) => title === ACTION_TITLE).length + 1);
   });
 });
