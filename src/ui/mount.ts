@@ -119,15 +119,20 @@ export async function initReactStrangler(): Promise<void> {
   await applyUiMode(readUiMode());
 }
 
-/** Exposed for the E2E harness and manual rollback verification. */
+/**
+ * Exposed for the E2E harness and manual rollback verification. DEV / test
+ * dev-server only: production builds never assign the global.
+ */
 export function exposeStranglerControls(): void {
-  (window as unknown as Record<string, unknown>).__posturaUi = {
-    applyUiMode,
-    readUiMode,
-    isReactMounted,
-    REACT_ROOT_ID,
-    LEGACY_ROOT_ID,
-    mountLegacyIsland,
-    unmountLegacyIsland,
-  };
+  if (import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__posturaUi = {
+      applyUiMode,
+      readUiMode,
+      isReactMounted,
+      REACT_ROOT_ID,
+      LEGACY_ROOT_ID,
+      mountLegacyIsland,
+      unmountLegacyIsland,
+    };
+  }
 }

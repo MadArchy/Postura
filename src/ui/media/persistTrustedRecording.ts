@@ -1,7 +1,8 @@
 /**
  * Presentation persist for P3B. Production uses existing `persistRecording`.
  * E2E may replace `__posturaUi.persistRecording` with the IndexedDB path
- * so tests do not mutate live Firebase Storage.
+ * so tests do not mutate live Firebase Storage. The override is consulted in
+ * DEV / test dev-server only; production builds never read it.
  */
 
 type PersistFn = (
@@ -17,13 +18,15 @@ export async function persistTrustedRecording(
   taskId: string,
   blob: Blob
 ): Promise<string> {
-  const harness = (
-    window as unknown as {
-      __posturaUi?: { persistRecording?: PersistFn };
+  if (import.meta.env.DEV) {
+    const harness = (
+      window as unknown as {
+        __posturaUi?: { persistRecording?: PersistFn };
+      }
+    ).__posturaUi;
+    if (harness?.persistRecording) {
+      return harness.persistRecording(organizationId, clientId, taskId, blob);
     }
-  ).__posturaUi;
-  if (harness?.persistRecording) {
-    return harness.persistRecording(organizationId, clientId, taskId, blob);
   }
   const { persistRecording } = await import('../../services/recordings');
   return persistRecording(organizationId, clientId, taskId, blob);
