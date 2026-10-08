@@ -25,7 +25,8 @@
  *   - CR-2 brief create         → `createBriefFromCurationEntry` (P12)
  *   - #17 delivery assembly     → EnsureDraft/Add/Metadata/Remove/Discard (P13)
  *   - H06 bulk "Puntuar todas"  → `radarScoreSignalsPresentation` (R1, ADMIN only)
- * Outcome/brief/#18/#27/#20/#21-radar/#21-advisor/#14/#15/#12/#17/H06 change the caller only.
+ *   - H09 contested lead/rival  → `radarContestedAttributionPresentation` (R1)
+ * Outcome/brief/#18/#27/#20/#21-radar/#21-advisor/#14/#15/#12/#17/H06/H09 change the caller only.
  * #22 per-signal score/investigate, #33 composite
  * recommendation→task path, and recordings remain legacy.
  *   - #31 save existing content → `SaveContentDraft` (P16) on ws-production
@@ -66,6 +67,7 @@ import {
   useDiscardRadarSignal,
   useRadarPendingScoring,
   useRegisterSignalOutcome,
+  useResolveContestedAttribution,
   useSendSignalToCuration,
   useSignalOutcomes,
   useStrategicBriefs,
@@ -120,7 +122,7 @@ const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
 ];
 /* ------------------------------------------------------------------ *
  * Radar — compatibility read + signal outcome + #20/#21 radar writes (P9)
- *         + H06 bulk pending scoring (R1)
+ *         + H06 bulk pending scoring + H09 contested attribution (R1)
  * ------------------------------------------------------------------ */
 
 function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
@@ -142,6 +144,7 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
   const discard = useDiscardRadarSignal(scope);
   const sendToCuration = useSendSignalToCuration(scope);
   const pendingScoring = useRadarPendingScoring(scope);
+  const attributionChoice = useResolveContestedAttribution(scope);
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(
     null
   );
@@ -177,7 +180,8 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
     register.isPending ||
     discard.isPending ||
     sendToCuration.isPending ||
-    pendingScoring.isPending;
+    pendingScoring.isPending ||
+    attributionChoice.isPending;
   const unscoredCount = data.signals.filter(
     (s) => s.score === null && s.status !== 'DISCARDED'
   ).length;
@@ -201,6 +205,16 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
     setMessage(
       result.ok
         ? { kind: 'success', text: 'Resultado registrado.' }
+        : { kind: 'error', text: result.message }
+    );
+  };
+
+  const onChooseThesis = async (signalId: string, selectedThesisId: string) => {
+    if (busy) return;
+    const result = await attributionChoice.mutateAsync({ signalId, selectedThesisId });
+    setMessage(
+      result.ok
+        ? { kind: 'success', text: result.message }
         : { kind: 'error', text: result.message }
     );
   };
@@ -278,13 +292,45 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
                     {signal.score !== null ? ` · score ${signal.score}` : ''}
                   </p>
                   {/* Attribution is shown only when routing decided it. */}
-                  <p className="muted small">
+                  <p className="muted small" data-testid={`react-ws-attribution-${signal.id}`}>
                     {signal.routingState === 'CLEAR' && signal.thesisId
                       ? `Tesis asignada: ${signal.thesisId}`
                       : signal.routingState === 'CONTESTED'
-                        ? 'Atribución en disputa — decidirla todavía no está disponible en esta interfaz'
+                        ? signal.attribution
+                          ? `Atribución en disputa — elige la tesis: ${signal.attribution.leadTitle} ${signal.attribution.leadScore} · ${signal.attribution.rivalTitle} ${signal.attribution.rivalScore}`
+                          : 'Atribución en disputa'
                         : 'Sin tesis estratégica asignada'}
+                    {signal.routingSource === 'MANUAL' ? (
+                      <>
+                        {' '}
+                        <span
+                          className="badge badge-progress"
+                          data-testid={`react-ws-attribution-manual-${signal.id}`}
+                        >
+                          Override manual
+                        </span>
+                      </>
+                    ) : null}
                   </p>
+                  {isAdmin && signal.routingState === 'CONTESTED' && signal.attribution ? (
+                    <div className="row-actions">
+                      {[
+                        { thesisId: signal.attribution.leadThesisId, title: signal.attribution.leadTitle },
+                        { thesisId: signal.attribution.rivalThesisId, title: signal.attribution.rivalTitle },
+                      ].map((choice) => (
+                        <button
+                          key={choice.thesisId}
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={busy}
+                          onClick={() => void onChooseThesis(signal.id, choice.thesisId)}
+                          data-testid={`react-ws-attribution-use-${signal.id}-${choice.thesisId}`}
+                        >
+                          Usar {choice.title}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   {signal.inCuration ? (
                     <span className="badge badge-ready">En entrega</span>
                   ) : null}

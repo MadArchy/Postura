@@ -88,6 +88,10 @@ import {
   runRadarBulkScoringComposite,
   type RadarBulkScoringCompositeResult,
 } from '../../services/radarScoreSignalsPresentation';
+import {
+  runRadarContestedAttributionComposite,
+  type RadarContestedAttributionCompositeResult,
+} from '../../services/radarContestedAttributionPresentation';
 import { runCurationDecidePresentation } from '../../services/curationDecidePresentation';
 import { runCurationProposeAnglePresentation } from '../../services/curationProposeAnglePresentation';
 import { runBriefCreateFromCurationPresentation } from '../../services/briefCreateFromCurationPresentation';
@@ -994,6 +998,8 @@ export type RadarSendToCurationCommandResult =
 
 export type RadarBulkScoringCommandResult = RadarBulkScoringCompositeResult;
 
+export type RadarContestedAttributionCommandResult = RadarContestedAttributionCompositeResult;
+
 /**
  * P9 — Radar #20 DiscardSignal + #21 radar send-to-curation composite.
  *
@@ -1004,6 +1010,7 @@ export type RadarBulkScoringCommandResult = RadarBulkScoringCompositeResult;
  *
  * Advisor AddAdviceActionToCuration is NOT exposed here (#21 non-radar residual).
  * R1 H06 bulk "Puntuar todas" is exposed via `radarScoreSignalsPresentation`;
+ * R1 H09 contested lead/rival choice via `radarContestedAttributionPresentation`;
  * #22 per-signal score/investigate/addRecommendation UI is NOT exposed.
  */
 export const radarCommands = {
@@ -1062,6 +1069,19 @@ export const radarCommands = {
     requestedClientId: string | null | undefined;
   }): RadarBulkScoringCommandResult {
     return runRadarBulkScoringComposite(intent);
+  },
+
+  /**
+   * R1 H09 — resolve a CONTESTED attribution to the lead or rival thesis.
+   * Canonical use case owns ADMIN/actor authority; body lives in
+   * `radarContestedAttributionPresentation` (one THESIS_OVERRIDE audit on success).
+   */
+  resolveContestedAttribution(intent: {
+    requestedClientId: string | null | undefined;
+    signalId: string;
+    selectedThesisId: string;
+  }): RadarContestedAttributionCommandResult {
+    return runRadarContestedAttributionComposite(intent);
   },
 } as const;
 

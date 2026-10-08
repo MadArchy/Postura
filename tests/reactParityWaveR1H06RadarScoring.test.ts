@@ -317,10 +317,13 @@ describe('H06 — RadarPanel surface', () => {
     expect(panel).not.toMatch(/'puntuar señales'/);
   });
 
-  it('H09 contested override is not exposed', () => {
+  it('H09 contested attribution is exposed through its own governed path', () => {
     const panel = radarPanel();
-    expect(panel).not.toMatch(/data-thesis-override|Usar «|Override manual/);
-    expect(panel).toMatch(/decidirla todavía no está disponible en esta interfaz/);
+    expect(panel).toMatch(/useResolveContestedAttribution\(scope\)/);
+    expect(panel).toMatch(/Atribución en disputa — elige la tesis:/);
+    expect(panel).toMatch(/Override manual/);
+    expect(panel).not.toMatch(/data-thesis-override/);
+    expect(panel).not.toMatch(/decidirla todavía no está disponible en esta interfaz/);
   });
 
   it('legacy rollback bulk score handler remains intact', () => {

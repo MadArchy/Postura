@@ -57,7 +57,7 @@ import { countUnhealthySources } from '../../domain/sourceHealthActionsCore';
 import { summarizeSourceHealth } from '../../services/sourceHealth';
 import { hasArticleSectionMarkers } from '../../domain/articleReviewCore';
 import { mapLegacyContentStatus } from '../../domain/contentPipeline';
-import type { BusinessKpiType, Client, MasterDossier } from '../../types';
+import type { BusinessKpiType, Client, MasterDossier, Signal } from '../../types';
 import type { TrustedTenantScope } from '../query/tenantScope';
 
 export const COMPATIBILITY_READ_STATUS = 'NONAUTHORITATIVE_COMPATIBILITY_READ' as const;
@@ -1075,6 +1075,41 @@ export function readContentDetail(
   };
 }
 
+/** Lead/rival of a CONTESTED routing, projected from the saved routing decision. */
+export interface WorkspaceRadarAttributionRead {
+  readonly leadThesisId: string;
+  readonly leadTitle: string;
+  readonly leadScore: number;
+  readonly rivalThesisId: string;
+  readonly rivalTitle: string;
+  readonly rivalScore: number;
+}
+
+/**
+ * Mirrors legacy `renderThesisAttribution`: lead = highest saved thesis score,
+ * rival = the saved `secondaryThesisId` entry, else the second-highest. Contested
+ * state itself is never derived here — only read from `routingDecision`.
+ */
+function contestedAttribution(
+  signal: Signal,
+  titles: ReadonlyMap<string, string>
+): WorkspaceRadarAttributionRead | null {
+  if (signal.routingDecision?.routingState !== 'CONTESTED') return null;
+  const sorted = [...(signal.thesisScores ?? [])].sort((a, b) => b.score - a.score);
+  const lead = sorted[0];
+  const rival =
+    sorted.find((s) => s.thesisId === signal.routingDecision?.secondaryThesisId) ?? sorted[1];
+  if (!lead || !rival || lead.thesisId === rival.thesisId) return null;
+  return {
+    leadThesisId: lead.thesisId,
+    leadTitle: titles.get(lead.thesisId) ?? lead.thesisId,
+    leadScore: lead.score,
+    rivalThesisId: rival.thesisId,
+    rivalTitle: titles.get(rival.thesisId) ?? rival.thesisId,
+    rivalScore: rival.score,
+  };
+}
+
 export interface WorkspaceRadarRead {
   readonly signals: readonly {
     readonly id: string;
@@ -1085,6 +1120,8 @@ export interface WorkspaceRadarRead {
     readonly score: number | null;
     readonly thesisId: string | null;
     readonly routingState: string | null;
+    readonly routingSource: 'AUTO' | 'MANUAL' | null;
+    readonly attribution: WorkspaceRadarAttributionRead | null;
     readonly publishedAt: string | null;
     readonly inCuration: boolean;
   }[];
@@ -1108,6 +1145,7 @@ export function readWorkspaceRadar(scope: TrustedTenantScope): WorkspaceRadarRea
   }
 
   const activeTheses = dbService.getActiveTheses(clientId);
+  const thesisTitles = new Map(dbService.getThesesByClient(clientId).map((t) => [t.id, t.title]));
   const signals = dbService.getSignalsByClient(clientId).map((signal) => ({
     id: signal.id,
     title: signal.title,
@@ -1117,6 +1155,8 @@ export function readWorkspaceRadar(scope: TrustedTenantScope): WorkspaceRadarRea
     score: typeof signal.relevanceScore === 'number' ? signal.relevanceScore : null,
     thesisId: signal.thesisId ?? null,
     routingState: signal.routingDecision?.routingState ?? null,
+    routingSource: signal.routingDecision?.source ?? null,
+    attribution: contestedAttribution(signal, thesisTitles),
     publishedAt: signal.detectedAt,
     inCuration: dbService.isSignalInCuration(clientId, signal.id),
   }));

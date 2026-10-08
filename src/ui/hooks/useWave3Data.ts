@@ -41,7 +41,7 @@ import {
   readSignalOutcomes,
   readStrategicBriefs,
 } from '../data/canonicalReads';
-import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarBulkScoringCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisCreateCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
+import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarBulkScoringCommandResult, type RadarContestedAttributionCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisCreateCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
 import type { ContentStatus, ContentType, CurationDestination, SourceType, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
@@ -244,6 +244,31 @@ export function useRadarPendingScoring(scope: TrustedTenantScope | null) {
     // A failed run may already have routed earlier signals, so refresh either way.
     onSuccess: () => {
       if (!scope) return;
+      void queryClient.invalidateQueries({
+        queryKey: tenantInvalidationKey(scope, 'compatibility'),
+      });
+    },
+  });
+}
+
+/** R1 H09 — resolve a CONTESTED radar attribution to its lead or rival thesis. */
+export function useResolveContestedAttribution(scope: TrustedTenantScope | null) {
+  const queryClient = useQueryClient();
+  return useMutation<
+    RadarContestedAttributionCommandResult,
+    Error,
+    { signalId: string; selectedThesisId: string }
+  >({
+    mutationFn: async ({ signalId, selectedThesisId }) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return radarCommands.resolveContestedAttribution({
+        requestedClientId: scope.clientId,
+        signalId,
+        selectedThesisId,
+      });
+    },
+    onSuccess: (result) => {
+      if (!scope || !result.ok) return;
       void queryClient.invalidateQueries({
         queryKey: tenantInvalidationKey(scope, 'compatibility'),
       });
