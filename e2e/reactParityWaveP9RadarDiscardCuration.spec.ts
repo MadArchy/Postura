@@ -38,7 +38,7 @@ test.describe('P9 — React admin radar discard + send-to-curation parity', () =
     });
 
     await expect(page.locator('[data-testid="react-ws-radar-handoff"]')).toBeVisible();
-    await expect(page.locator('[data-testid="react-ws-radar-handoff"]')).toContainText(
+    await expect(page.locator('[data-testid="react-ws-radar-handoff"]')).not.toContainText(
       'puntuar señales'
     );
     await expect(page.locator('[data-testid="react-ws-radar-handoff"]')).toContainText(

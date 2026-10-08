@@ -84,6 +84,10 @@ import {
   acknowledgeDelivery as acknowledgeDeliveryConsumer,
 } from '../../services/executionDeliveryConsumer';
 import { runRadarSendToCurationComposite } from '../../services/radarSendToCurationPresentation';
+import {
+  runRadarBulkScoringComposite,
+  type RadarBulkScoringCompositeResult,
+} from '../../services/radarScoreSignalsPresentation';
 import { runCurationDecidePresentation } from '../../services/curationDecidePresentation';
 import { runCurationProposeAnglePresentation } from '../../services/curationProposeAnglePresentation';
 import { runBriefCreateFromCurationPresentation } from '../../services/briefCreateFromCurationPresentation';
@@ -988,6 +992,8 @@ export type RadarSendToCurationCommandResult =
   | { ok: true; message: string; alreadyInCuration?: boolean; preScored?: boolean }
   | { ok: false; message: string };
 
+export type RadarBulkScoringCommandResult = RadarBulkScoringCompositeResult;
+
 /**
  * P9 — Radar #20 DiscardSignal + #21 radar send-to-curation composite.
  *
@@ -997,7 +1003,8 @@ export type RadarSendToCurationCommandResult =
  * then presentation SIGNAL_TO_CURATION audit.
  *
  * Advisor AddAdviceActionToCuration is NOT exposed here (#21 non-radar residual).
- * #22 score/investigate/addRecommendation UI is NOT exposed.
+ * R1 H06 bulk "Puntuar todas" is exposed via `radarScoreSignalsPresentation`;
+ * #22 per-signal score/investigate/addRecommendation UI is NOT exposed.
  */
 export const radarCommands = {
   /** Registry #20 — DiscardSignal. Consumer owns SIGNAL_DISCARDED on success. */
@@ -1045,6 +1052,16 @@ export const radarCommands = {
     signalId: string;
   }): RadarSendToCurationCommandResult {
     return runRadarSendToCurationComposite(intent);
+  },
+
+  /**
+   * R1 H06 — bulk "Puntuar todas" over pending signals (ADMIN only, one
+   * SCORE_SIGNALS_BULK audit per run). Body lives in `radarScoreSignalsPresentation`.
+   */
+  scorePendingSignals(intent: {
+    requestedClientId: string | null | undefined;
+  }): RadarBulkScoringCommandResult {
+    return runRadarBulkScoringComposite(intent);
   },
 } as const;
 

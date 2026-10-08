@@ -157,7 +157,7 @@ test.describe('wave-3 page migration', () => {
     // ADMIN workspace pages.
     await loginAsManager(page);
     await enterClientWorkspaceFromShell(page);
-    await expectTruthfulHandoff('react-ws-radar-handoff', ['puntuar señales', 'investigarlas']);
+    await expectTruthfulHandoff('react-ws-radar-handoff', ['investigarlas']);
 
     await sidebarTab(page, 'ws-briefs').click();
     await expectTruthfulHandoff('react-ws-briefs-handoff', ['crear un Strategic Brief']);

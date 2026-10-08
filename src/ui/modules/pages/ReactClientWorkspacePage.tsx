@@ -24,15 +24,16 @@
  *   - #16 remove/reopen curation → `RemoveCuration` / `ReopenCuration`
  *   - CR-2 brief create         → `createBriefFromCurationEntry` (P12)
  *   - #17 delivery assembly     → EnsureDraft/Add/Metadata/Remove/Discard (P13)
- * Outcome/brief/#18/#27/#20/#21-radar/#21-advisor/#14/#15/#12/#17 change the caller only.
- * #22 score/investigate, #33 composite
+ *   - H06 bulk "Puntuar todas"  → `radarScoreSignalsPresentation` (R1, ADMIN only)
+ * Outcome/brief/#18/#27/#20/#21-radar/#21-advisor/#14/#15/#12/#17/H06 change the caller only.
+ * #22 per-signal score/investigate, #33 composite
  * recommendation→task path, and recordings remain legacy.
  *   - #31 save existing content → `SaveContentDraft` (P16) on ws-production
  *   - #8/#24 register source → `RegisterSource` on ws-sources
  *   - #9 poll/ingest → `PollRegisteredSource` / `PollAllActiveSources` on ws-sources
  *   - #26 manual signal → `RegisterManualSignal` on ws-sources
  *
- * BLOCKED, left legacy — the large majority. #22 bulk/per-signal score UI and
+ * BLOCKED, left legacy — the large majority. #22 per-signal score UI and
  * investigate agents remain;
  * #25 source lifecycle (pause/reactivate/archive/test-feed), discovery/Tavily,
  * #33 recommendation→task composite, evidence assignment and content generation
@@ -63,6 +64,7 @@ import {
   useRemoveDeliveryItemFromDelivery,
   useUpdateDeliveryPackageMetadata,
   useDiscardRadarSignal,
+  useRadarPendingScoring,
   useRegisterSignalOutcome,
   useSendSignalToCuration,
   useSignalOutcomes,
@@ -118,10 +120,11 @@ const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = [
 ];
 /* ------------------------------------------------------------------ *
  * Radar — compatibility read + signal outcome + #20/#21 radar writes (P9)
+ *         + H06 bulk pending scoring (R1)
  * ------------------------------------------------------------------ */
 
 function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
-  const { tenantScope } = useSession();
+  const { tenantScope, isAdmin } = useSession();
   const scope = useMemo(() => {
     if (!tenantScope) return null;
     if (tenantScope.clientId) return tenantScope;
@@ -138,6 +141,7 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
   const register = useRegisterSignalOutcome(scope);
   const discard = useDiscardRadarSignal(scope);
   const sendToCuration = useSendSignalToCuration(scope);
+  const pendingScoring = useRadarPendingScoring(scope);
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(
     null
   );
@@ -169,7 +173,24 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
     newSignals: 0,
   };
   const outcomeBySignal = new Map((outcomes.data ?? []).map((o) => [o.signalId, o]));
-  const busy = register.isPending || discard.isPending || sendToCuration.isPending;
+  const busy =
+    register.isPending ||
+    discard.isPending ||
+    sendToCuration.isPending ||
+    pendingScoring.isPending;
+  const unscoredCount = data.signals.filter(
+    (s) => s.score === null && s.status !== 'DISCARDED'
+  ).length;
+
+  const onScorePending = async () => {
+    if (busy) return;
+    const result = await pendingScoring.mutateAsync();
+    setMessage(
+      result.ok && result.scored > 0
+        ? { kind: 'success', text: result.message }
+        : { kind: 'error', text: result.message }
+    );
+  };
 
   const submit = async (
     signalId: string,
@@ -226,6 +247,21 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
         <p className="muted small" data-testid="react-ws-cannot-score">
           Sin tesis activa no se puede puntuar ninguna señal.
         </p>
+      ) : isAdmin && unscoredCount > 0 ? (
+        <div className="info-strip" data-testid="react-ws-radar-pending-strip">
+          <span data-testid="react-ws-radar-unscored-count">
+            {unscoredCount} señal(es) sin puntuar.
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={busy}
+            onClick={() => void onScorePending()}
+            data-testid="react-ws-radar-score-pending"
+          >
+            {pendingScoring.isPending ? 'Puntuando…' : 'Puntuar todas'}
+          </button>
+        </div>
       ) : null}
 
       {data.signals.length ? (
@@ -330,7 +366,7 @@ function RadarPanel({ workspaceClientId = null }: { workspaceClientId?: string |
       ) : null}
 
       <LegacyHandoff
-        actions={['puntuar señales', 'investigarlas', 'las fuentes recomendadas']}
+        actions={['investigarlas', 'las fuentes recomendadas']}
         testId="react-ws-radar-handoff"
       />
     </div>

@@ -312,7 +312,7 @@ describe('P9 surface / #22 / advisor / React db boundaries', () => {
     expect(panel).toMatch(/react-ws-discard-/);
     expect(panel).toMatch(/react-ws-send-curation-/);
     expect(panel).toMatch(/narrowToClient/);
-    expect(panel).toMatch(/puntuar señales/);
+    expect(panel).not.toMatch(/actions=\{\[[^\]]*'puntuar señales'/);
     expect(panel).toMatch(/investigarlas/);
     expect(panel).toMatch(/las fuentes recomendadas/);
     expect(panel).not.toMatch(/descartarlas/);
