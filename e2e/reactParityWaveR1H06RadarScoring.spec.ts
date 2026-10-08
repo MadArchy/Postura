@@ -10,6 +10,7 @@ import {
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -103,5 +104,9 @@ test.describe('R1 H06 — React admin radar bulk scoring', () => {
     await expect(handoff).toBeVisible();
     await expect(handoff).not.toContainText('puntuar señales');
     await expect(handoff).toContainText('investigarlas');
+
+    const signalPath = clientDocPath(CLIENT_JUAN_ID, 'signals', after.id!);
+    await waitForServerField(signalPath, 'routingDecision.source', 'AUTO');
+    await waitForServerField(signalPath, 'routingDecision.routingState', 'CLEAR');
   });
 });

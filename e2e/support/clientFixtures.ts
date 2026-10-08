@@ -21,7 +21,9 @@ export const FIXTURE_JUAN_THESIS_ID = 'thesis_juan_ip_ai_adoption';
 const TIMESTAMP_FIELDS = new Set(['createdAt', 'updatedAt', 'sentAt', 'acknowledgedAt', 'completedAt']);
 
 type FirestoreRestValue = Record<string, unknown>;
-type RestDoc = { fields?: Record<string, { stringValue?: string; timestampValue?: string }> };
+type RestField = { stringValue?: string; timestampValue?: string; mapValue?: { fields?: RestFields } };
+type RestFields = Record<string, RestField>;
+type RestDoc = { fields?: RestFields };
 
 function emulatorDocumentsBase(): string {
   const env = resolveE2EFirebaseEnv();
@@ -61,7 +63,10 @@ export async function ownerSeedDoc(path: string, data: Record<string, unknown>):
   if (!res.ok) throw new Error(`[clientFixtures] owner seed ${path}: HTTP ${res.status}`);
 }
 
-/** OWNER read of one string field; `null` when the doc or field is absent. */
+/**
+ * OWNER read of one string field; `null` when the doc or field is absent or not a string.
+ * A dotted `field` (`routingDecision.routingState`) descends through nested map fields only.
+ */
 export async function ownerGetField(path: string, field: string): Promise<string | null> {
   const res = await fetch(`${emulatorDocumentsBase()}/${path}`, {
     headers: { Authorization: 'Bearer owner' },
@@ -69,7 +74,13 @@ export async function ownerGetField(path: string, field: string): Promise<string
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`[clientFixtures] owner GET ${path}: HTTP ${res.status}`);
   const doc = (await res.json()) as RestDoc;
-  return doc.fields?.[field]?.stringValue ?? null;
+  const segments = field.split('.');
+  const leaf = segments.pop()!;
+  let fields = doc.fields;
+  for (const segment of segments) {
+    fields = fields?.[segment]?.mapValue?.fields;
+  }
+  return fields?.[leaf]?.stringValue ?? null;
 }
 
 /** Waits until the emulator holds `expected` for `field` (authoritative server confirmation). */

@@ -10,6 +10,7 @@ import {
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -137,5 +138,8 @@ test.describe('P9 — React admin radar discard + send-to-curation parity', () =
     await expect(
       page.locator(`[data-testid="react-ws-send-curation-${curationId}"]`)
     ).toHaveCount(0);
+
+    await waitForServerField(clientDocPath(CLIENT_JUAN_ID, 'signals', discardId), 'status', 'DISCARDED');
+    await waitForServerField(clientDocPath(CLIENT_JUAN_ID, 'signals', curationId), 'managerDecision', 'SAVED');
   });
 });

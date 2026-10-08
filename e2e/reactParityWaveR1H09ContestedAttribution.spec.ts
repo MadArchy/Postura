@@ -6,7 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { CLIENT_JUAN_ID, openManagerWorkspace, sidebarTab } from './helpers/spec010Auth';
-import { clientDocPath, FIXTURE_ORG_ID, ownerSeedDoc } from './support/clientFixtures';
+import { clientDocPath, FIXTURE_ORG_ID, ownerSeedDoc, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -44,8 +44,9 @@ test.describe('R1 H09 — React admin contested attribution', () => {
     test.setTimeout(90_000);
     const stamp = Date.now();
     const signalId = `sig_h09_${stamp}`;
+    const signalPath = clientDocPath(CLIENT_JUAN_ID, 'signals', signalId);
     const title = `H09 CONTESTED FIXTURE ${stamp}`;
-    await ownerSeedDoc(clientDocPath(CLIENT_JUAN_ID, 'signals', signalId), {
+    await ownerSeedDoc(signalPath, {
       id: signalId,
       organizationId: FIXTURE_ORG_ID,
       clientId: CLIENT_JUAN_ID,
@@ -120,5 +121,10 @@ test.describe('R1 H09 — React admin contested attribution', () => {
     await expect(useRival).toHaveCount(0);
     await expect(card).not.toContainText('elige la tesis');
     await expect(card).not.toContainText('decidirla todavía no está disponible');
+
+    await waitForServerField(signalPath, 'routingDecision.routingState', 'CLEAR');
+    await waitForServerField(signalPath, 'routingDecision.source', 'MANUAL');
+    await waitForServerField(signalPath, 'routingDecision.selectedThesisId', RIVAL_ID);
+    await waitForServerField(signalPath, 'thesisId', RIVAL_ID);
   });
 });
