@@ -1,13 +1,18 @@
 /**
  * SPEC-010 · T603 React Parity Wave P13 — bounded ADMIN delivery assembly E2E.
+ *
+ * Discard is also confirmed in the Firestore emulator and a fresh manager session; an Elena
+ * draft stands in as the unrelated sibling document that must survive Juan's discard.
  */
 import { expect, test } from '@playwright/test';
 import {
+  CLIENT_ELENA_ID,
   CLIENT_JUAN_ID,
   openManagerWorkspace,
   refetchDeliverPanel,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerDocAbsent, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -142,24 +147,30 @@ test.describe('P13 — React admin delivery assembly parity', () => {
     await expect(page.locator('[data-testid="react-ws-deliver-preview-send"]')).toBeEnabled();
   });
 
-  test('ADMIN discards draft briefing with authoritative refresh', async ({ page }) => {
-    test.setTimeout(120_000);
+  test('ADMIN discards draft briefing with authoritative refresh', async ({ page, browser }) => {
+    test.setTimeout(180_000);
     await openManagerWorkspace(page);
 
-    const seeded = await page.evaluate(async ({ cid }) => {
+    const seeded = await page.evaluate(async ({ cid, elenaId }) => {
       const { dbService } = await import('/src/services/db.ts');
       for (const pkg of dbService.getDeliveriesByClient(cid)) {
         if (pkg.status === 'DRAFT') dbService.discardDraftDelivery(pkg.id);
       }
       const pkg = dbService.ensureDraftDelivery(cid, 'e2e_p13');
       dbService.updateDelivery(pkg.id, { title: 'Briefing E2E P13 discard' });
+      const sibling = dbService.ensureDraftDelivery(elenaId, 'e2e_p13');
       const draftCount = dbService
         .getDeliveriesByClient(cid)
         .filter((d) => d.status === 'DRAFT').length;
-      return { packageId: pkg.id, draftCount };
-    }, { cid: CLIENT_JUAN_ID });
+      return { packageId: pkg.id, siblingId: sibling.id, draftCount };
+    }, { cid: CLIENT_JUAN_ID, elenaId: CLIENT_ELENA_ID });
 
     expect(seeded.draftCount).toBe(1);
+    const packagePath = clientDocPath(CLIENT_JUAN_ID, 'deliveries', seeded.packageId);
+    const siblingPath = clientDocPath(CLIENT_ELENA_ID, 'deliveries', seeded.siblingId);
+    await waitForServerField(packagePath, 'title', 'Briefing E2E P13 discard');
+    await waitForServerField(packagePath, 'status', 'DRAFT');
+    await waitForServerField(siblingPath, 'status', 'DRAFT');
 
     await sidebarTab(page, 'ws-deliver').click();
     await refetchDeliverPanel(page);
@@ -198,5 +209,32 @@ test.describe('P13 — React admin delivery assembly parity', () => {
 
     await expect(page.locator('[data-testid="react-ws-draft-empty"]')).toBeVisible();
     await expect(page.locator('[data-testid="react-ws-ensure-draft"]')).toBeVisible();
+
+    await waitForServerDocAbsent(packagePath);
+    await waitForServerField(siblingPath, 'status', 'DRAFT');
+
+    const context = await browser.newContext();
+    try {
+      const fresh = await context.newPage();
+      await openManagerWorkspace(fresh);
+      const freshState = await fresh.evaluate(async ({ pid, siblingId, cid, elenaId }) => {
+        const { dbService } = await import('/src/services/db.ts');
+        return {
+          discardedPresent: Boolean(dbService.getDeliveryById(pid)),
+          juanDraftCount: dbService.getDeliveriesByClient(cid).filter((d) => d.status === 'DRAFT').length,
+          siblingPresent: dbService.getDeliveriesByClient(elenaId).some((d) => d.id === siblingId),
+        };
+      }, { pid: seeded.packageId, siblingId: seeded.siblingId, cid: CLIENT_JUAN_ID, elenaId: CLIENT_ELENA_ID });
+      expect(freshState).toEqual({ discardedPresent: false, juanDraftCount: 0, siblingPresent: true });
+    } finally {
+      await context.close();
+    }
+
+    const siblingDiscarded = await page.evaluate(async ({ siblingId }) => {
+      const { dbService } = await import('/src/services/db.ts');
+      return dbService.discardDraftDelivery(siblingId);
+    }, { siblingId: seeded.siblingId });
+    expect(siblingDiscarded).toBe(true);
+    await waitForServerDocAbsent(siblingPath);
   });
 });

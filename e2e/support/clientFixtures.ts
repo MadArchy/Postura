@@ -68,19 +68,51 @@ export async function ownerSeedDoc(path: string, data: Record<string, unknown>):
  * A dotted `field` (`routingDecision.routingState`) descends through nested map fields only.
  */
 export async function ownerGetField(path: string, field: string): Promise<string | null> {
+  const doc = await ownerGetDoc(path);
+  if (!doc) return null;
+  const segments = field.split('.');
+  const leaf = segments.pop()!;
+  let fields: RestFields | undefined = doc;
+  for (const segment of segments) {
+    fields = fields?.[segment]?.mapValue?.fields;
+  }
+  return fields?.[leaf]?.stringValue ?? null;
+}
+
+/** OWNER read of a document's fields; `null` only when the document does not exist. */
+async function ownerGetDoc(path: string): Promise<RestFields | null> {
   const res = await fetch(`${emulatorDocumentsBase()}/${path}`, {
     headers: { Authorization: 'Bearer owner' },
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`[clientFixtures] owner GET ${path}: HTTP ${res.status}`);
-  const doc = (await res.json()) as RestDoc;
-  const segments = field.split('.');
-  const leaf = segments.pop()!;
-  let fields = doc.fields;
-  for (const segment of segments) {
-    fields = fields?.[segment]?.mapValue?.fields;
-  }
-  return fields?.[leaf]?.stringValue ?? null;
+  return ((await res.json()) as RestDoc).fields ?? {};
+}
+
+/** Waits until the emulator reports the document as not found. */
+export async function waitForServerDocAbsent(path: string, timeout = 15_000) {
+  await expect
+    .poll(async () => (await ownerGetDoc(path)) === null, { timeout, message: `${path} absent` })
+    .toBe(true);
+}
+
+/**
+ * Waits until the document exists and lacks `field`; a missing document never satisfies it.
+ * A dotted `field` descends through nested map fields only.
+ */
+export async function waitForServerFieldAbsent(path: string, field: string, timeout = 15_000) {
+  const state = async () => {
+    const doc = await ownerGetDoc(path);
+    if (!doc) return 'document missing';
+    const segments = field.split('.');
+    const leaf = segments.pop()!;
+    let fields: RestFields | undefined = doc;
+    for (const segment of segments) {
+      fields = fields?.[segment]?.mapValue?.fields;
+    }
+    return fields && leaf in fields ? 'field present' : 'field absent';
+  };
+  await expect.poll(state, { timeout, message: `${path}.${field} absent` }).toBe('field absent');
 }
 
 /** Waits until the emulator holds `expected` for `field` (authoritative server confirmation). */

@@ -68,10 +68,50 @@ const liveCollections = new Set<string>();
  */
 const remoteBaseline = new Map<string, Record<string, unknown>>();
 
+/**
+ * Explicit remote removals recorded by local mutations. A merge snapshot push cannot express
+ * a deleted document or a cleared field, so each intent names one exact client-scoped document.
+ */
+export type RemoteMutationIntent =
+  | { kind: 'deleteDoc'; collection: CollectionKey; clientId: string; id: string }
+  | { kind: 'clearFields'; collection: CollectionKey; clientId: string; id: string; fields: readonly string[] };
+
+/** Pending ADMIN intents by document path; released only after the batch carrying them commits. */
+const pendingDocDeletes = new Map<string, { clientId: string }>();
+/** Field → registration generation, so a clear re-queued while a push is in flight survives it. */
+const pendingFieldClears = new Map<string, { clientId: string; fields: Map<string, number> }>();
+let fieldClearGeneration = 0;
+
 export function resetKnownRemoteDocPaths() {
   knownRemoteDocPaths.clear();
   liveCollections.clear();
   remoteBaseline.clear();
+  pendingDocDeletes.clear();
+  pendingFieldClears.clear();
+}
+
+function intentDocPath(intent: RemoteMutationIntent): string | null {
+  const sub = COLLECTION_MAP[intent.collection];
+  const clientId = intent.clientId?.trim();
+  const id = intent.id?.trim();
+  if (!sub || sub === 'profile' || !clientId || !id || clientId.includes('/') || id.includes('/')) return null;
+  return `${clientDocPath(clientId)}/${sub}/${id}`;
+}
+
+export function queueRemoteMutationIntents(intents: ReadonlyArray<RemoteMutationIntent>) {
+  for (const intent of intents) {
+    const path = intentDocPath(intent);
+    if (!path) continue;
+    if (intent.kind === 'deleteDoc') {
+      pendingDocDeletes.set(path, { clientId: intent.clientId });
+      continue;
+    }
+    const entry = pendingFieldClears.get(path) ?? { clientId: intent.clientId, fields: new Map<string, number>() };
+    for (const field of intent.fields) {
+      if (field && !field.includes('.')) entry.fields.set(field, ++fieldClearGeneration);
+    }
+    if (entry.fields.size) pendingFieldClears.set(path, entry);
+  }
 }
 
 function parentCollectionPath(docPath: string): string {
@@ -449,23 +489,31 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
     }
   }
 
-  const existing = await resolveExistingDocPaths(db, planned, {
+  // Remote removals are ADMIN-only and limited to clients present in this tenant snapshot.
+  const scopedClientIds = new Set(scoped.clients.map((client) => client.id));
+  const deleteTargets = isClientActor
+    ? []
+    : [...pendingDocDeletes]
+        .filter(([, intent]) => scopedClientIds.has(intent.clientId))
+        .map(([path, intent]) => ({ path, envelopeClientId: intent.clientId }));
+
+  const existing = await resolveExistingDocPaths(db, [...planned, ...deleteTargets], {
     organizationId: actor.organizationId?.trim() || null,
     // Root client create is ADMIN-only, so a CLIENT's own root doc always exists.
     rootAlwaysExists: isClientActor,
   });
 
-  const { doc, writeBatch, serverTimestamp } = await import('firebase/firestore');
+  const firestore = await import('firebase/firestore');
+  const { doc, writeBatch, serverTimestamp } = firestore;
 
   let writes: PreparedWrite[];
   if (isClientActor) {
     await fillMissingClientBaselines(db, planned, existing, actor.organizationId?.trim() || null);
     writes = projectClientWrites(planned, existing, serverTimestamp);
   } else {
-    writes = planned.map((write) => ({
-      path: write.path,
-      data: prepareDocForWrite(write.row, serverTimestamp, existing.has(write.path), write.options),
-    }));
+    writes = planAdminWrites(planned, deleteTargets, existing, scopedClientIds, serverTimestamp, () =>
+      firestore.deleteField()
+    );
   }
 
   let written = 0;
@@ -474,19 +522,38 @@ async function runSnapshotImport(snapshot: LocalV5Snapshot): Promise<SnapshotImp
 
   const flush = async () => {
     if (batchWrites.length === 0) return;
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (err) {
+      // Existence is re-established next push, so a delete of an already-absent doc is dropped.
+      for (const write of batchWrites) {
+        if (write.delete) knownRemoteDocPaths.delete(write.path);
+      }
+      throw err;
+    }
     for (const write of batchWrites) {
+      if (write.delete) {
+        knownRemoteDocPaths.delete(write.path);
+        remoteBaseline.delete(write.path);
+        pendingDocDeletes.delete(write.path);
+        continue;
+      }
       knownRemoteDocPaths.add(write.path);
       if (write.confirmed) {
         remoteBaseline.set(write.path, { ...(remoteBaseline.get(write.path) ?? {}), ...write.confirmed });
       }
+      if (write.clearedFields) releaseFieldClears(write.path, write.clearedFields);
     }
     batch = writeBatch(db!);
     batchWrites = [];
   };
 
   for (const write of writes) {
-    batch.set(doc(db, write.path), write.data, { merge: true });
+    if (write.delete) {
+      batch.delete(doc(db, write.path));
+    } else {
+      batch.set(doc(db, write.path), write.data, { merge: true });
+    }
     batchWrites.push(write);
     written += 1;
     if (batchWrites.length >= 400) await flush();
@@ -511,6 +578,68 @@ interface PreparedWrite {
   data: Record<string, unknown>;
   /** Local values the write makes server state once committed (CLIENT baseline). */
   confirmed?: Record<string, unknown>;
+  /** ADMIN delete intent: the doc is deleted instead of written. */
+  delete?: boolean;
+  /** ADMIN clear intents (field → generation) this write settles once committed. */
+  clearedFields?: ReadonlyMap<string, number>;
+}
+
+/**
+ * ADMIN plan: deletes first, then merge writes. A doc with a delete intent is never written;
+ * cleared fields still absent locally become `deleteField()` so the merge cannot keep them.
+ */
+function planAdminWrites(
+  planned: ReadonlyArray<PlannedWrite>,
+  deleteTargets: ReadonlyArray<{ path: string }>,
+  existing: ReadonlySet<string>,
+  scopedClientIds: ReadonlySet<string>,
+  serverTimestamp: () => unknown,
+  deleteField: () => unknown
+): PreparedWrite[] {
+  const out: PreparedWrite[] = [];
+  const deleting = new Set<string>();
+  for (const target of deleteTargets) {
+    if (existing.has(target.path)) {
+      deleting.add(target.path);
+      out.push({ path: target.path, data: {}, delete: true });
+    } else {
+      pendingDocDeletes.delete(target.path);
+    }
+  }
+
+  const plannedPaths = new Set<string>();
+  for (const write of planned) {
+    if (deleting.has(write.path)) continue;
+    plannedPaths.add(write.path);
+    const docExists = existing.has(write.path);
+    const data = prepareDocForWrite(write.row, serverTimestamp, docExists, write.options);
+    const clear = pendingFieldClears.get(write.path);
+    if (!clear) {
+      out.push({ path: write.path, data });
+      continue;
+    }
+    // A field set again locally since the clear keeps its new value; the intent is settled either way.
+    if (docExists) {
+      for (const field of clear.fields.keys()) {
+        if (!(field in data)) data[field] = deleteField();
+      }
+    }
+    out.push({ path: write.path, data, clearedFields: new Map(clear.fields) });
+  }
+
+  for (const [path, clear] of pendingFieldClears) {
+    if (!plannedPaths.has(path) && scopedClientIds.has(clear.clientId)) pendingFieldClears.delete(path);
+  }
+  return out;
+}
+
+function releaseFieldClears(path: string, settled: ReadonlyMap<string, number>) {
+  const clear = pendingFieldClears.get(path);
+  if (!clear) return;
+  for (const [field, generation] of settled) {
+    if (clear.fields.get(field) === generation) clear.fields.delete(field);
+  }
+  if (clear.fields.size === 0) pendingFieldClears.delete(path);
 }
 
 /**

@@ -37,6 +37,7 @@ declare module 'firebase/firestore' {
   export type DocumentReference = object;
   export interface WriteBatch {
     set(ref: DocumentReference, data: unknown, options?: { merge?: boolean }): WriteBatch;
+    delete(ref: DocumentReference): WriteBatch;
     commit(): Promise<void>;
   }
 
@@ -58,6 +59,7 @@ declare module 'firebase/firestore' {
   export function where(fieldPath: string, opStr: string, value: unknown): unknown;
   export function setDoc(ref: DocumentReference, data: unknown, options?: { merge?: boolean }): Promise<void>;
   export function serverTimestamp(): unknown;
+  export function deleteField(): unknown;
 }
 
 declare module 'firebase/storage' {

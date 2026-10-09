@@ -74,6 +74,7 @@ import { quotasFor, assertClientQuota, assertSourceQuota, assertThesisQuota } fr
 import { buildJuanMasterDossier } from '../data/juanMasterDossier';
 import { FIREBASE_ENABLED } from '../firebase/config';
 import type { LocalV5Snapshot } from './firestore/types';
+import type { RemoteMutationIntent } from './firestore/sync';
 import { buildScoreBreakdown } from '../domain/scoreExplainCore';
 import type { SignalRoutingHistoryEntry } from '../domain/routingHistoryCore';
 import {
@@ -125,6 +126,8 @@ class DataService {
   private changeListeners: Array<() => void> = [];
   /** >0 mientras se aplique un lote de escrituras (p. ej. send briefing). */
   private saveBatchDepth = 0;
+  /** Removals the merge snapshot cannot express; handed to the sync queue by the next remote save. */
+  private pendingRemoteIntents: RemoteMutationIntent[] = [];
 
   constructor() {
     this.loadInitialData();
@@ -1068,12 +1071,16 @@ class DataService {
       );
     }
 
+    const intents = options?.skipRemote ? [] : this.pendingRemoteIntents.splice(0);
     if (!options?.skipRemote && FIREBASE_ENABLED) {
-      void import('./firestore/sync').then(({ isFirestoreAuthoritative, scheduleFirestorePush }) => {
-        if (isFirestoreAuthoritative()) {
-          scheduleFirestorePush(this.exportSnapshot());
+      void import('./firestore/sync').then(
+        ({ isFirestoreAuthoritative, queueRemoteMutationIntents, scheduleFirestorePush }) => {
+          if (isFirestoreAuthoritative()) {
+            queueRemoteMutationIntents(intents);
+            scheduleFirestorePush(this.exportSnapshot());
+          }
         }
-      });
+      );
     }
     this.emitChange();
   }
@@ -2454,6 +2461,13 @@ class DataService {
     item.managerRationale = '';
     item.decidedAt = undefined;
     item.decidedBy = undefined;
+    this.pendingRemoteIntents.push({
+      kind: 'clearFields',
+      collection: 'curation',
+      clientId: item.clientId,
+      id: item.id,
+      fields: ['decidedAt', 'decidedBy'],
+    });
     this.saveAll();
   }
 
@@ -2484,7 +2498,11 @@ class DataService {
   }
 
   public removeCuration(id: string): void {
+    const entry = this.curation.find((c) => c.id === id);
     this.curation = this.curation.filter((c) => c.id !== id);
+    if (entry) {
+      this.pendingRemoteIntents.push({ kind: 'deleteDoc', collection: 'curation', clientId: entry.clientId, id });
+    }
     this.saveAll();
   }
 
@@ -2573,6 +2591,7 @@ class DataService {
       }
     }
     this.deliveries = this.deliveries.filter((d) => d.id !== packageId);
+    this.pendingRemoteIntents.push({ kind: 'deleteDoc', collection: 'deliveries', clientId: pkg.clientId, id: packageId });
     this.saveAll();
     return true;
   }

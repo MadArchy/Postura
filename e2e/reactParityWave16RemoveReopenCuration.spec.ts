@@ -1,18 +1,24 @@
 /**
  * SPEC-010 · #16 Remove / Reopen Curation React E2E.
- * Local deterministic fixtures. Reopen is also confirmed in the Firestore emulator through
- * owner REST reads; removal is asserted locally only. The reopen fixture registers its own Juan
- * signal through the React manual-signal form because its decided row persists in the emulator.
+ * Local deterministic fixtures. Remove and reopen are also confirmed in the Firestore emulator
+ * through owner REST reads and a fresh manager session. Rows that persist register their own Juan
+ * signals through the React manual-signal form so they never consume seeded signals.
  */
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
   CLIENT_ELENA_ID,
   CLIENT_JUAN_ID,
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
-import { clientDocPath, waitForServerField } from './support/clientFixtures';
+import {
+  clientDocPath,
+  ownerGetField,
+  waitForServerDocAbsent,
+  waitForServerField,
+  waitForServerFieldAbsent,
+} from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -45,6 +51,46 @@ async function registerManualSignal(page: Page, title: string) {
   await expect(page.locator('[data-testid="react-ws-sources-success"]')).toContainText(
     'Señal manual registrada'
   );
+}
+
+async function seedPendingForTitle(page: Page, clientId: string, signalTitle: string) {
+  return page.evaluate(async ({ cid, title }) => {
+    const { dbService } = await import('/src/services/db.ts');
+    const matches = dbService.getSignalsByClient(cid).filter((row) => row.title === title);
+    const signal = matches[0];
+    if (matches.length !== 1 || !signal || dbService.isSignalInCuration(cid, signal.id)) {
+      return { curationId: null as string | null, matches: matches.length };
+    }
+    const { addSignalToCuration } = await import('/src/services/executionDeliveryConsumer.ts');
+    return { curationId: addSignalToCuration({ requestedClientId: cid, signalId: signal.id }).entry.id, matches: 1 };
+  }, { cid: clientId, title: signalTitle });
+}
+
+/** A new manager session hydrates curation from Firestore only (no shared local state). */
+async function readCurationInFreshSession(browser: Browser, ids: string[]) {
+  const context = await browser.newContext();
+  try {
+    const fresh = await context.newPage();
+    await openManagerWorkspace(fresh);
+    return await fresh.evaluate(async ({ curationIds }) => {
+      const { dbService } = await import('/src/services/db.ts');
+      return curationIds.map((id) => {
+        const entry = dbService.getCurationById(id);
+        return entry
+          ? {
+              id,
+              present: true,
+              destination: entry.destination,
+              managerRationale: entry.managerRationale,
+              decidedAt: entry.decidedAt ?? null,
+              decidedBy: entry.decidedBy ?? null,
+            }
+          : { id, present: false };
+      });
+    }, { curationIds: ids });
+  } finally {
+    await context.close();
+  }
 }
 
 async function seedLooseReady(page: Page, clientId: string, signalTitle: string) {
@@ -81,12 +127,20 @@ async function seedLooseReady(page: Page, clientId: string, signalTitle: string)
 }
 
 test.describe('#16 — React remove / reopen curation', () => {
-  test('ADMIN removes a pending curation from Deliver', async ({ page }) => {
-    test.setTimeout(90_000);
+  test('ADMIN removes a pending curation from Deliver', async ({ page, browser }) => {
+    test.setTimeout(150_000);
     await openManagerWorkspace(page);
+    const siblingTitle = `WAVE16 REMOVE SIBLING ${Date.now()}`;
+    await registerManualSignal(page, siblingTitle);
+    const sibling = await seedPendingForTitle(page, CLIENT_JUAN_ID, siblingTitle);
+    expect(sibling.matches, `#16 remove sibling: ${JSON.stringify(sibling)}`).toBe(1);
+    const siblingPath = clientDocPath(CLIENT_JUAN_ID, 'curation', sibling.curationId!);
     const fixture = await seedPending(page, CLIENT_JUAN_ID);
     expect(fixture.curationId).toBeTruthy();
     const curationId = fixture.curationId!;
+    const curationPath = clientDocPath(CLIENT_JUAN_ID, 'curation', curationId);
+    await waitForServerField(curationPath, 'clientId', CLIENT_JUAN_ID);
+    await waitForServerField(siblingPath, 'clientId', CLIENT_JUAN_ID);
 
     await sidebarTab(page, 'ws-deliver').click();
     await expect(page.locator('[data-testid="react-ws-deliver"]')).toBeVisible({ timeout: 15_000 });
@@ -107,10 +161,17 @@ test.describe('#16 — React remove / reopen curation', () => {
     }, { id: curationId, cid: CLIENT_JUAN_ID });
     expect(gone.entry).toBeNull();
     expect(gone.pending).toBe(false);
+
+    await waitForServerDocAbsent(curationPath);
+    await waitForServerField(siblingPath, 'clientId', CLIENT_JUAN_ID);
+
+    const [removed, kept] = await readCurationInFreshSession(browser, [curationId, sibling.curationId!]);
+    expect(kept.present).toBe(true);
+    expect(removed.present).toBe(false);
   });
 
-  test('ADMIN reopens a loose ready curation on Deliver', async ({ page }) => {
-    test.setTimeout(90_000);
+  test('ADMIN reopens a loose ready curation on Deliver', async ({ page, browser }) => {
+    test.setTimeout(150_000);
     await openManagerWorkspace(page);
     const signalTitle = `WAVE16 REOPEN FIXTURE ${Date.now()}`;
     await registerManualSignal(page, signalTitle);
@@ -122,6 +183,8 @@ test.describe('#16 — React remove / reopen curation', () => {
     const curationPath = clientDocPath(CLIENT_JUAN_ID, 'curation', curationId);
     await waitForServerField(curationPath, 'destination', 'EVIDENCE');
     await waitForServerField(curationPath, 'managerRationale', 'E2E #16 loose ready row for Reabrir.');
+    await expect.poll(() => ownerGetField(curationPath, 'decidedAt')).not.toBeNull();
+    await expect.poll(() => ownerGetField(curationPath, 'decidedBy')).not.toBeNull();
 
     await sidebarTab(page, 'ws-deliver').click();
     await expect(page.locator('[data-testid="react-ws-deliver"]')).toBeVisible({ timeout: 15_000 });
@@ -149,6 +212,18 @@ test.describe('#16 — React remove / reopen curation', () => {
     expect(reopened.ready).toBe(false);
 
     await waitForServerField(curationPath, 'managerRationale', '');
+    await waitForServerFieldAbsent(curationPath, 'decidedAt');
+    await waitForServerFieldAbsent(curationPath, 'decidedBy');
+
+    const [fresh] = await readCurationInFreshSession(browser, [curationId]);
+    expect(fresh).toEqual({
+      id: curationId,
+      present: true,
+      destination: null,
+      managerRationale: '',
+      decidedAt: null,
+      decidedBy: null,
+    });
   });
 
   test('unknown id and wrong client fail closed without mutation', async ({ page }) => {
