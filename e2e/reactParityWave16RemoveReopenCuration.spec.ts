@@ -1,15 +1,18 @@
 /**
  * SPEC-010 · #16 Remove / Reopen Curation React E2E.
- * Local deterministic fixtures only. No remote network or Firestore.
+ * Local deterministic fixtures. Reopen is also confirmed in the Firestore emulator through
+ * owner REST reads; removal is asserted locally only. The reopen fixture registers its own Juan
+ * signal through the React manual-signal form because its decided row persists in the emulator.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   CLIENT_ELENA_ID,
   CLIENT_JUAN_ID,
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -29,16 +32,32 @@ async function seedPending(page: import('@playwright/test').Page, clientId: stri
   }, { cid: clientId });
 }
 
-async function seedLooseReady(page: import('@playwright/test').Page, clientId: string) {
-  return page.evaluate(async ({ cid }) => {
+async function registerManualSignal(page: Page, title: string) {
+  await sidebarTab(page, 'ws-sources-react').click();
+  await expect(page.locator('[data-testid="react-ws-sources"]')).toBeVisible({ timeout: 15_000 });
+  await page.locator('[data-testid="react-ws-sources-open-manual"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeVisible();
+  await page.locator('[data-testid="react-ws-sources-manual-title"]').fill(title);
+  await page.locator('[data-testid="react-ws-sources-manual-submit"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeHidden({
+    timeout: 10_000,
+  });
+  await expect(page.locator('[data-testid="react-ws-sources-success"]')).toContainText(
+    'Señal manual registrada'
+  );
+}
+
+async function seedLooseReady(page: Page, clientId: string, signalTitle: string) {
+  return page.evaluate(async ({ cid, title }) => {
     const { dbService } = await import('/src/services/db.ts');
     for (const pkg of dbService.getDeliveriesByClient(cid)) {
       if (pkg.status === 'DRAFT') dbService.discardDraftDelivery(pkg.id);
     }
-    const signal = dbService
-      .getSignalsByClient(cid)
-      .find((row) => row.status !== 'DISCARDED' && !dbService.isSignalInCuration(cid, row.id));
-    if (!signal) return { curationId: null as string | null };
+    const matches = dbService.getSignalsByClient(cid).filter((row) => row.title === title);
+    const signal = matches[0];
+    if (matches.length !== 1 || !signal || dbService.isSignalInCuration(cid, signal.id)) {
+      return { curationId: null as string | null, matches: matches.length };
+    }
     const { addSignalToCuration, decideCuration } = await import(
       '/src/services/executionDeliveryConsumer.ts'
     );
@@ -55,9 +74,10 @@ async function seedLooseReady(page: import('@playwright/test').Page, clientId: s
     }
     return {
       curationId: added.entry.id,
+      matches: matches.length,
       ready: dbService.getReadyCurationByClient(cid).some((row) => row.id === added.entry.id),
     };
-  }, { cid: clientId });
+  }, { cid: clientId, title: signalTitle });
 }
 
 test.describe('#16 — React remove / reopen curation', () => {
@@ -92,10 +112,16 @@ test.describe('#16 — React remove / reopen curation', () => {
   test('ADMIN reopens a loose ready curation on Deliver', async ({ page }) => {
     test.setTimeout(90_000);
     await openManagerWorkspace(page);
-    const fixture = await seedLooseReady(page, CLIENT_JUAN_ID);
+    const signalTitle = `WAVE16 REOPEN FIXTURE ${Date.now()}`;
+    await registerManualSignal(page, signalTitle);
+    const fixture = await seedLooseReady(page, CLIENT_JUAN_ID, signalTitle);
+    expect(fixture.matches, `#16 reopen fixture: ${JSON.stringify(fixture)}`).toBe(1);
     expect(fixture.curationId).toBeTruthy();
     expect(fixture.ready).toBe(true);
     const curationId = fixture.curationId!;
+    const curationPath = clientDocPath(CLIENT_JUAN_ID, 'curation', curationId);
+    await waitForServerField(curationPath, 'destination', 'EVIDENCE');
+    await waitForServerField(curationPath, 'managerRationale', 'E2E #16 loose ready row for Reabrir.');
 
     await sidebarTab(page, 'ws-deliver').click();
     await expect(page.locator('[data-testid="react-ws-deliver"]')).toBeVisible({ timeout: 15_000 });
@@ -121,6 +147,8 @@ test.describe('#16 — React remove / reopen curation', () => {
     expect(reopened.destination).toBeNull();
     expect(reopened.pending).toBe(true);
     expect(reopened.ready).toBe(false);
+
+    await waitForServerField(curationPath, 'managerRationale', '');
   });
 
   test('unknown id and wrong client fail closed without mutation', async ({ page }) => {

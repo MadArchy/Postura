@@ -1,14 +1,31 @@
 /**
  * SPEC-010 · T603 React Parity Wave P10 — bounded ADMIN decide-curation E2E.
+ *
+ * The fixture registers its own Juan signal through the React manual-signal form: the decided
+ * curation row persists in the emulator and must not consume seeded signals later specs rely on.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   CLIENT_JUAN_ID,
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
+
+async function registerManualSignal(page: Page, title: string) {
+  await page.locator('[data-testid="react-ws-sources-open-manual"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeVisible();
+  await page.locator('[data-testid="react-ws-sources-manual-title"]').fill(title);
+  await page.locator('[data-testid="react-ws-sources-manual-submit"]').click();
+  await expect(page.locator('[data-testid="react-ws-sources-manual-form"]')).toBeHidden({
+    timeout: 10_000,
+  });
+  await expect(page.locator('[data-testid="react-ws-sources-success"]')).toContainText(
+    'Señal manual registrada'
+  );
+}
 
 test.describe('P10 — React admin decide curation parity', () => {
   test('ADMIN decides destination on pending curation row without decide handoff text', async ({
@@ -17,7 +34,12 @@ test.describe('P10 — React admin decide curation parity', () => {
     test.setTimeout(90_000);
     await openManagerWorkspace(page);
 
-    const fixture = await page.evaluate(async ({ cid }) => {
+    const signalTitle = `P10 CURATION FIXTURE ${Date.now()}`;
+    await sidebarTab(page, 'ws-sources-react').click();
+    await expect(page.locator('[data-testid="react-ws-sources"]')).toBeVisible({ timeout: 15_000 });
+    await registerManualSignal(page, signalTitle);
+
+    const fixture = await page.evaluate(async ({ cid, title }) => {
       const { dbService } = await import('/src/services/db.ts');
       for (const pkg of dbService.getDeliveriesByClient(cid)) {
         if (pkg.status === 'DRAFT') dbService.discardDraftDelivery(pkg.id);
@@ -25,11 +47,16 @@ test.describe('P10 — React admin decide curation parity', () => {
       const draftCount = dbService
         .getDeliveriesByClient(cid)
         .filter((d) => d.status === 'DRAFT').length;
-      const signals = dbService
-        .getSignalsByClient(cid)
-        .filter((s) => s.status !== 'DISCARDED' && !dbService.isSignalInCuration(cid, s.id));
-      const signal = signals[0];
-      if (!signal) return { curationId: null as string | null, signalId: null as string | null };
+      const matches = dbService.getSignalsByClient(cid).filter((s) => s.title === title);
+      const signal = matches[0];
+      if (matches.length !== 1 || !signal || dbService.isSignalInCuration(cid, signal.id)) {
+        return {
+          curationId: null as string | null,
+          signalId: null as string | null,
+          matches: matches.length,
+          draftCount,
+        };
+      }
       const { addSignalToCuration } = await import('/src/services/executionDeliveryConsumer.ts');
       const result = addSignalToCuration({ requestedClientId: cid, signalId: signal.id });
       const pending = dbService.getPendingCurationByClient(cid);
@@ -37,10 +64,12 @@ test.describe('P10 — React admin decide curation parity', () => {
       return {
         curationId: row?.id ?? result.entry.id,
         signalId: signal.id,
+        matches: matches.length,
         draftCount,
       };
-    }, { cid: CLIENT_JUAN_ID });
+    }, { cid: CLIENT_JUAN_ID, title: signalTitle });
 
+    expect(fixture.matches, `P10 fixture: ${JSON.stringify(fixture)}`).toBe(1);
     expect(fixture.curationId).toBeTruthy();
     expect(fixture.draftCount).toBe(0);
 
@@ -84,5 +113,13 @@ test.describe('P10 — React admin decide curation parity', () => {
     expect(decided.pending).toBe(false);
 
     await expect(page.locator(`[data-testid="react-ws-pending-${curationId}"]`)).toHaveCount(0);
+
+    const curationPath = clientDocPath(CLIENT_JUAN_ID, 'curation', curationId);
+    await waitForServerField(curationPath, 'destination', 'EVIDENCE');
+    await waitForServerField(
+      curationPath,
+      'managerRationale',
+      'Evidencia útil para el dossier del cliente en esta fase.'
+    );
   });
 });

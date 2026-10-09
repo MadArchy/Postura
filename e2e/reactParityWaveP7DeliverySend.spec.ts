@@ -7,6 +7,7 @@ import {
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -84,5 +85,7 @@ test.describe('P7 — React delivery package send parity', () => {
 
     const mode = await page.evaluate(() => localStorage.getItem('postura_ui_mode'));
     expect(mode).toBe('react');
+
+    await waitForServerField(clientDocPath(CLIENT_JUAN_ID, 'deliveries', packageId), 'status', 'SENT');
   });
 });
