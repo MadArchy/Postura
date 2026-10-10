@@ -73,8 +73,8 @@ function mergeEditableFields(
     ...base,
     title: form.title.trim(),
     expertIdentity: form.expertIdentity.trim(),
-    differentiator: form.differentiator?.trim() || undefined,
-    perceptionTarget: form.perceptionTarget?.trim() || undefined,
+    differentiator: form.differentiator?.trim() ?? '',
+    perceptionTarget: form.perceptionTarget?.trim() ?? '',
   };
 }
 

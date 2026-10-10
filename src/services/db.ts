@@ -775,7 +775,7 @@ class DataService {
       if (replacement) {
         source.url = replacement;
         source.status = 'ACTIVE';
-        source.lastError = undefined;
+        this.clearSourceError(source);
       } else {
         source.status = 'ARCHIVED';
         source.lastError = 'Feed retirado por el proveedor';
@@ -1513,10 +1513,23 @@ class DataService {
       source.lastError = outcome.error;
       source.status = 'ERROR';
     } else {
-      source.lastError = undefined;
+      this.clearSourceError(source);
       if (source.status === 'ERROR') source.status = 'ACTIVE';
     }
     this.saveAll();
+  }
+
+  private clearSourceError(source: Source): void {
+    const hadError = Boolean(source.lastError);
+    source.lastError = undefined;
+    if (!hadError || !source.id || !source.clientId) return;
+    this.pendingRemoteIntents.push({
+      kind: 'clearFields',
+      collection: 'sources',
+      clientId: source.clientId,
+      id: source.id,
+      fields: ['lastError'],
+    });
   }
 
   /** Pausa, reactiva o archiva una fuente (ingesta automática respeta PAUSED/ARCHIVED/ERROR). */
@@ -1528,7 +1541,7 @@ class DataService {
     const source = this.sources.find((s) => s.id === sourceId);
     if (!source) return null;
     source.status = status;
-    if (options?.clearError) source.lastError = undefined;
+    if (options?.clearError) this.clearSourceError(source);
     this.saveAll();
     return source;
   }
@@ -1733,6 +1746,16 @@ class DataService {
   public mirrorSignalOutcomeCompatibility(
     input: Omit<SignalOutcome, 'id' | 'createdAt'>
   ): SignalOutcome {
+    for (const replaced of this.signalOutcomes) {
+      if (replaced.signalId !== input.signalId || !replaced.id) continue;
+      if (!replaced.clientId || replaced.clientId !== input.clientId) continue;
+      this.pendingRemoteIntents.push({
+        kind: 'deleteDoc',
+        collection: 'signalOutcomes',
+        clientId: replaced.clientId,
+        id: replaced.id,
+      });
+    }
     this.signalOutcomes = this.signalOutcomes.filter((o) => o.signalId !== input.signalId);
     const outcome: SignalOutcome = {
       ...input,
