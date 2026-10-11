@@ -8,6 +8,7 @@ import {
   loginAsManager,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -194,6 +195,10 @@ test.describe('P16 — React SaveContentDraft parity', () => {
     expect(facts.title).toBe(updatedTitle);
     expect(facts.body).toBe('Cuerpo P16 actualizado.');
     expect(facts.extraOriginals).toBe(0);
+
+    const contentPath = clientDocPath(CLIENT_JUAN_ID, 'contents', id);
+    await waitForServerField(contentPath, 'title', updatedTitle);
+    await waitForServerField(contentPath, 'body', 'Cuerpo P16 actualizado.');
   });
 
   test('empty title blocks save without creating content', async ({ page }) => {

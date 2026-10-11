@@ -11,6 +11,7 @@ import {
   loginAsManager,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -81,6 +82,15 @@ test.describe('Source Management — React write parity', () => {
     await expect(page.locator('[data-testid="react-ws-sources-success"]')).toBeVisible();
     await expect(page.getByText(REGISTER_NAME)).toBeVisible();
     await expect.poll(async () => sourceNamesForClient(page, CLIENT_JUAN_ID)).toContain(REGISTER_NAME);
+
+    const registeredSourceId = await page.evaluate(async ({ cid, name }) => {
+      const { dbService } = await import('/src/services/db.ts');
+      return dbService.getSourcesByClient(cid).find((source) => source.name === name)?.id ?? null;
+    }, { cid: CLIENT_JUAN_ID, name: REGISTER_NAME });
+    expect(registeredSourceId).toBeTruthy();
+    const registeredPath = clientDocPath(CLIENT_JUAN_ID, 'sources', registeredSourceId!);
+    await waitForServerField(registeredPath, 'name', REGISTER_NAME);
+    await waitForServerField(registeredPath, 'status', 'ACTIVE');
   });
 
   test('poll uses stubbed feed and canonical command', async ({ page }) => {
@@ -116,6 +126,17 @@ test.describe('Source Management — React write parity', () => {
     await expect
       .poll(async () => countAuditAction(page, 'SOURCE_RUN_COMPLETED'), { timeout: 15_000 })
       .toBe(beforeRuns + 1);
+
+    const lastFetchedAt = await page.evaluate(async ({ cid, id }) => {
+      const { dbService } = await import('/src/services/db.ts');
+      return dbService.getSourcesByClient(cid).find((source) => source.id === id)?.lastFetchedAt ?? null;
+    }, { cid: CLIENT_JUAN_ID, id: sourceId });
+    expect(lastFetchedAt).toBeTruthy();
+    await waitForServerField(
+      clientDocPath(CLIENT_JUAN_ID, 'sources', sourceId),
+      'lastFetchedAt',
+      lastFetchedAt!
+    );
   });
 
   test('manual signal appears on React radar', async ({ page }) => {

@@ -7,6 +7,7 @@ import {
   openManagerWorkspace,
   sidebarTab,
 } from './helpers/spec010Auth';
+import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
 
@@ -65,6 +66,10 @@ test.describe('P8 — React admin task assign/cancel parity', () => {
     );
     expect(taskId).toBeTruthy();
 
+    const taskPath = clientDocPath(CLIENT_JUAN_ID, 'tasks', taskId!);
+    await waitForServerField(taskPath, 'status', 'ASSIGNED');
+    await waitForServerField(taskPath, 'title', title);
+
     page.once('dialog', (dialog) => dialog.accept());
     await page.locator(`[data-testid="react-ws-task-cancel-${taskId}"]`).click();
     await expect(page.locator('[data-testid="react-ws-tasks-success"]')).toContainText(
@@ -79,6 +84,7 @@ test.describe('P8 — React admin task assign/cancel parity', () => {
       { id: taskId }
     );
     expect(status).toBe('CANCELLED');
+    await waitForServerField(taskPath, 'status', 'CANCELLED');
 
     await expect(page.locator('[data-testid="react-portal-task-handoff-video"]')).toHaveCount(0);
   });
