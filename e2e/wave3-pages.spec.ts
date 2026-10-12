@@ -160,7 +160,8 @@ test.describe('wave-3 page migration', () => {
     await expectTruthfulHandoff('react-ws-radar-handoff', ['investigarlas']);
 
     await sidebarTab(page, 'ws-briefs').click();
-    await expectTruthfulHandoff('react-ws-briefs-handoff', ['crear un Strategic Brief']);
+    await expect(page.locator('[data-testid="react-ws-briefs"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-testid="react-ws-briefs-handoff"]')).toHaveCount(0);
 
     await sidebarTab(page, 'ws-sources-react').click();
     await expectTruthfulHandoff('react-ws-sources-handoff', [

@@ -1090,14 +1090,40 @@ function DeliverPanel({ workspaceClientId = null }: { workspaceClientId?: string
 }
 
 /* ------------------------------------------------------------------ *
- * Briefs — canonical read + ONE canonical command
+ * Briefs — canonical read + CR-2 create-from-curation + approve
  * ------------------------------------------------------------------ */
 
-function BriefsPanel() {
+function BriefsPanel({ workspaceClientId = null }: { workspaceClientId?: string | null }) {
   const { tenantScope } = useSession();
-  const { data, isLoading, isError } = useStrategicBriefs(tenantScope);
-  const approve = useApproveBrief(tenantScope);
+  const scope = useMemo(() => {
+    if (!tenantScope) return null;
+    if (tenantScope.clientId) return tenantScope;
+    const requested = workspaceClientId?.trim();
+    if (!requested || requested === 'all') return null;
+    try {
+      return narrowToClient(tenantScope, requested);
+    } catch {
+      return null;
+    }
+  }, [tenantScope, workspaceClientId]);
+  const { data, isLoading, isError } = useStrategicBriefs(scope);
+  const deliver = useWorkspaceDeliver(scope);
+  const approve = useApproveBrief(scope);
+  const createBrief = useCreateBriefFromCuration(scope);
+  const [creatingBriefId, setCreatingBriefId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const onCreateBrief = async (curationEntryId: string, destination: CurationDestination) => {
+    if (createBrief.isPending || creatingBriefId) return;
+    setCreatingBriefId(curationEntryId);
+    setMessage(null);
+    try {
+      const result = await createBrief.mutateAsync({ curationEntryId, destination });
+      setMessage(result.message);
+    } finally {
+      setCreatingBriefId(null);
+    }
+  };
 
   if (isLoading) {
     return <PanelState kind="loading" message="Cargando briefs…" testId="react-ws-briefs-loading" />;
@@ -1113,9 +1139,49 @@ function BriefsPanel() {
   }
 
   const briefs = data ?? [];
+  const briefCandidates = (deliver.data?.readyEntries ?? []).filter((entry) => {
+    const destination = entry.destination as CurationDestination | null;
+    return (
+      Boolean(destination) &&
+      Boolean(curationDestinationToAuthorizedAction(destination!)) &&
+      !entry.strategicBriefId
+    );
+  });
 
   return (
     <div data-testid="react-ws-briefs">
+      {briefCandidates.length ? (
+        <ul className="curation-list" data-testid="react-ws-briefs-candidates">
+          {briefCandidates.map((entry) => {
+            const destination = entry.destination as CurationDestination;
+            const busy = createBrief.isPending && creatingBriefId === entry.id;
+            return (
+              <li
+                className="curation-row"
+                key={entry.id}
+                data-testid={`react-ws-briefs-candidate-${entry.id}`}
+              >
+                <div>
+                  <strong>{entry.signalTitle}</strong>
+                  <p className="muted small">
+                    Etapa {entry.stage} · destino {entry.destination}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  data-testid={`react-ws-briefs-create-${entry.id}`}
+                  disabled={busy || createBrief.isPending}
+                  onClick={() => void onCreateBrief(entry.id, destination)}
+                >
+                  {busy ? 'Creando…' : 'Create Strategic Brief DRAFT'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+
       {briefs.length ? (
         <ul className="brief-list" data-testid="react-ws-brief-list">
           {briefs.map((brief) => (
@@ -1164,11 +1230,6 @@ function BriefsPanel() {
           {message}
         </p>
       ) : null}
-
-      <LegacyHandoff
-        actions={['crear un Strategic Brief desde un ítem curado']}
-        testId="react-ws-briefs-handoff"
-      />
     </div>
   );
 }
@@ -2205,7 +2266,7 @@ export function ReactClientWorkspacePage({
       )}
       {tab === 'radar' ? <RadarPanel workspaceClientId={clientId} /> : null}
       {tab === 'deliver' ? <DeliverPanel workspaceClientId={clientId} /> : null}
-      {tab === 'briefs' ? <BriefsPanel /> : null}
+      {tab === 'briefs' ? <BriefsPanel workspaceClientId={clientId} /> : null}
       {tab === 'sources' ? <SourcesPanel workspaceClientId={clientId} /> : null}
       {tab === 'tasks' ? <TasksPanel workspaceClientId={clientId} /> : null}
       {tab === 'production' ? <ProductionPanel workspaceClientId={clientId} /> : null}
