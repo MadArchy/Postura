@@ -3,11 +3,14 @@
  *
  * Security: requireTenantScope + ADMIN role (the AI gateway is ADMIN-only).
  * Persistence: none. The stress-test result is advisory, and a proposal only
- * pre-fills the editor; saving still goes through #11 SaveThesis.
+ * pre-fills the editor; saving still goes through #11 SaveThesis. The proposal's
+ * claim-safety review is advisory too: it informs the manager, it gates nothing.
  */
 
-import type { ThesisEditableFields } from '../types';
+import type { ClaimSafetyVerdictRecord, ThesisEditableFields } from '../types';
 import type { ThesisChallengeResult } from '../domain/thesisChallengeCore';
+import { reviewThesisProposalClaims, thesisProposalClaimText } from '../domain/thesisProposalCore';
+import { projectAdvisoryClaimSafety } from '../composition/claimEvidence/advisoryClaimSafetyProjection';
 import { ThesisLifecycleError } from '../application/thesisLifecycle';
 import { requireTenantScope } from '../controllers/trustedTenant';
 import { aiService } from './ai';
@@ -44,10 +47,31 @@ export async function stressTestThesis(intent: {
   return aiService.challengeThesis(thesis);
 }
 
-/** H20 — AI thesis proposal for the trusted client. Returns editor fields only. */
+export interface ThesisProposalAdvice {
+  fields: ThesisEditableFields;
+  claimSafety: ClaimSafetyVerdictRecord;
+}
+
+/**
+ * H20 — AI thesis proposal for the trusted client, with an advisory
+ * claim-safety review of the proposed text against the verified evidence vault.
+ */
 export async function proposeThesisFromProfile(intent: {
   requestedClientId: string | null | undefined;
-}): Promise<ThesisEditableFields> {
+}): Promise<ThesisProposalAdvice> {
   const g = gateAdmin(intent.requestedClientId);
-  return aiService.generateThesisProposal(g.clientId);
+  const fields = await aiService.generateThesisProposal(g.clientId);
+  const review = reviewThesisProposalClaims(
+    fields,
+    g.clientId,
+    dbService.getEvidenceVaultByClient(g.clientId)
+  );
+  return {
+    fields,
+    claimSafety: projectAdvisoryClaimSafety(
+      review,
+      thesisProposalClaimText(fields),
+      new Date().toISOString()
+    ),
+  };
 }

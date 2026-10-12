@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UNTRUSTED_SOURCE_NOTICE, untrustedSourceBlock } from './untrustedSource';
 
 /** Structured gateway input — preserves legacy challengeThesis critique fields. */
 export const ThesisChallengeGatewayInputSchema = z
@@ -15,8 +16,8 @@ export const ThesisChallengeGatewayInputSchema = z
 
 export type ThesisChallengeGatewayInput = z.infer<typeof ThesisChallengeGatewayInputSchema>;
 
-export const THESIS_CHALLENGE_PROMPT_ID = 'tmpl_thesis_challenge_v1';
-export const THESIS_CHALLENGE_PROMPT_VERSION = '1';
+export const THESIS_CHALLENGE_PROMPT_ID = 'tmpl_thesis_challenge_v2';
+export const THESIS_CHALLENGE_PROMPT_VERSION = '2';
 
 export function renderThesisChallengeUserMessage(input: ThesisChallengeGatewayInput): string {
   return `Critica esta tesis de posicionamiento. Responde JSON:
@@ -26,7 +27,8 @@ export function renderThesisChallengeUserMessage(input: ThesisChallengeGatewayIn
   "riskScore": number
 }
 Busca vaguedad, falta de evidencia, audiencia incorrecta, contradicciones y riesgo de saturación.
-${JSON.stringify({
+${UNTRUSTED_SOURCE_NOTICE}
+${untrustedSourceBlock({
     title: input.title,
     expertIdentity: input.expertIdentity,
     audience: input.audience,

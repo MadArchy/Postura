@@ -2,7 +2,8 @@
  * SPEC-010 · R1 H19/H20 — native thesis stress-test and AI proposal E2E.
  *
  * Both controls are advisory: the stress-test only renders a challenge modal and
- * the proposal only pre-fills the create form. Neither may write a thesis.
+ * the proposal only pre-fills the create form, next to its claim-safety review.
+ * Neither may write a thesis.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { CLIENT_JUAN_ID, openManagerWorkspace, sidebarTab } from './helpers/spec010Auth';
@@ -30,7 +31,7 @@ const THESIS_PROPOSAL_FIXTURE = {
   targetAudience: 'General Counsel',
   domain: 'Dominio-H20-stub',
   objective: 'Posicionar autoridad en gobernanza de IA',
-  differentiator: 'H20 stub · Une práctica de patentes con marcos de gobernanza de IA',
+  differentiator: 'H20 stub · Une patentes y gobernanza de IA con resultado garantizado',
   proofPoints: ['Casos de patentes de software'],
   audiences: [{ name: 'General Counsel', tier: 'COMMERCIAL', weight: 90 }],
   territories: [{ name: 'Gobernanza IA', weight: 80, pillar: 'IP' }],
@@ -99,7 +100,11 @@ test.describe('R1 H19/H20 — advisory thesis AI controls', () => {
     await expect(modal).toContainText(CHALLENGE_RECOMMENDATION);
 
     expect(stub.calls).toEqual([
-      expect.objectContaining({ operation: 'THESIS_CHALLENGE', clientId: CLIENT_JUAN_ID }),
+      {
+        operation: 'THESIS_CHALLENGE',
+        clientId: CLIENT_JUAN_ID,
+        promptId: 'tmpl_thesis_challenge_v2',
+      },
     ]);
     expect(stub.providerHits).toEqual([]);
 
@@ -113,7 +118,7 @@ test.describe('R1 H19/H20 — advisory thesis AI controls', () => {
     }).toEqual(serverBefore);
   });
 
-  test('H20 — ADMIN loads an AI proposal into the create form without creating a thesis', async ({ page }) => {
+  test('H20 — ADMIN loads an AI proposal with its claim review into the create form without creating a thesis', async ({ page }) => {
     test.setTimeout(90_000);
     const stub = await stubAiGateway(page, { THESIS_PROPOSAL: THESIS_PROPOSAL_FIXTURE });
     await openManagerWorkspace(page);
@@ -138,9 +143,21 @@ test.describe('R1 H19/H20 — advisory thesis AI controls', () => {
     );
 
     expect(stub.calls).toEqual([
-      expect.objectContaining({ operation: 'THESIS_PROPOSAL', clientId: CLIENT_JUAN_ID }),
+      {
+        operation: 'THESIS_PROPOSAL',
+        clientId: CLIENT_JUAN_ID,
+        promptId: 'tmpl_thesis_proposal_v2',
+      },
     ]);
     expect(stub.providerHits).toEqual([]);
+
+    const claims = page.locator(
+      '[data-testid="react-thesis-proposal-claims"] [data-testid="react-claim-safety-panel"]'
+    );
+    await expect(claims).toBeVisible();
+    await expect(claims).toHaveClass(/claim-safety-block/);
+    await expect(claims).toContainText('Promesa de resultado');
+    await expect(claims).toContainText('resultado garantizado');
 
     expect(await readThesisWrites(page)).toEqual([]);
     expect(await readLocalThesisIds(page)).toEqual(idsBefore);

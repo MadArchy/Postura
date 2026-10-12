@@ -6,11 +6,13 @@ import {
   parseTerritoryLines,
   type NormalizedThesis,
 } from './thesisModelCore';
+import { reviewClaims, type ClaimSafetyReview } from './claimSafetyCore';
 import type {
   Client,
   ClientProfile,
   EvidenceVaultItem,
   MasterDossier,
+  PositioningThesis,
   ThesisEditableFields,
   VoiceProfile,
 } from '../types';
@@ -176,4 +178,49 @@ export function buildThesisProposalFromProfile(input: {
     limits: { hardBlocks, softAvoid },
     priority: 50,
   };
+}
+
+/** Claim-bearing text of a proposal, in the order the editor shows it. */
+export function thesisProposalClaimText(fields: ThesisEditableFields): string {
+  return [
+    fields.title,
+    fields.expertIdentity,
+    fields.identityCurrent,
+    fields.perceptionTarget,
+    fields.differentiator,
+    fields.objective,
+    ...fields.proofPoints,
+  ]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join('\n');
+}
+
+/**
+ * Advisory claim-safety review of a thesis proposal against the client's
+ * verified evidence. The proposal's proof points are reviewed as claims and
+ * never count as support for each other, because they come from the same
+ * generator as the rest of the text.
+ */
+export function reviewThesisProposalClaims(
+  fields: ThesisEditableFields,
+  clientId: string,
+  evidence: EvidenceVaultItem[]
+): ClaimSafetyReview {
+  const reviewTarget: PositioningThesis = {
+    ...fields,
+    id: '',
+    organizationId: '',
+    clientId,
+    proofPoints: [],
+    status: 'DRAFT',
+    clientApprovalStatus: 'PENDING',
+    createdAt: '',
+    createdBy: '',
+    updatedAt: '',
+    updatedBy: '',
+  };
+  const clientEvidence = evidence
+    .filter((item) => item.clientId === clientId)
+    .map((item) => ({ ...item, associatedThesesIds: [] }));
+  return reviewClaims(thesisProposalClaimText(fields), reviewTarget, clientEvidence);
 }

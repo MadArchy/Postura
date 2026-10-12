@@ -11,7 +11,8 @@
  *
  * ADVISORY (R1 H19/H20, `thesisAdvisoryCommands`): the stress-test only displays
  * its result; the AI proposal only pre-fills the create form, and nothing is
- * stored until the manager saves through #11.
+ * stored until the manager saves through #11. The proposal arrives with an
+ * advisory claim-safety review, shown as received next to the form.
  *
  * MULTI-THESIS — explicit id selection only:
  *   - selector starts unselected; no silent winner;
@@ -34,7 +35,7 @@ import {
   useThesisStressTest,
 } from '../../hooks/useWave3Data';
 import { narrowToClient } from '../../query/tenantScope';
-import type { ThesisEditableFields } from '../../../types';
+import type { ClaimSafetyVerdictRecord, ThesisEditableFields } from '../../../types';
 import type { ThesisSaveIntent } from '../../../domain/thesisRevisionCore';
 import {
   thesisChallengeOutcomeLabel,
@@ -42,6 +43,7 @@ import {
 } from '../../../domain/thesisChallengeCore';
 import { PanelState } from './LegacyHandoff';
 import { ReactChallengeModal, type ChallengeView } from './modals/ReactModals';
+import { ReactClaimSafetyPanel } from '../ClaimSafety/ReactClaimSafetyPanel';
 
 /**
  * Input-shape schema for the editable review fields.
@@ -277,9 +279,11 @@ export function ReactThesisEditorPage({
     text: string;
   } | null>(null);
 
-  const [proposal, setProposal] = useState<{ key: number; fields: ThesisEditableFields } | null>(
-    null
-  );
+  const [proposal, setProposal] = useState<{
+    key: number;
+    fields: ThesisEditableFields;
+    claimSafety: ClaimSafetyVerdictRecord;
+  } | null>(null);
   const [challenge, setChallenge] = useState<{ title: string; view: ChallengeView } | null>(null);
 
   const options = useThesisOptions(scope);
@@ -394,7 +398,11 @@ export function ReactThesisEditorPage({
           setStatusMessage({ kind: 'error', text: result.message });
           return;
         }
-        setProposal((current) => ({ key: (current?.key ?? 0) + 1, fields: result.fields }));
+        setProposal((current) => ({
+          key: (current?.key ?? 0) + 1,
+          fields: result.fields,
+          claimSafety: result.claimSafety,
+        }));
         setStatusMessage({
           kind: 'info',
           text: 'Propuesta cargada en el formulario. Revísala y guárdala para crear la tesis.',
@@ -539,6 +547,11 @@ export function ReactThesisEditorPage({
               {propose.isPending ? 'Generando propuesta…' : 'Proponer con IA'}
             </button>
           </div>
+          {proposal ? (
+            <div data-testid="react-thesis-proposal-claims">
+              <ReactClaimSafetyPanel record={proposal.claimSafety} />
+            </div>
+          ) : null}
           <ThesisReviewForm
             key={`create-${proposal?.key ?? 0}`}
             thesisId=""

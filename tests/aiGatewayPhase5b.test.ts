@@ -500,12 +500,13 @@ describe('SPEC-005 Phase 5B — duplicate execution guard (client contract)', ()
 
 describe('SPEC-005 Phase 5B — prompt identity', () => {
   it('uses frozen prompt ids/versions', () => {
-    expect(THESIS_PROPOSAL_PROMPT_ID).toBe('tmpl_thesis_proposal_v1');
-    expect(THESIS_PROPOSAL_PROMPT_VERSION).toBe('1');
+    // Proposal and challenge are v2: client context moved into an <UNTRUSTED_SOURCE> block.
+    expect(THESIS_PROPOSAL_PROMPT_ID).toBe('tmpl_thesis_proposal_v2');
+    expect(THESIS_PROPOSAL_PROMPT_VERSION).toBe('2');
     expect(SIGNAL_THESIS_EVAL_PROMPT_ID).toBe('tmpl_strategist_signal_eval_v2');
     expect(SIGNAL_THESIS_EVAL_PROMPT_VERSION).toBe('2');
-    expect(THESIS_CHALLENGE_PROMPT_ID).toBe('tmpl_thesis_challenge_v1');
-    expect(THESIS_CHALLENGE_PROMPT_VERSION).toBe('1');
+    expect(THESIS_CHALLENGE_PROMPT_ID).toBe('tmpl_thesis_challenge_v2');
+    expect(THESIS_CHALLENGE_PROMPT_VERSION).toBe('2');
     expect(THESIS_CHALLENGE_SCHEMA_ID).toBe('thesis.challenge');
     expect(minimalThesisProposalGatewayInput().proofPoints.length).toBeGreaterThan(0);
   });

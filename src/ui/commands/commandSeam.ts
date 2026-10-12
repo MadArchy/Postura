@@ -109,6 +109,7 @@ import { ThesisLifecycleError } from '../../application/thesisLifecycle';
 import { SignalIntakeError } from '../../application/signalIntake';
 import { ExecutionDeliveryError } from '../../application/executionDelivery';
 import type {
+  ClaimSafetyVerdictRecord,
   ContentStatus,
   ContentType,
   CurationDestination,
@@ -870,7 +871,7 @@ export type ThesisStressTestCommandResult =
   | { ok: false; message: string };
 
 export type ThesisProposalCommandResult =
-  | { ok: true; fields: ThesisEditableFields }
+  | { ok: true; fields: ThesisEditableFields; claimSafety: ClaimSafetyVerdictRecord }
   | { ok: false; message: string };
 
 /**
@@ -899,7 +900,8 @@ export const thesisAdvisoryCommands = {
   }): Promise<ThesisProposalCommandResult> {
     try {
       const { proposeThesisFromProfile } = await import('../../services/thesisAdvisoryConsumer');
-      return { ok: true, fields: await proposeThesisFromProfile(intent) };
+      const advice = await proposeThesisFromProfile(intent);
+      return { ok: true, fields: advice.fields, claimSafety: advice.claimSafety };
     } catch (err) {
       return {
         ok: false,

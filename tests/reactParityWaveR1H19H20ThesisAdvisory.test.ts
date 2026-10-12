@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   challengeCalls: [] as { id: string; clientId: string }[],
   proposalCalls: [] as string[],
   writes: [] as string[],
+  evidence: [] as Array<Record<string, unknown>>,
 }));
 
 const THESIS = { id: 'thesis_a', clientId: 'client_a', organizationId: 'org_a', title: 'Tesis A' };
@@ -25,7 +26,31 @@ const CHALLENGE = {
   primaryAction: 'split',
   splitHint: 'Dividir por audiencia',
 };
-const PROPOSAL = { title: 'Tesis propuesta', expertIdentity: 'Experta', domain: 'Dominio propuesto' };
+const PROPOSAL = {
+  title: 'Tesis propuesta',
+  expertIdentity: 'Socio de Lex Partners especializado en patentes',
+  targetAudience: 'General Counsel',
+  domain: 'Dominio propuesto',
+  objective: 'Autoridad en patentes',
+  proofPoints: ['Más de 200 casos ganados'],
+  voiceAndTone: 'Sobrio',
+  complianceRules: 'Sin promesas',
+};
+
+function evidenceItem(clientId: string, title: string) {
+  return {
+    id: `ev_${clientId}`,
+    organizationId: 'org_a',
+    clientId,
+    title,
+    type: 'CREDENTIAL',
+    snippet: title,
+    confidenceScore: 90,
+    verified: true,
+    associatedThesesIds: ['thesis_other'],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+}
 
 vi.mock('../src/services/auth', () => ({
   authService: { getCurrentUser: () => h.user },
@@ -39,6 +64,7 @@ vi.mock('../src/services/db', () => ({
         : undefined,
     getThesisById: (clientId: string, thesisId: string) =>
       clientId === THESIS.clientId && thesisId === THESIS.id ? THESIS : undefined,
+    getEvidenceVaultByClient: () => h.evidence,
     saveThesis: () => h.writes.push('saveThesis'),
     saveAll: () => h.writes.push('saveAll'),
   },
@@ -74,6 +100,7 @@ beforeEach(() => {
   h.challengeCalls.length = 0;
   h.proposalCalls.length = 0;
   h.writes.length = 0;
+  h.evidence = [];
 });
 
 describe('H19 — stress-test consumer', () => {
@@ -104,9 +131,36 @@ describe('H19 — stress-test consumer', () => {
 describe('H20 — AI proposal consumer', () => {
   it('proposes for the trusted client only and persists nothing', async () => {
     const { proposeThesisFromProfile } = await import('../src/services/thesisAdvisoryConsumer');
-    expect(await proposeThesisFromProfile({ requestedClientId: 'client_a' })).toEqual(PROPOSAL);
+    const advice = await proposeThesisFromProfile({ requestedClientId: 'client_a' });
+    expect(advice.fields).toEqual(PROPOSAL);
     expect(h.proposalCalls).toEqual(['client_a']);
     expect(h.writes).toEqual([]);
+  });
+
+  it('reviews the proposed claims; its own proof points never count as support', async () => {
+    const { proposeThesisFromProfile } = await import('../src/services/thesisAdvisoryConsumer');
+    const unsupported = await proposeThesisFromProfile({ requestedClientId: 'client_a' });
+    expect(unsupported.claimSafety.verdict).toBe('BLOCK');
+    expect(unsupported.claimSafety.findings.map((finding) => finding.kind).sort()).toEqual([
+      'CREDENTIAL',
+      'METRIC',
+    ]);
+
+    h.evidence = [evidenceItem('client_a', 'Socio de Lex Partners')];
+    const supported = await proposeThesisFromProfile({ requestedClientId: 'client_a' });
+    expect(supported.claimSafety.verdict).toBe('REVIEW');
+    expect(supported.claimSafety.findings.map((finding) => finding.kind)).toEqual(['METRIC']);
+  });
+
+  it('only verified evidence of the trusted client supports a proposed claim', async () => {
+    const { proposeThesisFromProfile } = await import('../src/services/thesisAdvisoryConsumer');
+    h.evidence = [
+      evidenceItem('client_b', 'Socio de Lex Partners'),
+      { ...evidenceItem('client_a', 'Socio de Lex Partners'), verified: false },
+    ];
+    const advice = await proposeThesisFromProfile({ requestedClientId: 'client_a' });
+    expect(advice.claimSafety.verdict).toBe('BLOCK');
+    expect(advice.claimSafety.findings.map((finding) => finding.kind)).toContain('CREDENTIAL');
   });
 
   it('rejects a cross-organization client, a missing client id, and a CLIENT actor', async () => {
@@ -139,8 +193,9 @@ describe('H19/H20 — command seam', () => {
     expect(await thesisAdvisoryCommands.proposeFromProfile({ requestedClientId: 'client_a' })).toEqual({
       ok: true,
       fields: PROPOSAL,
+      claimSafety: expect.objectContaining({ verdict: 'BLOCK' }),
     });
-  });
+  }, 15_000);
 
   it('seam keeps the AI consumer out of its static import graph', () => {
     const seam = code('src/ui/commands/commandSeam.ts');
@@ -167,6 +222,13 @@ describe('H19/H20 — React editor surface', () => {
     expect(page).toMatch(/editableFields=\{proposal\?\.fields \?\? EMPTY_EDITABLE_FIELDS\}/);
     expect(page).toMatch(/key=\{`create-\$\{proposal\?\.key \?\? 0\}`\}/);
     expect(page).toMatch(/createThesis\.mutate\(/);
+  });
+
+  it('shows the proposal claim-safety review as received, next to the create form', () => {
+    const page = code(PAGE);
+    expect(page).toMatch(/claimSafety: result\.claimSafety/);
+    expect(page).toMatch(/<ReactClaimSafetyPanel record=\{proposal\.claimSafety\} \/>/);
+    expect(page).toMatch(/react-thesis-proposal-claims/);
   });
 
   it('React never imports the AI facade or a consumer and never names the AI operations', () => {

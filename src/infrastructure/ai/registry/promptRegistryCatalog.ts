@@ -52,10 +52,10 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
   },
   {
     operation: 'THESIS_PROPOSAL',
-    identity: { promptId: 'tmpl_thesis_proposal_v1', promptVersion: '1' },
+    identity: { promptId: 'tmpl_thesis_proposal_v2', promptVersion: '2' },
     systemMessage: JSON_SYSTEM,
     userTemplateCanonical:
-      'Genera una propuesta de tesis de posicionamiento. Usa SOLO credenciales del contexto.\nContexto confirmado: {{CONTEXT_JSON}}\nJSON { title, expertIdentity, identityCurrent, perceptionTarget, targetAudience, domain, objective, differentiator, proofPoints, audiences, territories, objectives, voiceAndTone, voiceAvoid, hardBlocks, softAvoid, complianceRules }',
+      'Genera una propuesta de tesis de posicionamiento. Usa SOLO credenciales del contexto.\n{{UNTRUSTED_SOURCE_NOTICE}}\n<UNTRUSTED_SOURCE>\n{{CONTEXT_JSON}}\n</UNTRUSTED_SOURCE>\nJSON { title, expertIdentity, identityCurrent, perceptionTarget, targetAudience, domain, objective, differentiator, proofPoints, audiences, territories, objectives, voiceAndTone, voiceAvoid, hardBlocks, softAvoid, complianceRules }',
     renderUserMessage: (input) =>
       renderThesisProposalUserMessage(ThesisProposalGatewayInputSchema.parse(input)),
   },
@@ -70,10 +70,10 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
   },
   {
     operation: 'THESIS_CHALLENGE',
-    identity: { promptId: 'tmpl_thesis_challenge_v1', promptVersion: '1' },
+    identity: { promptId: 'tmpl_thesis_challenge_v2', promptVersion: '2' },
     systemMessage: JSON_SYSTEM,
     userTemplateCanonical:
-      'Critica esta tesis de posicionamiento. Responde JSON { outcome, recommendations, riskScore }.\nBusca vaguedad, falta de evidencia, audiencia incorrecta, contradicciones y riesgo de saturación.\n{{THESIS_JSON}}',
+      'Critica esta tesis de posicionamiento. Responde JSON { outcome, recommendations, riskScore }.\nBusca vaguedad, falta de evidencia, audiencia incorrecta, contradicciones y riesgo de saturación.\n{{UNTRUSTED_SOURCE_NOTICE}}\n<UNTRUSTED_SOURCE>\n{{THESIS_JSON}}\n</UNTRUSTED_SOURCE>',
     renderUserMessage: (input) =>
       renderThesisChallengeUserMessage(ThesisChallengeGatewayInputSchema.parse(input)),
   },

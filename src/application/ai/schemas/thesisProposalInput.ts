@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { UNTRUSTED_SOURCE_NOTICE, untrustedSourceBlock } from './untrustedSource';
 
 /** Structured gateway input — preserves legacy generateThesisProposal context. */
 export const ThesisProposalGatewayInputSchema = z
@@ -18,12 +19,13 @@ export const ThesisProposalGatewayInputSchema = z
 
 export type ThesisProposalGatewayInput = z.infer<typeof ThesisProposalGatewayInputSchema>;
 
-export const THESIS_PROPOSAL_PROMPT_ID = 'tmpl_thesis_proposal_v1';
-export const THESIS_PROPOSAL_PROMPT_VERSION = '1';
+export const THESIS_PROPOSAL_PROMPT_ID = 'tmpl_thesis_proposal_v2';
+export const THESIS_PROPOSAL_PROMPT_VERSION = '2';
 
 export function renderThesisProposalUserMessage(input: ThesisProposalGatewayInput): string {
   return `Genera una propuesta de tesis de posicionamiento. Usa SOLO credenciales del contexto.
-Contexto confirmado: ${JSON.stringify(input)}
+${UNTRUSTED_SOURCE_NOTICE}
+${untrustedSourceBlock(input)}
 JSON {
   "title": string,
   "expertIdentity": string,
