@@ -13,7 +13,8 @@ import {
 } from './lib/youtubeCore';
 import { runScheduledIngest } from './lib/scheduledIngest';
 import { requirePosturaAuth } from './lib/httpAuth';
-import { buildPosturaClaimsOrThrow, ClaimsProvisionError } from './lib/posturaClaims';
+import { assignPosturaClaims, ClaimAssignmentError, type TargetClaimsLookupResult } from './lib/assignPosturaClaims';
+import { FirestoreClientOrganizationLookup } from '../../src/infrastructure/ai/persistence/FirestoreClientOrganizationLookup';
 
 initializeApp();
 
@@ -22,40 +23,36 @@ const anthropicKey = defineSecret('ANTHROPIC_API_KEY');
 const tavilyKey = defineSecret('TAVILY_API_KEY');
 const youtubeKey = defineSecret('YOUTUBE_API_KEY');
 
-interface SetClaimsRequest {
-  uid: string;
-  role: 'ADMIN' | 'CLIENT';
-  organizationId?: string;
-  clientId?: string | null;
-}
-
-/** Provisiona custom claims POSTURA (solo ADMIN). Fail-closed: no default tenant. */
-export const setPosturaClaims = onCall(async (request) => {
-  if (!request.auth?.token?.role || request.auth.token.role !== 'ADMIN') {
-    throw new HttpsError('permission-denied', 'ADMIN required');
-  }
-  const data = request.data as SetClaimsRequest;
-  if (!data.uid || typeof data.uid !== 'string' || !data.uid.trim()) {
-    throw new HttpsError('invalid-argument', 'uid required');
-  }
-
-  let claims;
+async function readTargetClaims(uid: string): Promise<TargetClaimsLookupResult> {
   try {
-    claims = buildPosturaClaimsOrThrow({
-      role: data.role,
-      organizationId: data.organizationId,
-      clientId: data.clientId,
-    });
+    const user = await getAuth().getUser(uid);
+    return { found: true, customClaims: user.customClaims ?? null };
   } catch (err) {
-    if (err instanceof ClaimsProvisionError) {
-      throw new HttpsError('invalid-argument', err.message);
+    if (err instanceof Error && 'code' in err && err.code === 'auth/user-not-found') {
+      return { found: false };
     }
     throw err;
   }
+}
 
-  await getAuth().setCustomUserClaims(data.uid.trim(), claims);
-
-  return { ok: true, claims: { role: claims.role, organizationId: claims.organizationId, clientId: claims.clientId } };
+/** Provisiona custom claims POSTURA (solo ADMIN, misma organización del token). Fail-closed: no default tenant. */
+export const setPosturaClaims = onCall(async (request) => {
+  try {
+    const caller = request.auth
+      ? { role: request.auth.token.role, organizationId: request.auth.token.organizationId }
+      : null;
+    const claims = await assignPosturaClaims(caller, request.data ?? {}, {
+      readTargetClaims,
+      clientOrganizations: new FirestoreClientOrganizationLookup(),
+      writeClaims: (uid, claims) => getAuth().setCustomUserClaims(uid, claims),
+    });
+    return { ok: true, claims: { role: claims.role, organizationId: claims.organizationId, clientId: claims.clientId } };
+  } catch (err) {
+    if (err instanceof ClaimAssignmentError) {
+      throw new HttpsError(err.code, err.message);
+    }
+    throw err;
+  }
 });
 
 /** Proxy IA autenticado: secretos en Secret Manager, nunca en Firestore ni frontend. */
