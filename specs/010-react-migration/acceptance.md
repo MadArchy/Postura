@@ -7,7 +7,7 @@
 **Phase 4:** **FORMALLY_ACCEPTED** (T-010-401…405 · A39 reconciled · `t-010-phase4-formal-closure.md`)
 **Phase 5:** **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** (T-010-501…510 · `t-010-phase5-formal-closure.md`)
 **Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603 **FORMALLY_CLOSED** (`t-010-603-global-closure.md`) · T-604 **NOT AUTHORIZED**
-**A1-A44:** **41 PASS** · **0 PARTIAL** · **0 FAIL** · **3 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 PASS under A41-C · A25/A31/A44 PENDING)
+**A1-A44:** **42 PASS** · **0 PARTIAL** · **0 FAIL** · **2 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 PASS under A41-C · A25 PASS under A25-P1 · A31/A44 PENDING)
 **CODE_COMPLETE:** **NO**
 **DEPLOYED:** **NO** · **DONE:** **NO** · **DEPLOYMENT:** **NOT_STARTED**
 
@@ -64,7 +64,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A22 | SPEC-001 preserved — React displays routing, owns no routing decision | 2–6 | ✅ PASS | W1/W2: React displays routingState only; 0 routing authority — T-010-505 PASS |
 | A23 | SPEC-002 preserved — no scoring formula recreated in components/hooks | 2–6 | ✅ PASS | W1/W2: 0 scoring formulas / weight arithmetic in React UI/controllers — T-010-505 PASS |
 | A24 | SPEC-003 preserved — Brief consumed via canonical consumer; no lifecycle duplication | 2–6 | ✅ PASS | W1/W2: Brief via strategicBriefConsumer; CR-2 COMPLETE/FROZEN; no Brief lifecycle duplication in React |
-| A25 | SPEC-004 preserved — Plan/PlanItem via canonical Application boundary | 2–6 | ⏳ PENDING | no migrated React surface exposes a plan command |
+| A25 | SPEC-004 preserved — Plan/PlanItem via canonical Application boundary | 2–6 | ✅ PASS | A25-P1 frozen (`PRESERVED_SPEC004_CANONICAL_AUTHORITY`): `t-010-604-a25-preservation-evidence.md` @ frozen SHA `d53299e1` — **30** commits since `0324fec` · Planner authority-file changes **0** · React Planner surface **0** · competing Plan/PlanItem definition **0**; production cutover not authorized by this row |
 | A26 | SPEC-005 preserved — direct AI provider access from React: **0** | 1–6 | ✅ PASS | W1/W2: 0 AI provider imports/endpoints in React UI — ARCH + T-010-503 |
 | A27 | SPEC-006 preserved — React never verifies claims or authorizes publication | 2–6 | ✅ PASS | W1/W2: claim verdict display-only; 0 publication/verify authority in React — ARCH3 + T-010-505 |
 | A28 | SPEC-007 preserved — no recreation of OpportunityScore / lifecycle / Materialize | 2–6 | ✅ PASS | W1/W2: Opportunity via canonical consumer only; 0 score/lifecycle/materialize recreation — ARCH |
