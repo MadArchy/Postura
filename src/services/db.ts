@@ -2677,11 +2677,28 @@ class DataService {
   // Asesor de posicionamiento
   // ==========================================
 
+  /** Remote hydration does not preserve order, so the newest `generatedAt` wins. */
   public getLatestAdvice(clientId: string): PositioningAdvice | undefined {
-    return this.advices.find((a) => a.clientId === clientId);
+    let latest: PositioningAdvice | undefined;
+    for (const advice of this.advices) {
+      if (advice.clientId !== clientId) continue;
+      if (!latest || advice.generatedAt > latest.generatedAt) latest = advice;
+    }
+    return latest;
   }
 
+  /** One advice per client: every replaced advice document is deleted remotely too. */
   public saveAdvice(advice: PositioningAdvice): void {
+    for (const replaced of this.advices) {
+      if (!replaced.clientId || replaced.clientId !== advice.clientId) continue;
+      if (!replaced.id || replaced.id === advice.id) continue;
+      this.pendingRemoteIntents.push({
+        kind: 'deleteDoc',
+        collection: 'advices',
+        clientId: replaced.clientId,
+        id: replaced.id,
+      });
+    }
     this.advices = this.advices.filter((a) => a.clientId !== advice.clientId);
     this.advices.unshift(advice);
     this.saveAll();

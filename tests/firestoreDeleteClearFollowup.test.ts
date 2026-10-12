@@ -1,6 +1,6 @@
 /**
- * db.ts registers exact remote mutation intents for replaced signal-outcome mirror rows and
- * cleared source `lastError`. Intent execution itself is covered by firestoreDeletePropagation.
+ * db.ts registers exact remote mutation intents for replaced signal-outcome mirror rows,
+ * replaced advices and cleared source `lastError`. Intent execution itself is covered by firestoreDeletePropagation.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,7 +46,7 @@ vi.mock('../src/services/firestore/sync', () => ({
 }));
 
 import { dbService } from '../src/services/db';
-import type { SignalOutcome, Source } from '../src/types';
+import type { PositioningAdvice, SignalOutcome, Source } from '../src/types';
 
 const ORG = 'org_aurora_01';
 const JUAN = 'client_juan_001';
@@ -77,6 +77,28 @@ function outcome(over: Partial<SignalOutcome> & Pick<SignalOutcome, 'id' | 'sign
     source: 'RADAR',
     actorUid: 'user_admin_01',
     createdAt: '2026-10-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
+function advice(over: Partial<PositioningAdvice> & Pick<PositioningAdvice, 'id'>): PositioningAdvice {
+  return {
+    organizationId: ORG,
+    clientId: JUAN,
+    summary: over.id,
+    diagnosis: {
+      authorityScore: 50,
+      consistencyScore: 50,
+      evidenceScore: 50,
+      visibilityScore: 50,
+      strengths: [],
+      gaps: [],
+      risks: [],
+    },
+    actions: [],
+    usedLiveModel: false,
+    generatedAt: '2026-10-01T00:00:00.000Z',
+    generatedBy: 'user_admin_01',
     ...over,
   };
 }
@@ -173,6 +195,65 @@ describe('signal-outcome compatibility replacement', () => {
     expect(intents).toEqual([
       { kind: 'deleteDoc', collection: 'signalOutcomes', clientId: JUAN, id: 'sout_juan' },
     ]);
+  });
+});
+
+describe('advice replacement', () => {
+  beforeEach(() => {
+    dbService.importSnapshot(
+      {
+        advices: [
+          advice({ id: 'adv_juan_old', generatedAt: '2026-10-01T00:00:00.000Z' }),
+          advice({ id: 'adv_juan_dup', generatedAt: '2026-10-03T00:00:00.000Z' }),
+          advice({ id: 'adv_elena', clientId: ELENA }),
+        ],
+      },
+      { merge: false, skipRemote: true }
+    );
+  });
+
+  it('FU-AD1: every replaced advice of the client gets one deleteDoc; other clients are untouched', async () => {
+    const intents = await nextQueuedIntents(() =>
+      dbService.saveAdvice(advice({ id: 'adv_juan_new', generatedAt: '2026-10-05T00:00:00.000Z' }))
+    );
+
+    expect(intents).toEqual([
+      { kind: 'deleteDoc', collection: 'advices', clientId: JUAN, id: 'adv_juan_old' },
+      { kind: 'deleteDoc', collection: 'advices', clientId: JUAN, id: 'adv_juan_dup' },
+    ]);
+    expect(dbService.getLatestAdvice(JUAN)?.id).toBe('adv_juan_new');
+    expect(dbService.getLatestAdvice(ELENA)?.id).toBe('adv_elena');
+  });
+
+  it('FU-AD2: a first advice for a client queues no delete', async () => {
+    dbService.importSnapshot({ advices: [] }, { merge: false, skipRemote: true });
+    const intents = await nextQueuedIntents(() => dbService.saveAdvice(advice({ id: 'adv_first' })));
+    expect(intents).toEqual([]);
+    expect(dbService.getLatestAdvice(JUAN)?.id).toBe('adv_first');
+  });
+
+  it('FU-AD3: re-saving the same advice id never deletes the document being written', async () => {
+    const intents = await nextQueuedIntents(() =>
+      dbService.saveAdvice(advice({ id: 'adv_juan_dup', summary: 'actualizado' }))
+    );
+    expect(intents).toEqual([
+      { kind: 'deleteDoc', collection: 'advices', clientId: JUAN, id: 'adv_juan_old' },
+    ]);
+    expect(dbService.getLatestAdvice(JUAN)?.summary).toBe('actualizado');
+  });
+
+  it('FU-AD4: with hydrated duplicates the newest generatedAt is the latest advice, whatever the order', () => {
+    expect(dbService.getLatestAdvice(JUAN)?.id).toBe('adv_juan_dup');
+    dbService.importSnapshot(
+      {
+        advices: [
+          advice({ id: 'adv_juan_dup', generatedAt: '2026-10-03T00:00:00.000Z' }),
+          advice({ id: 'adv_juan_old', generatedAt: '2026-10-01T00:00:00.000Z' }),
+        ],
+      },
+      { merge: false, skipRemote: true }
+    );
+    expect(dbService.getLatestAdvice(JUAN)?.id).toBe('adv_juan_dup');
   });
 });
 
