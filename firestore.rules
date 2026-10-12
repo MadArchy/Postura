@@ -651,6 +651,31 @@ service cloud.firestore {
       allow delete: if adminDeleteSub(clientId);
     }
 
+    // T604: Strategic Briefs are ADMIN-only. A Brief never moves back to an older
+    // version; history and override audit records are append-only (an identical
+    // rewrite is the only update) and no Brief record is ever deleted.
+    match /clients/{clientId}/strategicBriefs/{docId} {
+      allow read: if isAdmin() && existingSubEnvelopeValid(clientId);
+      allow create: if adminCreateSub(clientId) && request.resource.data.id == docId;
+      allow update: if adminWriteSub(clientId)
+        && request.resource.data.id == docId
+        && request.resource.data.version is int
+        && request.resource.data.version >= resource.data.version;
+      allow delete: if false;
+    }
+    match /clients/{clientId}/strategicBriefHistory/{docId} {
+      allow read: if isAdmin() && existingSubEnvelopeValid(clientId);
+      allow create: if adminCreateSub(clientId);
+      allow update: if adminWriteSub(clientId) && request.resource.data == resource.data;
+      allow delete: if false;
+    }
+    match /clients/{clientId}/strategicBriefOverrides/{docId} {
+      allow read: if isAdmin() && existingSubEnvelopeValid(clientId);
+      allow create: if adminCreateSub(clientId) && request.resource.data.overrideId == docId;
+      allow update: if adminWriteSub(clientId) && request.resource.data == resource.data;
+      allow delete: if false;
+    }
+
     match /auditLogs/{logId} {
       allow read: if isAdmin()
         && tokenOrg() != null

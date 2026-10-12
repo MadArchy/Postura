@@ -10,6 +10,12 @@ export {
   LocalStrategicBriefStore,
   createLocalStrategicBriefStore,
 } from './LocalStrategicBriefStore';
+export type {
+  RemoteMergeResult,
+  RemoteStrategicBriefRecords,
+  StrategicBriefRecordSet,
+} from './LocalStrategicBriefStore';
+export { historyIdentity } from './serialization';
 export { LocalStrategicBriefRepository } from './LocalStrategicBriefRepository';
 export { LocalStrategicBriefHistoryAdapter } from './LocalStrategicBriefHistoryAdapter';
 export { LocalStrategicContextReader } from './LocalStrategicContextReader';

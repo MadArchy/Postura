@@ -73,6 +73,14 @@ class AuthService {
         });
       });
     }
+
+    if (user.role === 'ADMIN' && user.organizationId) {
+      const { syncStrategicBriefsWithFirestore } = await import('./strategicBriefConsumer');
+      await syncStrategicBriefsWithFirestore(user.organizationId, clientIds).catch((err: unknown) => {
+        const reason = err instanceof Error ? err.message : String(err);
+        sync.reportFirestorePushError(`No se pudieron cargar los briefs: ${reason}`);
+      });
+    }
   }
 
   private async init() {
@@ -83,6 +91,8 @@ class AuthService {
           const sync = await import('./firestore/sync');
           sync.stopFirestoreRealtimeSync();
           sync.setFirestoreAuthoritative(false);
+          const { stopStrategicBriefSync } = await import('./firestore/strategicBriefSync');
+          stopStrategicBriefSync();
           this.currentUser = null;
           this.notify();
           return;

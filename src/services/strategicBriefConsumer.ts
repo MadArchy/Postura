@@ -16,6 +16,7 @@ import {
 } from '../infrastructure/strategicBrief';
 import type { CurationDestination } from '../types';
 import { requireTenantScope } from '../controllers/trustedTenant';
+import { FIREBASE_ENABLED } from '../firebase/config';
 import { authService } from './auth';
 import { dbService } from './db';
 import type { TrustedBriefActorContext } from '../application/strategicBrief/trustedContext';
@@ -34,6 +35,32 @@ export class BriefFromCurationConsumerError extends Error {
 
 let store: LocalStrategicBriefStore = createLocalStrategicBriefStore();
 let useCases: BriefUseCases = buildUseCases(store);
+let unbindRemotePush = bindRemotePush(store);
+
+function scheduleRemotePush(): void {
+  if (!FIREBASE_ENABLED) return;
+  void import('./firestore/strategicBriefSync').then((sync) => {
+    sync.scheduleStrategicBriefPush(() => store.exportRecords());
+  });
+}
+
+function bindRemotePush(briefStore: LocalStrategicBriefStore): () => void {
+  return briefStore.subscribe(scheduleRemotePush);
+}
+
+/**
+ * ADMIN session start: folds the organization's Firestore Briefs into the local store,
+ * then uploads every local record the server does not hold yet.
+ */
+export async function syncStrategicBriefsWithFirestore(
+  organizationId: string,
+  clientIds: readonly string[]
+): Promise<void> {
+  const sync = await import('./firestore/strategicBriefSync');
+  sync.startStrategicBriefSync(organizationId);
+  store.mergeRemoteRecords(await sync.pullStrategicBriefs(clientIds));
+  sync.scheduleStrategicBriefPush(() => store.exportRecords());
+}
 
 function buildUseCases(briefStore: LocalStrategicBriefStore): BriefUseCases {
   const signals: StrategicBriefContextSource = {
@@ -49,9 +76,11 @@ function buildUseCases(briefStore: LocalStrategicBriefStore): BriefUseCases {
 
 /** Test-only reset — not production API. */
 export function resetStrategicBriefConsumerForTest(nextStore?: LocalStrategicBriefStore): void {
+  unbindRemotePush();
   store = nextStore ?? createLocalStrategicBriefStore();
   store.resetForTest();
   useCases = buildUseCases(store);
+  unbindRemotePush = bindRemotePush(store);
 }
 
 export function buildTrustedBriefContext(clientId: string, now?: string): TrustedBriefActorContext | undefined {

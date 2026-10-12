@@ -1261,4 +1261,116 @@ describe('firestore.rules (emulator) — SPEC-009 Phase 1', () => {
       );
     });
   });
+
+  describe('T604 Strategic Brief collections', () => {
+    const BRIEFS = 'clients/client_juan_001/strategicBriefs';
+    const HISTORY = 'clients/client_juan_001/strategicBriefHistory';
+    const OVERRIDES = 'clients/client_juan_001/strategicBriefOverrides';
+
+    function adminDb() {
+      return testEnv
+        .authenticatedContext('admin_uid', { role: 'ADMIN', organizationId: ORG_ID })
+        .firestore();
+    }
+
+    function otherOrgAdminDb() {
+      return testEnv
+        .authenticatedContext('other_admin_uid', { role: 'ADMIN', organizationId: OTHER_ORG })
+        .firestore();
+    }
+
+    const brief = (id: string, version: number) => ({
+      id,
+      organizationId: ORG_ID,
+      clientId: 'client_juan_001',
+      status: 'DRAFT',
+      version,
+      createdAt: '2026-10-01T00:00:00Z',
+    });
+    const historyEntry = {
+      briefId: 'brief_1',
+      version: 1,
+      status: 'DRAFT',
+      organizationId: ORG_ID,
+      clientId: 'client_juan_001',
+      changeType: 'CREATED',
+      changedAt: '2026-10-01T00:00:00Z',
+    };
+    const override = (overrideId: string) => ({
+      overrideId,
+      briefId: 'brief_1',
+      organizationId: ORG_ID,
+      clientId: 'client_juan_001',
+      reason: 'Ajuste',
+    });
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, `${BRIEFS}/brief_1`), brief('brief_1', 2));
+        await setDoc(doc(db, `${HISTORY}/hist_1`), historyEntry);
+        await setDoc(doc(db, `${OVERRIDES}/ovr_1`), override('ovr_1'));
+      });
+    });
+
+    it('ADMIN of the org creates, reads and lists Briefs ALLOW', async () => {
+      await assertSucceeds(setDoc(doc(adminDb(), `${BRIEFS}/brief_2`), brief('brief_2', 1)));
+      await assertSucceeds(getDoc(doc(adminDb(), `${BRIEFS}/brief_1`)));
+      await assertSucceeds(
+        getDocs(
+          query(
+            collection(adminDb(), BRIEFS),
+            where('organizationId', '==', ORG_ID),
+            where('clientId', '==', 'client_juan_001')
+          )
+        )
+      );
+    });
+
+    it('Brief create whose id differs from the document id DENY', async () => {
+      await assertFails(setDoc(doc(adminDb(), `${BRIEFS}/brief_3`), brief('brief_other', 1)));
+    });
+
+    it('ADMIN of another organization DENY on every Brief collection', async () => {
+      await assertFails(getDoc(doc(otherOrgAdminDb(), `${BRIEFS}/brief_1`)));
+      await assertFails(getDoc(doc(otherOrgAdminDb(), `${HISTORY}/hist_1`)));
+      await assertFails(getDoc(doc(otherOrgAdminDb(), `${OVERRIDES}/ovr_1`)));
+      await assertFails(setDoc(doc(otherOrgAdminDb(), `${BRIEFS}/brief_2`), brief('brief_2', 1)));
+    });
+
+    it('CLIENT read and write DENY on every Brief collection', async () => {
+      await assertFails(getDoc(doc(juanDb(), `${BRIEFS}/brief_1`)));
+      await assertFails(getDoc(doc(juanDb(), `${HISTORY}/hist_1`)));
+      await assertFails(getDoc(doc(juanDb(), `${OVERRIDES}/ovr_1`)));
+      await assertFails(setDoc(doc(juanDb(), `${BRIEFS}/brief_2`), brief('brief_2', 1)));
+      await assertFails(setDoc(doc(juanDb(), `${HISTORY}/hist_2`), historyEntry));
+    });
+
+    it('Brief update keeps or raises the version ALLOW; lowering it DENY', async () => {
+      await assertSucceeds(
+        setDoc(doc(adminDb(), `${BRIEFS}/brief_1`), { ...brief('brief_1', 2), status: 'APPROVED' })
+      );
+      await assertSucceeds(setDoc(doc(adminDb(), `${BRIEFS}/brief_1`), brief('brief_1', 3)));
+      await assertFails(setDoc(doc(adminDb(), `${BRIEFS}/brief_1`), brief('brief_1', 1)));
+    });
+
+    it('Brief delete DENY even for the ADMIN of the org', async () => {
+      await assertFails(deleteDoc(doc(adminDb(), `${BRIEFS}/brief_1`)));
+    });
+
+    it('history create and identical rewrite ALLOW; changing or deleting a record DENY', async () => {
+      await assertSucceeds(setDoc(doc(adminDb(), `${HISTORY}/hist_2`), historyEntry));
+      await assertSucceeds(setDoc(doc(adminDb(), `${HISTORY}/hist_1`), historyEntry, { merge: true }));
+      await assertFails(updateDoc(doc(adminDb(), `${HISTORY}/hist_1`), { status: 'APPROVED' }));
+      await assertFails(deleteDoc(doc(adminDb(), `${HISTORY}/hist_1`)));
+    });
+
+    it('override create keyed by overrideId ALLOW; mismatched id, changes and deletes DENY', async () => {
+      await assertSucceeds(setDoc(doc(adminDb(), `${OVERRIDES}/ovr_2`), override('ovr_2')));
+      await assertFails(setDoc(doc(adminDb(), `${OVERRIDES}/ovr_3`), override('ovr_other')));
+      await assertSucceeds(setDoc(doc(adminDb(), `${OVERRIDES}/ovr_1`), override('ovr_1'), { merge: true }));
+      await assertFails(updateDoc(doc(adminDb(), `${OVERRIDES}/ovr_1`), { reason: 'Reescrito' }));
+      await assertFails(deleteDoc(doc(adminDb(), `${OVERRIDES}/ovr_1`)));
+    });
+  });
 });

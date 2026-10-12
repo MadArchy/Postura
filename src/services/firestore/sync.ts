@@ -1103,6 +1103,10 @@ export function onFirestorePushError(handler: FirestorePushErrorHandler | null) 
   pushErrorHandler = handler;
 }
 
+export function reportFirestorePushError(message: string) {
+  pushErrorHandler?.(message);
+}
+
 export function setFirestoreAuthoritative(active: boolean) {
   authoritative = active;
 }

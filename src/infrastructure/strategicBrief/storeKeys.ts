@@ -4,7 +4,7 @@
  * (not named in the formal package; chosen to stay consistent and separable).
  *
  * Brief current/history/override stay OUT of dbService.saveAll / Firestore exportSnapshot.
- * Remote Firestore Brief persistence is FUTURE_NONBLOCKING / SPEC-009.
+ * Their Firestore copy is pushed in separate batches by services/firestore/strategicBriefSync.
  */
 
 export const STRATEGIC_BRIEF_CURRENT_STORE_KEY = 'postura_strategic_brief_v1';

@@ -37,6 +37,38 @@ interface StoreSnapshot {
   overrides: unknown[];
 }
 
+/** Every stored Brief record, across tenants, parsed fail-closed. */
+export interface StrategicBriefRecordSet {
+  briefs: StrategicBrief[];
+  history: StrategicBriefHistoryRecord[];
+  overrides: StrategicBriefOverrideRecord[];
+}
+
+/** Records read from a remote copy; each one is parsed before it is trusted. */
+export interface RemoteStrategicBriefRecords {
+  briefs: readonly unknown[];
+  history: readonly unknown[];
+  overrides: readonly unknown[];
+}
+
+export interface RemoteMergeResult {
+  merged: number;
+  rejected: number;
+}
+
+function parseOrUndefined<T>(parse: (raw: unknown) => T, raw: unknown): T | undefined {
+  try {
+    return parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+function remoteBriefWins(remote: StrategicBrief, local: StrategicBrief): boolean {
+  if (remote.version !== local.version) return remote.version > local.version;
+  return remote.updatedAt > local.updatedAt;
+}
+
 function memoryStorage(): StorageLike {
   const data = new Map<string, string>();
   return {
@@ -66,8 +98,93 @@ export class LocalStrategicBriefStore {
   private briefs = new Map<string, unknown>();
   private history: unknown[] = [];
   private overrides: unknown[] = [];
+  private readonly commitListeners = new Set<() => void>();
 
   constructor(private readonly kv: StorageLike = resolveStorage()) {}
+
+  /** Notified after each successfully persisted write unit (not after remote merges). */
+  subscribe(listener: () => void): () => void {
+    this.commitListeners.add(listener);
+    return () => {
+      this.commitListeners.delete(listener);
+    };
+  }
+
+  exportRecords(): StrategicBriefRecordSet {
+    this.ensureLoaded();
+    return {
+      briefs: [...this.briefs.values()].map((raw) => parseStoredBrief(raw)),
+      history: this.history.map((raw) => parseStoredHistory(raw)),
+      overrides: this.overrides.map((raw) => parseStoredOverride(raw)),
+    };
+  }
+
+  /**
+   * Folds a remote copy into the local store: a Brief keeps its highest version (newest
+   * `updatedAt` on a tie); history and override audits are unioned by identity.
+   * Malformed remote records, and Briefs whose tenant disagrees with the local copy, are rejected.
+   */
+  mergeRemoteRecords(remote: RemoteStrategicBriefRecords): RemoteMergeResult {
+    this.ensureLoaded();
+    const snapshot = this.snapshot();
+    let merged = 0;
+    let rejected = 0;
+    try {
+      for (const raw of remote.briefs) {
+        const brief = parseOrUndefined(parseStoredBrief, raw);
+        if (!brief) {
+          rejected += 1;
+          continue;
+        }
+        const existingRaw = this.briefs.get(brief.id);
+        if (existingRaw) {
+          const local = parseStoredBrief(existingRaw);
+          if (local.organizationId !== brief.organizationId || local.clientId !== brief.clientId) {
+            rejected += 1;
+            continue;
+          }
+          if (!remoteBriefWins(brief, local)) continue;
+        }
+        this.briefs.set(brief.id, cloneJson(brief));
+        merged += 1;
+      }
+      const knownHistory = new Set(this.history.map((raw) => historyIdentity(parseStoredHistory(raw))));
+      for (const raw of remote.history) {
+        const entry = parseOrUndefined(parseStoredHistory, raw);
+        if (!entry) {
+          rejected += 1;
+          continue;
+        }
+        const identity = historyIdentity(entry);
+        if (knownHistory.has(identity)) continue;
+        knownHistory.add(identity);
+        this.history.push(cloneJson(entry));
+        merged += 1;
+      }
+      const knownOverrides = new Set(this.overrides.map((raw) => parseStoredOverride(raw).overrideId));
+      for (const raw of remote.overrides) {
+        const record = parseOrUndefined(parseStoredOverride, raw);
+        if (!record) {
+          rejected += 1;
+          continue;
+        }
+        if (knownOverrides.has(record.overrideId)) continue;
+        knownOverrides.add(record.overrideId);
+        this.overrides.push(cloneJson(record));
+        merged += 1;
+      }
+      if (merged > 0) this.persistAll();
+    } catch (err) {
+      this.restore(snapshot);
+      try {
+        this.persistAll();
+      } catch {
+        // Rollback persist is best-effort; in-memory already restored.
+      }
+      rethrowGoverned(err);
+    }
+    return { merged, rejected };
+  }
 
   /** Test-only reset. Not part of production ports. */
   resetForTest(): void {
@@ -145,6 +262,7 @@ export class LocalStrategicBriefStore {
       }
       rethrowGoverned(err);
     }
+    for (const listener of this.commitListeners) listener();
   }
 
   appendHistory(entry: StrategicBriefHistoryRecord): void {
