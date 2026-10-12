@@ -17,14 +17,16 @@
  *
  * Hydration/realtime: this provider subscribes once to the compatibility store's
  * change port (via the A8 facade, never `dbService` directly) and invalidates
- * only the compatibility query namespace. Canonical and session keys are left
- * untouched. The subscription is released on teardown.
+ * only the compatibility query namespace. Strategic Briefs merged from Firestore
+ * after session start invalidate the canonical namespace, whose projections read
+ * Briefs. Session keys are left untouched. Subscriptions are released on teardown.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
+import { readStrategicBriefsOnRemoteMerge } from '../data/canonicalReads';
 import { readCompatibilityStoreOnChange } from '../data/compatibilityReads';
-import { compatibilityQueryNamespace } from '../query/queryKeys';
+import { canonicalQueryNamespace, compatibilityQueryNamespace } from '../query/queryKeys';
 
 export function createUiQueryClient(): QueryClient {
   return new QueryClient({
@@ -48,6 +50,12 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return readCompatibilityStoreOnChange(() => {
       void client.invalidateQueries({ queryKey: compatibilityQueryNamespace() });
+    });
+  }, [client]);
+
+  useEffect(() => {
+    return readStrategicBriefsOnRemoteMerge(() => {
+      void client.invalidateQueries({ queryKey: canonicalQueryNamespace() });
     });
   }, [client]);
 

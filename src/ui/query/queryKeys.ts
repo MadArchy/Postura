@@ -72,3 +72,8 @@ export function tenantInvalidationKey(
 export function compatibilityQueryNamespace(): readonly [typeof QUERY_ROOT, 'compatibility'] {
   return [QUERY_ROOT, 'compatibility'] as const;
 }
+
+/** Prefix of every canonical projection query; never matches compatibility or session keys. */
+export function canonicalQueryNamespace(): readonly [typeof QUERY_ROOT, 'canonical'] {
+  return [QUERY_ROOT, 'canonical'] as const;
+}

@@ -16,12 +16,20 @@ import {
   opportunityStatusDisplayLabel,
 } from '../../services/opportunityScoutConsumer';
 import type { OpportunityDisplayProjection } from '../../services/opportunityScoutConsumer';
-import { listStrategicBriefs } from '../../services/strategicBriefConsumer';
+import { listStrategicBriefs, onStrategicBriefsRemoteMerge } from '../../services/strategicBriefConsumer';
 import { listSignalOutcomesForDisplay } from '../../services/learningLoopConsumer';
 import { daysUntilDeadline, isCleOpportunity } from '../../domain/clientOpportunityCore';
 import type { TrustedTenantScope } from '../query/tenantScope';
 
 export const CANONICAL_READ_STATUS = 'CANONICAL_PROJECTION' as const;
+
+/**
+ * Read-side observation of Strategic Briefs merged from Firestore after session start.
+ * Callers must only invalidate NONAUTHORITATIVE_CACHE entries — this is not a mutator.
+ */
+export function readStrategicBriefsOnRemoteMerge(listener: () => void): () => void {
+  return onStrategicBriefsRemoteMerge(listener);
+}
 
 /**
  * SPEC-007 Opportunity projections for one client.

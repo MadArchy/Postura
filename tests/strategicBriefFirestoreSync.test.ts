@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 import type { CreateStrategicBriefInput } from '../src/application/strategicBrief';
 import { composeStrategicBrief } from '../src/composition/strategicBrief/composeStrategicBrief';
 import {
@@ -11,7 +12,37 @@ import {
   planStrategicBriefWrites,
   strategicBriefHistoryDocId,
 } from '../src/services/firestore/strategicBriefSync';
+import {
+  onStrategicBriefsRemoteMerge,
+  resetStrategicBriefConsumerForTest,
+  syncStrategicBriefsWithFirestore,
+} from '../src/services/strategicBriefConsumer';
 import type { Signal } from '../src/types';
+import {
+  canonicalQueryNamespace,
+  compatibilityQueryNamespace,
+  QUERY_ROOT,
+  sessionQueryKey,
+} from '../src/ui/query/queryKeys';
+
+const remotePull = vi.hoisted(() => ({
+  records: { briefs: [] as unknown[], history: [] as unknown[], overrides: [] as unknown[] },
+}));
+
+vi.mock('../src/services/auth', () => ({ authService: { getCurrentUser: () => null } }));
+vi.mock('../src/services/db', () => ({
+  dbService: { getClientById: () => undefined, getSignalById: () => undefined, getEvidenceById: () => undefined },
+}));
+
+vi.mock('../src/services/firestore/strategicBriefSync', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/firestore/strategicBriefSync')>();
+  return {
+    ...actual,
+    startStrategicBriefSync: vi.fn(),
+    pullStrategicBriefs: vi.fn(async () => remotePull.records),
+    scheduleStrategicBriefPush: vi.fn(),
+  };
+});
 
 const NOW = '2026-10-12T10:00:00.000Z';
 const LATER = '2026-10-12T11:00:00.000Z';
@@ -199,6 +230,45 @@ describe('T604 Strategic Brief store — commit observation, export and remote m
     expect(result).toEqual({ merged: 0, rejected: 4 });
     expect(h.store.getById('brief_1', TRUSTED)?.clientId).toBe(CLIENT);
     expect(h.store.storedBriefCount()).toBe(1);
+  });
+});
+
+describe('T604 Strategic Brief remote merge refreshes canonical reads', () => {
+  it('notifies merge subscribers only when the pull brings records the store did not hold', async () => {
+    resetStrategicBriefConsumerForTest(createLocalStrategicBriefStore(memoryKv()));
+    let notifications = 0;
+    const unsubscribe = onStrategicBriefsRemoteMerge(() => {
+      notifications += 1;
+    });
+    try {
+      remotePull.records = seededHarness().store.exportRecords();
+      await syncStrategicBriefsWithFirestore(ORG, [CLIENT]);
+      expect(notifications).toBe(1);
+
+      await syncStrategicBriefsWithFirestore(ORG, [CLIENT]);
+      expect(notifications).toBe(1);
+    } finally {
+      unsubscribe();
+      remotePull.records = { briefs: [], history: [], overrides: [] };
+      resetStrategicBriefConsumerForTest();
+    }
+  });
+
+  it('the canonical namespace invalidates canonical queries only', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: 0, retry: 0 } } });
+    const canonicalKey = [QUERY_ROOT, 'canonical', ORG, CLIENT, 'strategic-briefs'];
+    const compatibilityKey = [QUERY_ROOT, 'compatibility', ORG, CLIENT, 'portfolio-overview'];
+    const sessionKey = sessionQueryKey();
+    client.setQueryData(canonicalKey, []);
+    client.setQueryData(compatibilityKey, {});
+    client.setQueryData(sessionKey, { user: null });
+
+    await client.invalidateQueries({ queryKey: canonicalQueryNamespace() });
+
+    expect(canonicalQueryNamespace()).not.toEqual(compatibilityQueryNamespace());
+    expect(client.getQueryState(canonicalKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(compatibilityKey)?.isInvalidated).toBe(false);
+    expect(client.getQueryState(sessionKey)?.isInvalidated).toBe(false);
   });
 });
 

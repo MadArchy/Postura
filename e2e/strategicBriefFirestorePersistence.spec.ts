@@ -4,7 +4,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import type { StrategicBriefHistoryRecord } from '../src/domain/strategicBriefCore';
-import { CLIENT_JUAN_ID, openManagerWorkspace } from './helpers/spec010Auth';
+import { CLIENT_JUAN_ID, openManagerWorkspace, sidebarTab } from './helpers/spec010Auth';
 import { clientDocPath, waitForServerField } from './support/clientFixtures';
 
 test.use({ channel: 'chrome' });
@@ -130,6 +130,35 @@ test('an approved Strategic Brief and its history persist to Firestore and hydra
     await openManagerWorkspace(fresh);
     await expect.poll(() => briefStatus(fresh, briefId!), { timeout: 15_000 }).toBe('APPROVED');
     expect(await historyDocPaths(fresh, briefId!)).toEqual(expect.arrayContaining(historyPaths));
+  } finally {
+    await context.close();
+  }
+});
+
+test('an open Briefs tab shows Briefs that a Firestore pull merges after it rendered', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(120_000);
+  const context = await browser.newContext();
+  try {
+    const viewer = await context.newPage();
+    await openManagerWorkspace(viewer);
+    await sidebarTab(viewer, 'ws-briefs').click();
+    await expect(viewer.locator('[data-testid="react-ws-briefs"]')).toBeVisible({ timeout: 15_000 });
+
+    await openManagerWorkspace(page);
+    const briefId = await createBrief(page);
+    expect(briefId).toBeTruthy();
+    await waitForServerField(clientDocPath(CLIENT_JUAN_ID, 'strategicBriefs', briefId!), 'status', 'DRAFT');
+
+    const approveInViewer = viewer.locator(`[data-testid="react-ws-approve-brief-${briefId}"]`);
+    await expect(approveInViewer).toHaveCount(0);
+    await viewer.evaluate(async ({ cid }) => {
+      const { syncStrategicBriefsWithFirestore } = await import('/src/services/strategicBriefConsumer.ts');
+      await syncStrategicBriefsWithFirestore('org_aurora_01', [cid]);
+    }, { cid: CLIENT_JUAN_ID });
+    await expect(approveInViewer).toBeVisible({ timeout: 15_000 });
   } finally {
     await context.close();
   }

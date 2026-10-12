@@ -36,6 +36,7 @@ export class BriefFromCurationConsumerError extends Error {
 let store: LocalStrategicBriefStore = createLocalStrategicBriefStore();
 let useCases: BriefUseCases = buildUseCases(store);
 let unbindRemotePush = bindRemotePush(store);
+const remoteMergeListeners = new Set<() => void>();
 
 function scheduleRemotePush(): void {
   if (!FIREBASE_ENABLED) return;
@@ -58,8 +59,19 @@ export async function syncStrategicBriefsWithFirestore(
 ): Promise<void> {
   const sync = await import('./firestore/strategicBriefSync');
   sync.startStrategicBriefSync(organizationId);
-  store.mergeRemoteRecords(await sync.pullStrategicBriefs(clientIds));
+  const { merged } = store.mergeRemoteRecords(await sync.pullStrategicBriefs(clientIds));
+  if (merged > 0) {
+    for (const listener of remoteMergeListeners) listener();
+  }
   sync.scheduleStrategicBriefPush(() => store.exportRecords());
+}
+
+/** Notified when a Firestore pull brings Brief records the local store did not hold. */
+export function onStrategicBriefsRemoteMerge(listener: () => void): () => void {
+  remoteMergeListeners.add(listener);
+  return () => {
+    remoteMergeListeners.delete(listener);
+  };
 }
 
 function buildUseCases(briefStore: LocalStrategicBriefStore): BriefUseCases {
