@@ -196,8 +196,8 @@ describe('AUDIT010-09 / §6 — no blocked legacy write appears behind a React p
   it('every blocked page action is delegated visibly rather than removed (§7)', () => {
     // Each migrated page keeps some action on the legacy surface, and each must
     // say so: a blocked action that is simply absent would be capability loss.
+    // ReactThesisEditorPage has none left: stress-test and AI proposal are native (R1 H19/H20).
     const pagesWithBlockedActions = [
-      'src/ui/modules/pages/ReactThesisEditorPage.tsx',
       'src/ui/modules/pages/ReactManagerCockpitPage.tsx',
       'src/ui/modules/pages/ReactClientPortalPage.tsx',
       'src/ui/modules/pages/ReactClientWorkspacePage.tsx',

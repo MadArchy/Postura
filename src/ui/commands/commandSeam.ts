@@ -118,6 +118,7 @@ import type {
   ThesisEditableFields,
 } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
+import type { ThesisChallengeResult } from '../../domain/thesisChallengeCore';
 import { downloadDossierMarkdown, formatDossierMarkdown } from '../../services/dossierExport';
 import { notifyClient, notifyManager } from '../../services/notifications';
 import { notifyManagerBriefingAcknowledged } from '../presentation/briefingAckNotification';
@@ -859,6 +860,50 @@ export const thesisLifecycleCommands = {
           err instanceof ThesisLifecycleError || err instanceof Error
             ? err.message
             : fallback,
+      };
+    }
+  },
+} as const;
+
+export type ThesisStressTestCommandResult =
+  | { ok: true; challenge: ThesisChallengeResult }
+  | { ok: false; message: string };
+
+export type ThesisProposalCommandResult =
+  | { ok: true; fields: ThesisEditableFields }
+  | { ok: false; message: string };
+
+/**
+ * R1 H19 stress-test + H20 AI proposal. Advisory only: neither command persists.
+ * The consumer gates tenant + ADMIN and reaches the AI gateway; React never does.
+ * Loaded on demand so the AI module stays out of the seam's static import graph.
+ */
+export const thesisAdvisoryCommands = {
+  async stressTest(intent: {
+    requestedClientId: string | null | undefined;
+    thesisId: string;
+  }): Promise<ThesisStressTestCommandResult> {
+    try {
+      const { stressTestThesis } = await import('../../services/thesisAdvisoryConsumer');
+      return { ok: true, challenge: await stressTestThesis(intent) };
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : 'No se pudo ejecutar el stress-test',
+      };
+    }
+  },
+
+  async proposeFromProfile(intent: {
+    requestedClientId: string | null | undefined;
+  }): Promise<ThesisProposalCommandResult> {
+    try {
+      const { proposeThesisFromProfile } = await import('../../services/thesisAdvisoryConsumer');
+      return { ok: true, fields: await proposeThesisFromProfile(intent) };
+    } catch (err) {
+      return {
+        ok: false,
+        message: err instanceof Error ? err.message : 'No se pudo generar la propuesta',
       };
     }
   },

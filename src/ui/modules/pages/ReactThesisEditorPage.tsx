@@ -7,7 +7,11 @@
  *
  * COMMAND: #11 SaveThesis + #12 ActivateThesis via `thesisLifecycleCommands`
  * (draft | submit_review | activate). Explicit create uses `useCreateThesis`
- * (consumer mints the id). AI proposal and stress-test remain legacy.
+ * (consumer mints the id).
+ *
+ * ADVISORY (R1 H19/H20, `thesisAdvisoryCommands`): the stress-test only displays
+ * its result; the AI proposal only pre-fills the create form, and nothing is
+ * stored until the manager saves through #11.
  *
  * MULTI-THESIS — explicit id selection only:
  *   - selector starts unselected; no silent winner;
@@ -26,11 +30,18 @@ import {
   useSaveThesis,
   useThesisDetail,
   useThesisOptions,
+  useThesisProposal,
+  useThesisStressTest,
 } from '../../hooks/useWave3Data';
 import { narrowToClient } from '../../query/tenantScope';
 import type { ThesisEditableFields } from '../../../types';
 import type { ThesisSaveIntent } from '../../../domain/thesisRevisionCore';
-import { LegacyHandoff, PanelState } from './LegacyHandoff';
+import {
+  thesisChallengeOutcomeLabel,
+  type ThesisChallengeResult,
+} from '../../../domain/thesisChallengeCore';
+import { PanelState } from './LegacyHandoff';
+import { ReactChallengeModal, type ChallengeView } from './modals/ReactModals';
 
 /**
  * Input-shape schema for the editable review fields.
@@ -56,6 +67,15 @@ const EMPTY_EDITABLE_FIELDS: ThesisEditableFields = {
   voiceAndTone: '',
   complianceRules: '',
 };
+
+function toChallengeView(result: ThesisChallengeResult): ChallengeView {
+  return {
+    outcomeLabel: thesisChallengeOutcomeLabel(result.outcome),
+    summary: `Riesgo ${result.riskScore}%${result.splitHint ? ` · ${result.splitHint}` : ''}`,
+    weaknesses: result.findings.map((finding) => finding.message),
+    counterArguments: result.recommendations,
+  };
+}
 
 function CompletenessBar({ score }: { score: number }) {
   return (
@@ -257,12 +277,24 @@ export function ReactThesisEditorPage({
     text: string;
   } | null>(null);
 
+  const [proposal, setProposal] = useState<{ key: number; fields: ThesisEditableFields } | null>(
+    null
+  );
+  const [challenge, setChallenge] = useState<{ title: string; view: ChallengeView } | null>(null);
+
   const options = useThesisOptions(scope);
   const detail = useThesisDetail(scope, thesisId);
   const createThesis = useCreateThesis(scope);
   const saveThesis = useSaveThesis(scope);
   const activateThesis = useActivateThesis(scope);
-  const busy = createThesis.isPending || saveThesis.isPending || activateThesis.isPending;
+  const stressTest = useThesisStressTest(scope);
+  const propose = useThesisProposal(scope);
+  const busy =
+    createThesis.isPending ||
+    saveThesis.isPending ||
+    activateThesis.isPending ||
+    stressTest.isPending ||
+    propose.isPending;
 
   if (!tenantScope) {
     return (
@@ -354,6 +386,54 @@ export function ReactThesisEditorPage({
     );
   };
 
+  const handlePropose = () => {
+    setStatusMessage(null);
+    propose.mutate(undefined, {
+      onSuccess: (result) => {
+        if (!result.ok) {
+          setStatusMessage({ kind: 'error', text: result.message });
+          return;
+        }
+        setProposal((current) => ({ key: (current?.key ?? 0) + 1, fields: result.fields }));
+        setStatusMessage({
+          kind: 'info',
+          text: 'Propuesta cargada en el formulario. Revísala y guárdala para crear la tesis.',
+        });
+      },
+      onError: () => {
+        setStatusMessage({ kind: 'error', text: 'No se pudo generar la propuesta' });
+      },
+    });
+  };
+
+  const handleStressTest = (id: string, title: string) => {
+    setStatusMessage(null);
+    stressTest.mutate(
+      { thesisId: id },
+      {
+        onSuccess: (result) => {
+          if (!result.ok) {
+            setStatusMessage({ kind: 'error', text: result.message });
+            return;
+          }
+          setChallenge({ title, view: toChallengeView(result.challenge) });
+        },
+        onError: () => {
+          setStatusMessage({ kind: 'error', text: 'No se pudo ejecutar el stress-test' });
+        },
+      }
+    );
+  };
+
+  const handleChallengeNavigate = (destination: 'thesis-editor' | 'evidence-vault') => {
+    setChallenge(null);
+    if (destination === 'evidence-vault') {
+      document
+        .querySelector('[data-testid="react-proof-wall-panel"]')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const handleActivate = () => {
     if (!thesisId) return;
     setStatusMessage(null);
@@ -403,6 +483,7 @@ export function ReactThesisEditorPage({
             onClick={() => {
               setCreateMode(true);
               setThesisId(null);
+              setProposal(null);
               setStatusMessage(null);
             }}
           >
@@ -447,10 +528,21 @@ export function ReactThesisEditorPage({
 
       {createMode ? (
         <div data-testid="react-thesis-create-form">
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy}
+              data-testid="react-thesis-propose"
+              onClick={handlePropose}
+            >
+              {propose.isPending ? 'Generando propuesta…' : 'Proponer con IA'}
+            </button>
+          </div>
           <ThesisReviewForm
-            key="create"
+            key={`create-${proposal?.key ?? 0}`}
             thesisId=""
-            editableFields={EMPTY_EDITABLE_FIELDS}
+            editableFields={proposal?.fields ?? EMPTY_EDITABLE_FIELDS}
             canActivate={false}
             busy={busy}
             onSave={handleSave}
@@ -480,6 +572,15 @@ export function ReactThesisEditorPage({
             <span className="badge" data-testid="react-thesis-status">
               {detail.data.status} · cliente: {detail.data.clientApprovalStatus}
             </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={busy}
+              data-testid="react-thesis-stress-test"
+              onClick={() => handleStressTest(detail.data!.id, detail.data!.title)}
+            >
+              {stressTest.isPending ? 'Analizando…' : 'Stress-test'}
+            </button>
           </div>
 
           <p className="muted small">
@@ -617,10 +718,14 @@ export function ReactThesisEditorPage({
         </p>
       ) : null}
 
-      <LegacyHandoff
-        actions={['el stress-test', 'generar propuesta con IA']}
-        testId="react-thesis-editor-handoff"
-      />
+      {challenge ? (
+        <ReactChallengeModal
+          thesisTitle={challenge.title}
+          challenge={challenge.view}
+          onNavigate={handleChallengeNavigate}
+          onClose={() => setChallenge(null)}
+        />
+      ) : null}
     </section>
   );
 }

@@ -41,7 +41,7 @@ import {
   readSignalOutcomes,
   readStrategicBriefs,
 } from '../data/canonicalReads';
-import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisLifecycleCommands, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarBulkScoringCommandResult, type RadarContestedAttributionCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisCreateCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
+import { briefCommands, clientLifecycleCommands, deliveryAckCommands, executionDeliveryCommands, localSnapshotCommands, radarCommands, signalIntakeCommands, signalOutcomeCommands, thesisAdvisoryCommands, thesisLifecycleCommands, type ThesisProposalCommandResult, type ThesisStressTestCommandResult, type ArticleReviewCommandResult, type CommandResult, type CreateBriefFromCurationCommandResult, type CreateClientWithInviteCommandResult, type CurationDecideCommandResult, type DeliveryAssemblyPresentationResult, type DeliverySendCommandResult, type PollAllActiveSourcesCommandResult, type PollRegisteredSourceCommandResult, type ProposeAngleCommandResult, type RadarBulkScoringCommandResult, type RadarContestedAttributionCommandResult, type RadarDiscardCommandResult, type RadarSendToCurationCommandResult, type RematerializeLocalSnapshotCommandResult, type TaskAssignCommandResult, type TaskCancelCommandResult, type ThesisClientReviewCommandResult, type ThesisCreateCommandResult, type ThesisSaveCommandResult } from '../commands/commandSeam';
 import type { ContentStatus, ContentType, CurationDestination, SourceType, TaskType } from '../../types';
 import type { ThesisEditableFields } from '../../types';
 import type { ThesisSaveIntent } from '../../domain/thesisRevisionCore';
@@ -782,6 +782,26 @@ export function useSaveThesis(scope: TrustedTenantScope | null) {
     onSuccess: (result) => {
       if (!scope || !result.ok) return;
       void queryClient.invalidateQueries({ queryKey: tenantInvalidationKey(scope, 'compatibility') });
+    },
+  });
+}
+
+/** R1 H19 stress-test — advisory, no cache invalidation (nothing persists). */
+export function useThesisStressTest(scope: TrustedTenantScope | null) {
+  return useMutation<ThesisStressTestCommandResult, Error, { thesisId: string }>({
+    mutationFn: async ({ thesisId }) => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return thesisAdvisoryCommands.stressTest({ requestedClientId: scope.clientId, thesisId });
+    },
+  });
+}
+
+/** R1 H20 AI proposal — pre-fills the editor; saving stays on #11 SaveThesis. */
+export function useThesisProposal(scope: TrustedTenantScope | null) {
+  return useMutation<ThesisProposalCommandResult, Error, void>({
+    mutationFn: async () => {
+      if (!scope?.clientId) return { ok: false, message: 'Cliente no resuelto' };
+      return thesisAdvisoryCommands.proposeFromProfile({ requestedClientId: scope.clientId });
     },
   });
 }

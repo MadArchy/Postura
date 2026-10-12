@@ -174,7 +174,8 @@ test.describe('wave-3 page migration', () => {
     await expect(page.locator('[data-testid="react-ws-production"]')).not.toContainText('interfaz anterior');
 
     await sidebarTab(page, 'ws-positioning').click();
-    await expectTruthfulHandoff('react-thesis-editor-handoff', ['stress-test', 'generar propuesta con IA']);
+    await expect(page.locator('[data-testid="react-thesis-editor"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-testid="react-thesis-editor-handoff"]')).toHaveCount(0);
 
     // ADMIN cockpit.
     await sidebarTab(page, 'dashboard').click();

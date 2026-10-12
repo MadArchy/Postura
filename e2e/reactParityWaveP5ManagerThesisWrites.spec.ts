@@ -46,16 +46,11 @@ test.describe('P5 — React manager thesis save/activate parity', () => {
       timeout: 15_000,
     });
     await expect(page.locator('[data-testid="react-thesis-editor"]')).toBeVisible();
-    await expect(page.locator('[data-testid="react-thesis-editor-handoff"]')).toBeVisible();
-    await expect(page.locator('[data-testid="react-thesis-editor-handoff"]')).toContainText(
-      'stress-test'
-    );
-    await expect(page.locator('[data-testid="react-thesis-editor-handoff"]')).not.toContainText(
-      'guardar la tesis'
-    );
+    await expect(page.locator('[data-testid="react-thesis-editor-handoff"]')).toHaveCount(0);
 
     await page.selectOption('[data-testid="react-thesis-select"]', THESIS_GOVERNANCE_REVIEW);
     await expect(page.locator('[data-testid="react-thesis-detail"]')).toBeVisible();
+    await expect(page.locator('[data-testid="react-thesis-stress-test"]')).toBeEnabled();
     await expect(page.locator('[data-testid="react-thesis-save"]')).toBeEnabled();
     await expect(page.locator('[data-testid="react-thesis-submit"]')).toBeEnabled();
 

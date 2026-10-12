@@ -303,10 +303,15 @@ describe('P5 §21 — React surface authority guards', () => {
     expect(decide).toMatch(/requireClientRole/);
   });
 
-  it('AI / stress-test residual stays on LegacyHandoff', () => {
+  it('stress-test and AI proposal are native advisory controls (R1 H19/H20), not a handoff', () => {
     const page = read('src/ui/modules/pages/ReactThesisEditorPage.tsx');
-    expect(page).toMatch(/actions=\{\['el stress-test', 'generar propuesta con IA'\]\}/);
-    expect(page).toMatch(/react-thesis-editor-handoff/);
+    expect(page).toMatch(/useThesisStressTest/);
+    expect(page).toMatch(/useThesisProposal/);
+    expect(page).toMatch(/react-thesis-stress-test/);
+    expect(page).toMatch(/react-thesis-propose/);
+    expect(page).not.toMatch(/<LegacyHandoff\b/);
+    expect(page).not.toMatch(/import \{[^}]*\bLegacyHandoff\b[^}]*\}/);
+    expect(page).not.toMatch(/react-thesis-editor-handoff/);
     expect(page).not.toMatch(/'guardar la tesis'/);
     expect(page).not.toMatch(/'enviarla al cliente'/);
     expect(page).not.toMatch(/'activarla'/);
