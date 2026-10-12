@@ -1,6 +1,13 @@
 import type { AiCompleteRequestBody } from '../../../src/interfaces/ai/aiCompleteTypes';
-import { handleAiCompleteRequest, mapAiCompleteErrorStatus } from '../../../src/interfaces/ai/handleAiCompleteRequest';
-import { createServerAiGateway } from '../../../src/composition/ai/serverGatewayComposition';
+import {
+  handleAiCompleteRequest,
+  mapAiCompleteErrorStatus,
+  type ClientOrganizationLookupPort,
+} from '../../../src/interfaces/ai/handleAiCompleteRequest';
+import {
+  createServerAiGateway,
+  createServerClientOrganizationLookup,
+} from '../../../src/composition/ai/serverGatewayComposition';
 import type { ProviderSecretConfig } from '../../../src/infrastructure/ai/configuration/providerSecrets';
 
 export interface AiCompleteAuthContext {
@@ -11,9 +18,18 @@ export interface AiCompleteAuthContext {
 }
 
 let cachedGateway: ReturnType<typeof createServerAiGateway> | null = null;
+let cachedClientOrganizations: ClientOrganizationLookupPort | null = null;
 
 export function resetAiCompleteGatewayCache(): void {
   cachedGateway = null;
+  cachedClientOrganizations = null;
+}
+
+function getClientOrganizations(): ClientOrganizationLookupPort {
+  if (!cachedClientOrganizations) {
+    cachedClientOrganizations = createServerClientOrganizationLookup();
+  }
+  return cachedClientOrganizations;
 }
 
 function getGateway(secrets?: ProviderSecretConfig) {
@@ -38,6 +54,7 @@ export async function runAiCompleteHttp(params: {
       userId: params.auth.uid,
     },
     body: params.body,
+    clientOrganizations: getClientOrganizations(),
   });
 
   if (!response.ok) {

@@ -7,12 +7,43 @@ import {
   trustedTenantFailureToGatewayError,
   type AuthDerivedTenantInput,
 } from './resolveTrustedTenant';
+import type { ValidatedAiTenantContext } from '../../domain/ai/tenantContext';
 import type { AiCompleteHttpResponse, AiCompleteRequestBody } from './aiCompleteTypes';
+
+/** Server-side source of truth for which organization owns a client root document. */
+export interface ClientOrganizationLookupPort {
+  /** Returns the stored owning organizationId, or null when the client does not exist. */
+  findOwningOrganizationId(clientId: string): Promise<string | null>;
+}
+
+const CLIENT_BINDING_DENIED_MESSAGE = 'clientId is not valid for the authenticated organization';
+
+/**
+ * ADMIN body clientId is an untrusted candidate: privileged (Admin SDK) persistence bypasses
+ * Firestore Rules, so ownership must be proven against the token organization before the gateway runs.
+ * Server entrypoints (`runAiCompleteHttp`) must always inject the lookup.
+ */
+async function verifyAdminClientBinding(
+  tenant: ValidatedAiTenantContext,
+  lookup: ClientOrganizationLookupPort
+): Promise<boolean> {
+  if (tenant.role !== 'ADMIN') return true;
+  const clientId = tenant.clientId?.trim();
+  if (!clientId) return true;
+  if (clientId.includes('/')) return false;
+  try {
+    const owningOrganizationId = await lookup.findOwningOrganizationId(clientId);
+    return owningOrganizationId !== null && owningOrganizationId === tenant.organizationId;
+  } catch {
+    return false;
+  }
+}
 
 export async function handleAiCompleteRequest(params: {
   gateway: AiGatewayPort;
   auth: AuthDerivedTenantInput;
   body: AiCompleteRequestBody;
+  clientOrganizations?: ClientOrganizationLookupPort;
 }): Promise<AiCompleteHttpResponse> {
   const { body } = params;
 
@@ -33,6 +64,20 @@ export async function handleAiCompleteRequest(params: {
   });
   if (!tenantResult.ok) {
     return { ok: false, error: trustedTenantFailureToGatewayError(tenantResult) };
+  }
+
+  if (
+    params.clientOrganizations &&
+    !(await verifyAdminClientBinding(tenantResult.tenant, params.clientOrganizations))
+  ) {
+    return {
+      ok: false,
+      error: trustedTenantFailureToGatewayError({
+        ok: false,
+        code: 'AUTH_CONTEXT_INVALID',
+        message: CLIENT_BINDING_DENIED_MESSAGE,
+      }),
+    };
   }
 
   const request: AiGatewayRequest = {

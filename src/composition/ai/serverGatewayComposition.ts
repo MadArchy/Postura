@@ -11,6 +11,8 @@ import type { AiGatewayPort } from '../../application/ai/ports/inbound/AiGateway
 import type { AiProviderPort } from '../../application/ai/ports/outbound/AiProviderPort';
 import type { AiRunRepositoryPort } from '../../application/ai/ports/outbound/AiRunRepositoryPort';
 import { FirestoreAiRunRepository } from '../../infrastructure/ai/persistence/FirestoreAiRunRepository';
+import { FirestoreClientOrganizationLookup } from '../../infrastructure/ai/persistence/FirestoreClientOrganizationLookup';
+import type { ClientOrganizationLookupPort } from '../../interfaces/ai/handleAiCompleteRequest';
 
 export interface ServerGatewayCompositionOptions {
   secrets?: ProviderSecretConfig;
@@ -45,4 +47,9 @@ export function createServerAiGateway(options: ServerGatewayCompositionOptions =
     promptRegistry: new PromptRegistryAdapter(),
     aiRunRepository,
   });
+}
+
+/** Trusted client→organization ownership lookup for server AI entrypoints. */
+export function createServerClientOrganizationLookup(): ClientOrganizationLookupPort {
+  return new FirestoreClientOrganizationLookup();
 }
