@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { ExecuteAiOperation } from '../src/application/ai/use-cases/ExecuteAiOperation';
 import { ModelRegistryAdapter } from '../src/infrastructure/ai/registry/ModelRegistryAdapter';
 import { PromptRegistryAdapter } from '../src/infrastructure/ai/registry/PromptRegistryAdapter';
-import { handleAiCompleteRequest } from '../src/interfaces/ai/handleAiCompleteRequest';
+import { handleAiCompleteRequest, type ClientOrganizationLookupPort } from '../src/interfaces/ai/handleAiCompleteRequest';
 import { AiCompleteHttpClient } from '../src/interfaces/ai/aiCompleteHttpClient';
 import { mapThesisToContentDraftGatewayInput } from '../src/services/mapContentDraftGatewayInput';
 import {
@@ -63,11 +63,18 @@ function createGateway(handler: SequenceFakeProvider['handler'], repo: FakeAiRun
   });
 }
 
+const clientOrganizations: ClientOrganizationLookupPort = {
+  async findOwningOrganizationId(clientId: string) {
+    return clientId === 'client_juan_001' ? 'org_aurora_01' : null;
+  },
+};
+
 function createInProcessFetch(gateway: ExecuteAiOperation) {
   return async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body || '{}'));
     const response = await handleAiCompleteRequest({
       gateway,
+      clientOrganizations,
       auth: {
         role: 'ADMIN',
         organizationId: 'org_aurora_01',

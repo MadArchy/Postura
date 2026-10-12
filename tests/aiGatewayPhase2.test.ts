@@ -8,7 +8,7 @@ import { computePromptHash } from '../src/infrastructure/ai/registry/promptHash'
 import { minimalContentDraftGatewayInput } from './helpers/contentDraftGatewayInput';
 import { minimalSignalThesisEvalGatewayInput } from './helpers/thesisSignalGatewayInput';
 import { ExecuteAiOperation } from '../src/application/ai/use-cases/ExecuteAiOperation';
-import { handleAiCompleteRequest } from '../src/interfaces/ai/handleAiCompleteRequest';
+import { handleAiCompleteRequest, type ClientOrganizationLookupPort } from '../src/interfaces/ai/handleAiCompleteRequest';
 import { resolveTrustedTenantForAiComplete } from '../src/interfaces/ai/resolveTrustedTenant';
 import { errorExposesSecrets } from '../src/domain/ai/errors';
 import { FakeAiProviderPort, jsonProviderResponse } from './helpers/fakeAiProvider';
@@ -287,6 +287,12 @@ describe('SPEC-005 Phase 2 — timeout policy', () => {
 });
 
 describe('SPEC-005 Phase 2 — end-to-end hexagonal (CONTENT_DRAFT)', () => {
+  const clientOrganizations: ClientOrganizationLookupPort = {
+    async findOwningOrganizationId(clientId: string) {
+      return clientId === 'client_a' ? 'org_test' : null;
+    },
+  };
+
   it('validates trusted output from fake provider', async () => {
     const gateway = new ExecuteAiOperation({
       providerPort: new FakeAiProviderPort(() => jsonProviderResponse({ title: 'Hello', body: 'World content' })),
@@ -296,6 +302,7 @@ describe('SPEC-005 Phase 2 — end-to-end hexagonal (CONTENT_DRAFT)', () => {
 
     const result = await handleAiCompleteRequest({
       gateway,
+      clientOrganizations,
       auth: { role: 'ADMIN', organizationId: 'org_test', clientId: null },
       body: {
         operation: 'CONTENT_DRAFT',
@@ -323,6 +330,7 @@ describe('SPEC-005 Phase 2 — end-to-end hexagonal (CONTENT_DRAFT)', () => {
 
     const result = await handleAiCompleteRequest({
       gateway,
+      clientOrganizations,
       auth: { role: 'ADMIN', organizationId: 'org_test', clientId: null },
       body: {
         operation: 'CONTENT_DRAFT',

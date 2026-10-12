@@ -141,6 +141,38 @@ describe('A31 — aiComplete ADMIN client/organization binding', () => {
     expectDeniedWithoutSideEffects(result, harness);
   });
 
+  it('fails closed when an untyped caller omits the ownership lookup', async () => {
+    const harness = createHarness();
+    const rawParams = {
+      gateway: harness.gateway,
+      auth: adminOrgA,
+      body: contentDraftBody(CLIENT_A),
+      clientOrganizations: harness.clientOrganizations,
+    };
+    Reflect.deleteProperty(rawParams, 'clientOrganizations');
+    expect('clientOrganizations' in rawParams).toBe(false);
+    const result = await handleAiCompleteRequest(rawParams);
+    expectDeniedWithoutSideEffects(result, harness);
+    expect(harness.lookupCalls).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the ownership lookup is not a usable verifier', async () => {
+    const harness = createHarness();
+    const brokenLookup: ClientOrganizationLookupPort = {
+      async findOwningOrganizationId() {
+        return ORG_A;
+      },
+    };
+    Reflect.set(brokenLookup, 'findOwningOrganizationId', undefined);
+    const result = await handleAiCompleteRequest({
+      gateway: harness.gateway,
+      auth: adminOrgA,
+      body: contentDraftBody(CLIENT_A),
+      clientOrganizations: brokenLookup,
+    });
+    expectDeniedWithoutSideEffects(result, harness);
+  });
+
   it('accepts ADMIN of ORG-A targeting CLIENT-A owned by ORG-A and passes the trusted tenant to the gateway', async () => {
     const harness = createHarness();
     const result = await handleAiCompleteRequest({

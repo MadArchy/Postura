@@ -81,14 +81,16 @@ export async function handleDevGatewayComplete(req: IncomingMessage, res: Server
     prompt?: { promptId: string; promptVersion: string };
   };
 
-  const [{ handleAiCompleteRequest }, { createServerAiGateway }] = await Promise.all([
-    import('../src/interfaces/ai/handleAiCompleteRequest'),
-    import('../src/composition/ai/serverGatewayComposition'),
-  ]);
+  const [{ handleAiCompleteRequest }, { createServerAiGateway, createServerClientOrganizationLookup }] =
+    await Promise.all([
+      import('../src/interfaces/ai/handleAiCompleteRequest'),
+      import('../src/composition/ai/serverGatewayComposition'),
+    ]);
 
   const gateway = createServerAiGateway();
   const response = await handleAiCompleteRequest({
     gateway,
+    clientOrganizations: createServerClientOrganizationLookup(),
     auth: {
       role: user.role,
       organizationId: user.organizationId,

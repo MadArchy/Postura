@@ -35,7 +35,7 @@ import { readFileSync } from 'node:fs';
 import { ExecuteAiOperation } from '../src/application/ai/use-cases/ExecuteAiOperation';
 import { ModelRegistryAdapter } from '../src/infrastructure/ai/registry/ModelRegistryAdapter';
 import { PromptRegistryAdapter } from '../src/infrastructure/ai/registry/PromptRegistryAdapter';
-import { handleAiCompleteRequest } from '../src/interfaces/ai/handleAiCompleteRequest';
+import { handleAiCompleteRequest, type ClientOrganizationLookupPort } from '../src/interfaces/ai/handleAiCompleteRequest';
 import { AiCompleteHttpClient } from '../src/interfaces/ai/aiCompleteHttpClient';
 import { executeComparativeAnalysisViaGateway } from '../src/services/comparativeGateway';
 import { mapSignalThesisToComparativeGatewayInput } from '../src/services/mapAnalysisComparativeGatewayInput';
@@ -166,11 +166,18 @@ function createGateway(
   });
 }
 
+const clientOrganizations: ClientOrganizationLookupPort = {
+  async findOwningOrganizationId(clientId: string) {
+    return clientId === 'client_juan_001' ? 'org_aurora_01' : null;
+  },
+};
+
 function createInProcessFetch(gateway: ExecuteAiOperation) {
   return async (_url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body || '{}'));
     const response = await handleAiCompleteRequest({
       gateway,
+      clientOrganizations,
       auth: {
         role: 'ADMIN',
         organizationId: 'org_aurora_01',
@@ -512,9 +519,10 @@ describe('SPEC-005 Phase 5C-MP — concurrency', () => {
       client,
     });
 
-    // Yield microtasks so both handlers start
-    await Promise.resolve();
-    await Promise.resolve();
+    // Yield microtasks (bounded; includes the async client-ownership check) so both handlers start
+    for (let tick = 0; tick < 20 && !(openaiStarted && anthropicStarted); tick += 1) {
+      await Promise.resolve();
+    }
     expect(openaiStarted && anthropicStarted).toBe(true);
     expect(bothStartedBeforeResolve).toBe(true);
 

@@ -24,7 +24,7 @@ import {
   invalidContentDraftSchemaResponse,
   malformedJsonResponse,
 } from './helpers/resilienceFakeProvider';
-import { handleAiCompleteRequest } from '../src/interfaces/ai/handleAiCompleteRequest';
+import { handleAiCompleteRequest, type ClientOrganizationLookupPort } from '../src/interfaces/ai/handleAiCompleteRequest';
 import { ProviderPortError } from '../src/application/ai/errors/providerPortErrors';
 import { executeProviderWithRetry } from '../src/application/ai/resilience/providerRetryPolicy';
 import { ProviderCallBudget } from '../src/application/ai/resilience/providerCallBudget';
@@ -50,6 +50,12 @@ const baseRequest = {
   clientId: 'client_a',
   input: minimalContentDraftGatewayInput(),
   prompt: { promptId: 'tmpl_content_v1', promptVersion: '1' },
+};
+
+const clientOrganizations: ClientOrganizationLookupPort = {
+  async findOwningOrganizationId(clientId: string) {
+    return clientId === 'client_a' ? 'org_test' : null;
+  },
 };
 
 describe('SPEC-005 Phase 3 — retry policy constants', () => {
@@ -697,6 +703,7 @@ describe('SPEC-005 Phase 3 — E2E hexagonal resilience', () => {
     const gateway = createGateway(seq.handler);
     const result = await handleAiCompleteRequest({
       gateway,
+      clientOrganizations,
       auth: { role: 'ADMIN', organizationId: 'org_test', clientId: null },
       body: baseRequest,
     });

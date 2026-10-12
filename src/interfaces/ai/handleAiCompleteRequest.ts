@@ -21,7 +21,7 @@ const CLIENT_BINDING_DENIED_MESSAGE = 'clientId is not valid for the authenticat
 /**
  * ADMIN body clientId is an untrusted candidate: privileged (Admin SDK) persistence bypasses
  * Firestore Rules, so ownership must be proven against the token organization before the gateway runs.
- * Server entrypoints (`runAiCompleteHttp`) must always inject the lookup.
+ * The runtime check on the lookup guards untyped callers: a missing verifier must deny, never allow.
  */
 async function verifyAdminClientBinding(
   tenant: ValidatedAiTenantContext,
@@ -31,6 +31,7 @@ async function verifyAdminClientBinding(
   const clientId = tenant.clientId?.trim();
   if (!clientId) return true;
   if (clientId.includes('/')) return false;
+  if (typeof lookup?.findOwningOrganizationId !== 'function') return false;
   try {
     const owningOrganizationId = await lookup.findOwningOrganizationId(clientId);
     return owningOrganizationId !== null && owningOrganizationId === tenant.organizationId;
@@ -43,7 +44,7 @@ export async function handleAiCompleteRequest(params: {
   gateway: AiGatewayPort;
   auth: AuthDerivedTenantInput;
   body: AiCompleteRequestBody;
-  clientOrganizations?: ClientOrganizationLookupPort;
+  clientOrganizations: ClientOrganizationLookupPort;
 }): Promise<AiCompleteHttpResponse> {
   const { body } = params;
 
@@ -66,10 +67,7 @@ export async function handleAiCompleteRequest(params: {
     return { ok: false, error: trustedTenantFailureToGatewayError(tenantResult) };
   }
 
-  if (
-    params.clientOrganizations &&
-    !(await verifyAdminClientBinding(tenantResult.tenant, params.clientOrganizations))
-  ) {
+  if (!(await verifyAdminClientBinding(tenantResult.tenant, params.clientOrganizations))) {
     return {
       ok: false,
       error: trustedTenantFailureToGatewayError({
