@@ -217,7 +217,7 @@ describe('Phase 6 ProofWall workspace service-lines cutover — C4 / C5 / coexis
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('Product graph is zero; file is absent; ProofWall T603 is formally accepted', () => {
+  it('Product graph is zero; ProofWall T603 subset accepted; legacy file absent; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     const sources = productSources();
     expect(
@@ -229,7 +229,10 @@ describe('Phase 6 ProofWall workspace service-lines cutover — C4 / C5 / coexis
     expect(dossierSlotPresentation()).toBe('omit');
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(true);
     expect(read(DOSSIER_T603)).toMatch(/T603 DOSSIER UNIT[\s\S]*FORMALLY_ACCEPTED/);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
     expect(existsSync(join(ROOT, PROOFWALL_T603))).toBe(true);
     const proofWallT603 = read(PROOFWALL_T603);
     expect(proofWallT603).toMatch(/T603 SAFE SUBSET = `src\/components\/ProofWallPanel\.ts`/);

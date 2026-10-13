@@ -193,7 +193,7 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C4 / C5 / coexistenc
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('file is absent; Product graph is zero; Dossier stays closed; C6 / C7 / T603 are not executed', () => {
+  it('Product graph is zero; Dossier stays closed; legacy file absent; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/ProofWallPanel['"]/);
     expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
@@ -203,6 +203,9 @@ describe('Phase 6 ProofWall workspace ProofWall cutover — C4 / C5 / coexistenc
     expect(isReactExclusiveSlot(CLIENT_WORKSPACE_DOSSIER_SLOT)).toBe(true);
     expect(code(DOSSIER)).toMatch(/workspaceClientId\?:\s*string\s*\|\s*null/);
     expect(read(DOSSIER_T603)).toMatch(/T603 DOSSIER UNIT[\s\S]*FORMALLY_ACCEPTED/);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
   });
 });

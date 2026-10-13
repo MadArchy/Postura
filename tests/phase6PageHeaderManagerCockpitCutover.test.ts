@@ -271,9 +271,12 @@ describe('Phase 6 PageHeader ManagerCockpit cutover — authority / closed subse
     expect(opportunitySlotPresentation()).toBe('omit');
   });
 
-  it('physical absence is intentional; C6 / C7 / T603 are not executed', () => {
+  it('legacy file absent; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
     expect(code(HOST)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(WORKSPACE)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);
     expect(code(PORTAL)).not.toMatch(/from\s+['"]\.\/PageHeader['"]/);

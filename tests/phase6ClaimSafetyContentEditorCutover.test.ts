@@ -209,9 +209,12 @@ describe('Phase 6 ClaimSafety content editor cutover — C4 / C5 / no T603', () 
     expect(code(REACT)).toMatch(/data-authority="ADVISORY_PROJECTION"/);
   });
 
-  it('physical absence is intentional; C6 is not yet verified; C7 and T603 are not executed', () => {
+  it('legacy file absent; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyBadge/);
     expect(code(REACT)).toMatch(/export function ReactClaimSafetyPanel/);
   });

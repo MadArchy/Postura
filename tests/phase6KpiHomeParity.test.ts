@@ -107,11 +107,14 @@ describe('Phase 6 KPI Home parity — A38 / file absent', () => {
     expect(code(MOUNT)).not.toMatch(/createRoot\([^)]*#app/);
   });
 
-  it('legacy KPI file is absent; whole-leaf exclusive id and T603 remain unauthorized', () => {
+  it('legacy file absent; no whole-leaf exclusive id; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(existsSync(join(ROOT, 'src/ui/presentation/kpiSlot.ts'))).toBe(false);
     expect(code(SLOTS)).not.toMatch(/kpiSlot/);
     expect(code(HANDLERS)).toMatch(/form-quick-kpi-consultation/);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
   });
 });

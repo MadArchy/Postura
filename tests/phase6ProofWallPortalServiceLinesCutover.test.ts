@@ -171,11 +171,14 @@ describe('Phase 6 ProofWall portal thesis service-lines cutover — C4 / C5 / co
     expect(decision.mayUnmountReact).toBe(false);
   });
 
-  it('file is absent; whole-file C6 / C7 / T603 are not executed', () => {
+  it('legacy file absent; C6/C7 verified; T603 formally closed', () => {
     expect(existsSync(join(ROOT, LEGACY))).toBe(false);
     expect(code(WORKSPACE)).not.toMatch(/renderProofWall\(clientId,\s*\{\s*editable:\s*true\s*\}\)/);
     expect(code(WORKSPACE)).not.toMatch(/renderServiceLinesReadOnly\(clientId\)/);
     expect(code(HOST)).not.toMatch(/renderServiceLinesReadOnly/);
-    expect(read(TASKS)).toMatch(/T-010-603[\s\S]*NOT AUTHORIZED/);
+    expect(read(TASKS)).toMatch(
+      /^(?![^\n]*(?:NOT AUTHORIZED|TODO|PENDING|\[ \]))\| \*\*T-010-603\*\* \|[^\n]*\| \*\*\[x\] DONE — FORMALLY_CLOSED\*\*[^|\n]*\|\r?$/m
+    );
+    expect(read(TASKS).match(/^\| \*\*T-010-603\*\* \|/gm)).toHaveLength(1);
   });
 });
