@@ -253,12 +253,12 @@ Validar claims: `role`, `organizationId`, `clientId` (CLIENT).
 
 ## 8. Rules deployment
 
-Deploy the rules **already finalized at T-009-14e** and locked at CODE_COMPLETE. Do **not** edit `firestore.rules` in this step.
+Deploy the rules **finalized at T-009-14e**, as reaccepted by the **A31 security re-freeze** (2026-10-12; implementation `6e4c739`; see `acceptance.md` § Security re-freeze). Post-CODE_COMPLETE rule edits **did** occur (`4bda325` hardening, `15590e2` Strategic Brief families); they are classified and reaccepted. Do **not** edit `firestore.rules` in this step.
 
 Orden recomendado:
 
 1. Confirm envelope audit (step 5) exit 0 and claims verified
-2. Confirm `CODE_COMPLETE` still green (no post-complete rule edits)
+2. Confirm the re-frozen security state is still green: `test:rules` 106/106 and every `firestore.rules` change since the current frozen repository reference is classified and reaccepted under the SPEC-009 freeze rule (unclassified edit → STOP)
 3. `firebase deploy --only firestore:rules` (**T-009-18**)
 4. Si Storage Console activo y tests Storage PASS: `firebase deploy --only storage`
 5. Marcar Spec `DEPLOYED` (o `PARTIAL` si Storage pendiente)
@@ -302,12 +302,13 @@ Si falla post-deploy:
 | Ops docs (refresh / gates) | **COMPLETE** Phase 4 (T-009-12) |
 | Secret scan (local) | **COMPLETE** Phase 4 (T-009-13) — see scan report; rotation decision documented |
 | Final envelope rules | **DONE** T-009-14e (repo only; not deployed; ADMIN CREATE integrity get documented) |
-| CODE_COMPLETE checkpoint (T-009-15) | **DONE** — frozen SHA `9c351ef7ac6fafdbce8ff8b8eb5a5678e2ceae99` |
+| CODE_COMPLETE checkpoint (T-009-15) | **DONE** — frozen SHA `9c351ef7ac6fafdbce8ff8b8eb5a5678e2ceae99` (**SUPERSEDED_BY_FORMAL_REFREEZE**) |
+| Security re-freeze / reacceptance (A31, Option B) | **DONE (governance)** — implementation `6e4c739a390a54a9fd2ae2a807d56a9d971f11fb`; frozen reference = re-freeze governance commit; 106/106 rules · 880/880 security suite; **no deploy** |
 | Read-only audit / backup tooling | **READY** (`spec009:prod:audit`, `spec009:prod:backup`; not executed against production) |
 | Backup | NOT EXECUTED (2026-08 attempt failed: billing) |
 | Envelope audit (pre-deploy) | Observation 2026-10-12: 1003 / 1003 valid; must be re-run in the cutover window |
 | Backfill | NOT REQUIRED as of 2026-10-12 (0 candidates); no tooling |
-| Claims audit / reprovision (prod) | NOT EXECUTED — hard gate |
+| Claims audit / reprovision (prod) | NOT EXECUTED — hard gate (independent of the `setPosturaClaims` code fix `6e4c739`) |
 | Token refresh (prod users) | NOT EXECUTED |
 | Rules deployment | NOT EXECUTED |
 | Post-deploy verification | NOT EXECUTED |
@@ -322,6 +323,7 @@ CODE implementation (Phases 1–4)
 → final envelope rules (T-009-14e)
 → tests (T-009-14)
 → CODE_COMPLETE (T-009-15)
+→ security re-freeze / reacceptance (A31, Option B; implementation 6e4c739)
 → Blaze + APIs → rollback capture → verified backup
 → read-only envelope audit (T-009-16; STOP on any invalid envelope)
 → claims audit/reprovision (T-009-17) → re-login → claims verified

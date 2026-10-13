@@ -130,6 +130,53 @@ Phase 1–4 used `get(/clients/{clientId})` inside `sameOrgAsClient` / `ownsClie
 | `secret:scan` | **rotation_required_overall=NO** |
 | CODE_COMPLETE readiness | **CODE_COMPLETE** (frozen at `9c351ef`) |
 
+### Security re-freeze / reacceptance (A31, 2026-10-12)
+
+The CODE_COMPLETE checkpoint above was valid when approved (2026-08-23 09:43 -0500, `9c351ef`, 91/91 rules, not deployed). It became **stale** relative to the repository because security-relevant rules and privileged-backend changes landed after it. Under the freeze rule above (*classified blocker fix + full security suite rerun*), they are classified here and the boundary is formally reaccepted.
+
+| Field | Value |
+|-------|--------|
+| Human decision | **`A31_RULE_CONTRACT_DECISION = OPTION_B`** — explicit classification + full gate rerun + new freeze reference. Reacceptance, **not** a waiver |
+| Old frozen SHA | `9c351ef7ac6fafdbce8ff8b8eb5a5678e2ceae99` → **SUPERSEDED_BY_FORMAL_REFREEZE** (historical evidence above retained) |
+| Security implementation SHA | `6e4c739a390a54a9fd2ae2a807d56a9d971f11fb` (branch `spec/010-react-migration`) |
+| Current frozen repository reference | The governance commit that introduces this addendum (`docs(spec009): re-freeze security boundary for A31`), child of `6e4c739` |
+| Classification timing | **Post-hoc formal classification during the A31 re-freeze**; `4bda325` and `15590e2` were not classified under SPEC-009 when they landed |
+| Status | **REFROZEN / REACCEPTED** · CODE_COMPLETE ≠ DEPLOYED · deployment **NOT EXECUTED** |
+
+| Commit | Subject | Classification | Security effect |
+|--------|---------|----------------|-----------------|
+| `4bda325` | `fix(firestore): preserve createdAt on updates` | **HARDENING_COMPATIBLE** | `preservesEnvelope()` makes `createdAt` write-once on every UPDATE (no change/add/remove); CLIENT notification mark-read can no longer re-stamp `createdAt`. Existing rule contract changed in the **more restrictive** direction only; no tenant, org or role authority change; no family weakened. +7 rules tests |
+| `15590e2` | `feat(briefs): persist Strategic Briefs, history and overrides to Firestore` | **SAFE_NEW_DOMAIN_SECURITY_EXTENSION** | `clients/{id}/strategicBriefs`, `strategicBriefHistory`, `strategicBriefOverrides` (previously default-deny; no wildcard match). ADMIN-only via `existingSubEnvelopeValid` / `adminCreateSub` / `adminWriteSub`; CLIENT DENY; cross-org DENY; Brief version never decreases; history/overrides identical-rewrite only; delete DENY. Pre-existing families unchanged. +8 rules tests |
+| `6aebe21` | `fix(ai): bind admin client to trusted organization` | **SPEC009_BLOCKER_FIX** | ADMIN body `clientId` could reach Admin SDK `clients/{clientId}/aiRuns` persistence without proving the client belongs to the token organization. Now verified server-side before gateway/provider/persistence |
+| `cd20acd` | `fix(ai): require client organization binding for aiComplete` | **SPEC009_BLOCKER_FIX** | Ownership lookup mandatory at `handleAiCompleteRequest`; missing/unusable lookup fails closed; Vite dev route `/api/ai/gateway-complete` uses the same verifier |
+| `6e4c739` | `fix(auth): bind claim assignment to trusted organization` | **SPEC009_BLOCKER_FIX** | `setPosturaClaims` accepted arbitrary body organization/client from any ADMIN. Now caller token organization is authoritative; existing other-org target DENY; CLIENT `clients/{clientId}.organizationId` verified server-side; lookup failure fails closed; invalid paths call `setCustomUserClaims` 0 times |
+
+**Reaccepted security model:**
+
+- Security principles: **PRESERVED_AND_HARDENED** — invariants preserved/strengthened; implementation **evolved under classified changes** (not "unchanged implementation").
+- `PLATFORM_ADMIN` **ABSENT**; ADMIN is organization-scoped; cross-organization administrative authority **DENY**.
+- Tenant authority = verified auth token / trusted server context — never request-body `organizationId`. Client relationships are proven by claims or a server-side canonical ownership lookup (`clients/{clientId}.organizationId`).
+- Firestore Rules: organization isolation, client isolation, envelope validation, ADMIN/CLIENT separation, controlled immutable fields (`createdAt` write-once) and Strategic Brief family coverage. No weakening found in post-freeze rule changes.
+- Privileged backend contract: Admin SDK / Admin Auth **bypass** Rules; every privileged path must enforce equivalent server authorization. Covered by blocker fixes: `aiComplete` (incl. dev route) and `setPosturaClaims`. Rules do **not** protect these paths.
+- `aiComplete`: ADMIN `clientId` = untrusted candidate · ownership lookup mandatory · cross-org / nonexistent DENY · missing lookup fail-closed · invalid gateway calls 0 · invalid persistence calls 0. (Secret Manager / provider ownership stays with `005`.)
+- `setPosturaClaims`: body organization authority NONE · existing other-org target DENY · CLIENT ownership server-verified · lookup failure fail-closed · invalid `setCustomUserClaims` calls 0. **Distinct from** production claims audit/reprovision (T-009-17), which remains **NOT EXECUTED**.
+
+**Fresh validation at `6e4c739` (re-freeze):**
+
+| Gate | Result |
+|------|--------|
+| `test:rules` | **106/106 PASS** (old freeze 91/91; +7 `4bda325` hardening, +8 `15590e2` new-family coverage; 0 original rules tests removed) |
+| Security suite (SPEC-009 / tenant / AI binding / claims) | **40 files · 880/880 PASS** |
+| Functions typecheck | **PASS** |
+| `npm run check` | **241 files · 3278/3278 PASS** · 0 lint errors |
+| `npm run build` | **PASS** · production `window.__posturaUi` = 0 |
+| Full emulator E2E | **91/91 PASS** · production Firebase requests 0 |
+| `secret:scan` | **rotation_required_overall=NO** |
+
+**Freeze rule (unchanged, now anchored to the re-freeze reference):** no normal SPEC-009 implementation change after the current frozen repository reference without classified blocker fix (or explicitly governed compatible security change) + full security suite rerun + updated freeze reference.
+
+This re-freeze authorizes governance only — **not** CUTOVER-E, rules/Functions/Hosting deploy, T-009-16..19, SPEC-010 T604 or A44. Production still serves the pilot-era rules.
+
 ## Deploy gates (separados)
 
 | # | Criterion | Status |
@@ -168,7 +215,7 @@ Phase 1–4 used `get(/clients/{clientId})` inside `sameOrgAsClient` / `ownsClie
 | Reviewer | | | |
 
 **Result options (implementation):** `PASS` · `PARTIAL` · `FAIL` · `BLOCKED`  
-**Current:** Spec APPROVED · **Implementation CODE_COMPLETE** (T-009-15) · A13 DEPLOY / A14 smoke / O1 deploy **PENDING** · T-009-16 **NOT STARTED**.
+**Current:** Spec APPROVED · **Implementation CODE_COMPLETE** (T-009-15) · **Security REFROZEN / REACCEPTED** (A31 re-freeze, Option B; implementation `6e4c739`) · A13 DEPLOY / A14 smoke / O1 deploy **PENDING** · T-009-16 **NOT STARTED**.
 
 ### PARTIAL allowed when
 

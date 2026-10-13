@@ -60,11 +60,12 @@ Branch: `spec/009-security-hardening`.
 
 ## Phase 5 — Finalize envelope rules, verify, code complete, migrate, deploy
 
-**SDD gate:** Do **not** change rules/app implementation after declaring **`CODE_COMPLETE`**. Prod backfill (**T-009-16**) and deploy (**T-009-18**) operate on already-finalized repo artifacts.
+**SDD gate:** Do **not** change rules/app implementation after declaring **`CODE_COMPLETE`** except as a classified blocker fix (or explicitly governed compatible security change) + full security suite rerun + updated freeze reference (see T-009-15r). Prod backfill (**T-009-16**) and deploy (**T-009-18**) operate on already-finalized repo artifacts.
 
 - [x] **T-009-14e** `DONE` — **Finalize denormalized security envelope rules:** existing-resource auth = envelope only (no parent get). **ADMIN CREATE** adds narrowly scoped `get(clients/{clientId})` referential-integrity check (`adminCreateParentClientOrgOk`). CLIENT CREATE = token/path/request envelope only. Helpers: `rootClientReadable`, `existingSubEnvelopeValid`, `createSubEnvelopeValid`, `adminCreateSub`, `clientCreateSub`, `adminWriteSub`, `adminDeleteSub`, `ownsSubResource`. **91** rules tests PASS. **Repo rules ≠ production deployed rules** until T-009-18.
 - [x] **T-009-14** `DONE` — Final security verification audit: SEC-009-001..020 traceability PASS (automated where required); acceptance A1–A11, A14q, A15–A24 PASS; A12/A13/A14 not declared; **91/91** `test:rules` + **286/286** `check` green; no implementation blockers before T-009-15.
 - [x] **T-009-15** `DONE` — **`CODE_COMPLETE` declared** · frozen SHA `9c351ef7ac6fafdbce8ff8b8eb5a5678e2ceae99` · **91/91** `test:rules` · **286/286** `check`.
+- [x] **T-009-15r** `DONE` (2026-10-12, governance only) — **Security re-freeze / reacceptance for SPEC-010 A31** (human decision **OPTION B**). Post-hoc classification: `4bda325` HARDENING_COMPATIBLE · `15590e2` SAFE_NEW_DOMAIN_SECURITY_EXTENSION · `6aebe21` / `cd20acd` / `6e4c739` SPEC009_BLOCKER_FIX. Implementation `6e4c739`; frozen reference = re-freeze governance commit; `9c351ef` superseded. Gates: **106/106** `test:rules` · **880/880** security suite · **3278/3278** `check` · build · **91/91** E2E · secret scan NO rotation. **No deploy; T-009-16..19 unchanged.**
 - [ ] **T-009-16** `TODO` — Ejecutar `migration.md` **data path only** (backup → dry-run → backfill → verify) según autorización. **No rules code change here.**
 - [ ] **T-009-17** `TODO` — Claims reprovision + obligatoriedad re-login / token refresh.
 - [ ] **T-009-18** `TODO` — `firebase deploy --only firestore:rules` (rules already finalized at T-009-14e) → progreso **`DEPLOYED`** (Firestore).
@@ -81,7 +82,7 @@ T-009-00 → 00b → 00c
  → 04 → 05 → 05t → 05n → 05o → 06 → 06p → 06b
  → 07 → 08 → 09
  → 10 → 10b → 11 → 12 → 13 → 13b
- → 14e → 14 → 15 → 16 → 17 → 18 → 18s → 19
+ → 14e → 14 → 15 → 15r → 16 → 17 → 18 → 18s → 19
 ```
 
 ### Envelope / get(parent) lifecycle (governance)

@@ -308,3 +308,11 @@ Objetivo:
 | 2026-08-22 | Phase 1: `get(parent)` for `sameOrgAsClient` = **TEMPORARY** through Phases 2–4 | **Removed at T-009-14e** |
 | 2026-08-22 | **T-009-14e** finalizes denormalized envelope rules **before** T-009-15 CODE_COMPLETE; T-009-16 = prod backfill only; T-009-18 = deploy | **Governance frozen** |
 | | Live prod missing-envelope doc counts | **PENDING dry-run** |
+| 2026-10-12 | **A31 rule-contract decision = OPTION B:** post-CODE_COMPLETE security changes are classified explicitly, the full security gates are rerun and a new freeze reference is recorded (reacceptance, not waiver) | **Accepted (human)** |
+| 2026-10-12 | `4bda325` `createdAt` write-once in `preservesEnvelope()` — **HARDENING_COMPATIBLE**: more restrictive only; no tenant/org/role change. Post-hoc classification (not classified when it landed 2026-09-29) | **Accepted (re-freeze)** |
+| 2026-10-12 | `15590e2` Strategic Brief families (`strategicBriefs`, `strategicBriefHistory`, `strategicBriefOverrides`) — **SAFE_NEW_DOMAIN_SECURITY_EXTENSION**: envelope = denormalized `organizationId` + `clientId` (same as other subcollections); ADMIN-only; CLIENT DENY; append-only history/overrides; no delete; version never decreases. Post-hoc classification | **Accepted (re-freeze)** |
+| 2026-10-12 | `6aebe21` `aiComplete` ADMIN body `clientId` bound to token org via server ownership lookup before Admin SDK `aiRuns` persistence — **SPEC009_BLOCKER_FIX** | **Accepted (re-freeze)** |
+| 2026-10-12 | `cd20acd` ownership lookup mandatory + fail-closed at `handleAiCompleteRequest`; dev route same verifier — **SPEC009_BLOCKER_FIX** | **Accepted (re-freeze)** |
+| 2026-10-12 | `6e4c739` `setPosturaClaims` bound to caller token org; other-org target DENY; CLIENT ownership server-verified; fail-closed — **SPEC009_BLOCKER_FIX** (enforces existing "ADMIN siempre org-scoped" decision) | **Accepted (re-freeze)** |
+| 2026-10-12 | Privileged backend contract: Admin SDK / Admin Auth paths must enforce tenant/role authority explicitly; Rules never protect them | **Frozen (re-freeze)** |
+| 2026-10-12 | Security re-freeze: implementation `6e4c739`; frozen repository reference = re-freeze governance commit; old `9c351ef` superseded | **Frozen** |
