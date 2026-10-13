@@ -7,7 +7,7 @@
 **Phase 4:** **FORMALLY_ACCEPTED** (T-010-401…405 · A39 reconciled · `t-010-phase4-formal-closure.md`)
 **Phase 5:** **FORMALLY_ACCEPTED_WITH_NONBLOCKING_DEBT** (T-010-501…510 · `t-010-phase5-formal-closure.md`)
 **Phase 6:** **PRE_REMOVAL_GATES_COMPLETE** (T-010-601…602 · `t-010-phase6-pre-removal-gates.md`) · T-603 **FORMALLY_CLOSED** (`t-010-603-global-closure.md`) · T-604 **NOT AUTHORIZED**
-**A1-A44:** **42 PASS** · **0 PARTIAL** · **0 FAIL** · **2 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 PASS under A41-C · A25 PASS under A25-P1 · A31/A44 PENDING)
+**A1-A44:** **43 PASS** · **0 PARTIAL** · **0 FAIL** · **1 PENDING** (T-601 reconciled · A43 PASS · W2 promoted 30 · A10 PASS under A10-B · A41 PASS under A41-C · A25 PASS under A25-P1 · A31 PASS under SPEC-009 re-freeze (Option B) · A44 PENDING)
 **CODE_COMPLETE:** **NO**
 **DEPLOYED:** **NO** · **DONE:** **NO** · **DEPLOYMENT:** **NOT_STARTED**
 
@@ -70,7 +70,7 @@ open for later waves or Phase-5 adversarial proof · ⏳ **PENDING** no evidence
 | A28 | SPEC-007 preserved — no recreation of OpportunityScore / lifecycle / Materialize | 2–6 | ✅ PASS | W1/W2: Opportunity via canonical consumer only; 0 score/lifecycle/materialize recreation — ARCH |
 | A29 | SPEC-008 preserved — no auto-approve, no auto-apply, no `feedbackScoringHints`, no auto-rescore | 2–6 | ✅ PASS | W1/W2: 0 auto-approve / auto-apply / feedbackScoringHints / auto-rescore — T-010-504 PASS |
 | A30 | SPEC010→SPEC008 mutation authority = **0** | 2–6 | ✅ PASS | W1/W2: SPEC010→SPEC008 mutation authority 0 via registerSignalOutcomeIntent trusted context — T-010-504 |
-| A31 | SPEC-009 security boundary preserved — auth, tenant isolation, rules contracts unchanged | 1–6 | ⏳ PENDING | rules 91/91 unchanged, but no security review performed in Phase 1 |
+| A31 | SPEC-009 security boundary preserved — auth, tenant isolation, rules contracts unchanged | 1–6 | ✅ PASS | `SPEC009_SECURITY_BOUNDARY_PRESERVED_AND_REFROZEN`: `t-010-604-a31-security-preservation-evidence.md` @ SPEC-009 re-freeze `2f2a8ce7` (implementation `6e4c739a`; old freeze `9c351ef` superseded) — Human Option B: post-freeze rule changes `4bda325`/`15590e2` **acknowledged**, classified, revalidated and reaccepted (not byte-unchanged); blocker fixes `6aebe213`/`cd20acde`/`6e4c739a` · rules **106/106** · security **880/880** · known A31 defects **0**; production claims audit/deploy remain CUTOVER-E, not authorized by this row |
 | A32 | React → canonical store (`Local*Store`) direct write: **0** | 2–6 | ✅ PASS | W1/W2: 0 Local*Store imports in React UI — ARCH + T-010-503 |
 | A33 | React → Firestore direct write: **0** | 2–6 | ✅ PASS | W1/W2: 0 Firebase/Firestore imports in React UI — ARCH + T-010-503 |
 | A34 | No business logic in hooks — no duplicated scoring/routing/lifecycle/approval logic | 2–6 | ✅ PASS | W1/W2: 0 scoring/routing/lifecycle/approval duplication in hooks/controllers — T-010-505 PASS |
